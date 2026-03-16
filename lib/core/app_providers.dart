@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutterclaw/services/ios_background_audio_service.dart';
 import 'package:flutterclaw/services/ios_gateway_service.dart';
 import 'package:flutterclaw/services/live_activity_service.dart';
 import 'package:flutterclaw/channels/channel_interface.dart';
@@ -702,6 +703,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   bool get isProcessing => _processing;
   bool _hatchTriggered = false;
   String? _historyLoadedForAgent; // agentId whose history is currently loaded
+  bool _isAppInBackground = false;
 
   /// Returns the session key currently being viewed in the chat screen.
   String _getSessionKey() => ref.read(activeSessionKeyProvider);
@@ -746,6 +748,13 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           text.isEmpty) {
         return;
       }
+      // Notify the user if the app is backgrounded and an assistant message arrives.
+      if (_isAppInBackground &&
+          message.role == 'assistant' &&
+          text.trim().isNotEmpty) {
+        _sendBackgroundNotification(text);
+      }
+
       state = [
         ...state,
         ChatMessage(
@@ -758,6 +767,42 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     ref.onDispose(messageSub.cancel);
 
     return [];
+  }
+
+  // ---------------------------------------------------------------------------
+  // App lifecycle (called from ChatScreen's WidgetsBindingObserver)
+  // ---------------------------------------------------------------------------
+
+  void onAppBackgrounded() {
+    _isAppInBackground = true;
+  }
+
+  Future<void> onAppResumed() async {
+    _isAppInBackground = false;
+    if (!_processing) {
+      // Force history reload to pick up messages that completed while backgrounded.
+      _historyLoadedForAgent = null;
+      await loadHistory();
+    }
+  }
+
+  void _sendBackgroundNotification(String responseText) {
+    try {
+      final notifService = ref.read(notificationServiceProvider);
+      final configManager = ref.read(configManagerProvider);
+      final agentName = configManager.config.activeAgent?.name ?? 'Agent';
+      final preview = responseText.length > 200
+          ? '${responseText.substring(0, 200)}...'
+          : responseText;
+      notifService.showMessageNotification(
+        'webchat',
+        agentName,
+        preview,
+        payload: _getSessionKey(),
+      );
+    } catch (_) {
+      // Non-fatal — notification failure must not break agent processing.
+    }
   }
 
   Future<void> loadHistory() async {
@@ -848,6 +893,11 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
     final agentLoop = ref.read(agentLoopProvider);
 
+    bool startedAudio = false;
+    if (Platform.isIOS && !IosBackgroundAudioService.isPlaying) {
+      startedAudio = await IosBackgroundAudioService.start();
+    }
+
     try {
       final buffer = StringBuffer();
       await for (final event in agentLoop.processMessageStream(
@@ -888,6 +938,10 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             isStreaming: false,
           );
           state = updated;
+
+          if (_isAppInBackground && finalText.trim().isNotEmpty) {
+            _sendBackgroundNotification(finalText);
+          }
         }
       }
     } catch (e) {
@@ -901,6 +955,13 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       state = updated;
     } finally {
       _processing = false;
+      if (startedAudio && !IosGatewayService.isRunning) {
+        Future.delayed(const Duration(seconds: 30), () {
+          if (!_processing && !IosGatewayService.isRunning) {
+            IosBackgroundAudioService.stop();
+          }
+        });
+      }
       unawaited(_syncActiveAgentIdentity());
     }
   }
@@ -939,6 +1000,11 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
     final agentLoop = ref.read(agentLoopProvider);
 
+    bool startedAudio = false;
+    if (Platform.isIOS && !IosBackgroundAudioService.isPlaying) {
+      startedAudio = await IosBackgroundAudioService.start();
+    }
+
     try {
       // Build a multimodal message using the neutral format.
       // AnthropicProvider converts {type:"image", data, mimeType} →
@@ -974,6 +1040,10 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             isStreaming: false,
           );
           state = updated;
+
+          if (_isAppInBackground && finalText.trim().isNotEmpty) {
+            _sendBackgroundNotification(finalText);
+          }
         }
       }
     } catch (e) {
@@ -985,6 +1055,13 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       state = updated;
     } finally {
       _processing = false;
+      if (startedAudio && !IosGatewayService.isRunning) {
+        Future.delayed(const Duration(seconds: 30), () {
+          if (!_processing && !IosGatewayService.isRunning) {
+            IosBackgroundAudioService.stop();
+          }
+        });
+      }
       unawaited(_syncActiveAgentIdentity());
     }
   }
@@ -1025,6 +1102,11 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
     final agentLoop = ref.read(agentLoopProvider);
 
+    bool startedAudio = false;
+    if (Platform.isIOS && !IosBackgroundAudioService.isPlaying) {
+      startedAudio = await IosBackgroundAudioService.start();
+    }
+
     try {
       // Build neutral document block.
       // AnthropicProvider converts to {type:"document", source:{type:"base64", ...}}
@@ -1058,6 +1140,10 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             isStreaming: false,
           );
           state = updated;
+
+          if (_isAppInBackground && finalText.trim().isNotEmpty) {
+            _sendBackgroundNotification(finalText);
+          }
         }
       }
     } catch (e) {
@@ -1069,6 +1155,13 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       state = updated;
     } finally {
       _processing = false;
+      if (startedAudio && !IosGatewayService.isRunning) {
+        Future.delayed(const Duration(seconds: 30), () {
+          if (!_processing && !IosGatewayService.isRunning) {
+            IosBackgroundAudioService.stop();
+          }
+        });
+      }
       unawaited(_syncActiveAgentIdentity());
     }
   }
@@ -1118,6 +1211,13 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     ];
 
     final agentLoop = ref.read(agentLoopProvider);
+
+    // On iOS, start background audio keepalive so the event loop stays alive
+    // if the user backgrounds the app mid-response (no-op if already playing).
+    bool startedAudio = false;
+    if (Platform.isIOS && !IosBackgroundAudioService.isPlaying) {
+      startedAudio = await IosBackgroundAudioService.start();
+    }
 
     try {
       final buffer = StringBuffer();
@@ -1170,6 +1270,10 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             isStreaming: false,
           );
           state = updated;
+
+          if (_isAppInBackground && finalText.trim().isNotEmpty) {
+            _sendBackgroundNotification(finalText);
+          }
         }
       }
     } catch (e) {
@@ -1181,6 +1285,16 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       state = updated;
     } finally {
       _processing = false;
+      // Stop background audio if we started it just for this request and the
+      // gateway isn't running (which manages its own audio lifecycle). Grace
+      // period avoids start/stop churn for consecutive messages.
+      if (startedAudio && !IosGatewayService.isRunning) {
+        Future.delayed(const Duration(seconds: 30), () {
+          if (!_processing && !IosGatewayService.isRunning) {
+            IosBackgroundAudioService.stop();
+          }
+        });
+      }
       unawaited(_syncActiveAgentIdentity());
     }
   }
