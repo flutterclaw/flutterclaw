@@ -35,6 +35,7 @@ import UserNotifications
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     setupUiAutomationChannel(engineBridge)
+    setupSandboxChannel(engineBridge)
   }
 
   // MARK: - UI Automation (iOS: screenshot only; gestures not supported)
@@ -96,6 +97,53 @@ import UserNotifications
         "mimeType": "image/png",
         "note": "iOS screenshot shows FlutterClaw app surface only. Cross-app screenshots require Android.",
       ])
+    }
+  }
+
+  // MARK: - Sandbox Shell (iOS: not available; placeholder for future iSH fork)
+  //
+  // This stub implements the same MethodChannel contract as Android
+  // ("ai.flutterclaw/sandbox") so the Dart side works identically on both
+  // platforms. On iOS all methods return "not available" responses.
+  //
+  // Future: replace this stub with an iSH-based embedded engine (option 3)
+  // without changing the channel contract or the Dart service layer.
+
+  private func setupSandboxChannel(_ engineBridge: FlutterImplicitEngineBridge) {
+    guard let messenger = engineBridge.pluginRegistry
+      .registrar(forPlugin: "Sandbox")?.messenger() else { return }
+
+    let channel = FlutterMethodChannel(
+      name: "ai.flutterclaw/sandbox",
+      binaryMessenger: messenger
+    )
+
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "sandbox_status":
+        result([
+          "ready": false,
+          "platform": "ios",
+          "proot_available": false,
+          "rootfs_available": false,
+          "note": "Linux sandbox requires Android. iOS support planned via iSH.",
+        ])
+
+      case "sandbox_setup":
+        result([
+          "error": true,
+          "message": "Sandbox is not available on iOS. A local Linux shell requires Android with PRoot.",
+        ])
+
+      case "sandbox_exec":
+        result([
+          "error": true,
+          "message": "Sandbox is not available on iOS. Consider using the iSH app for a local Linux shell on iOS.",
+        ])
+
+      default:
+        result(FlutterMethodNotImplemented)
+      }
     }
   }
 
