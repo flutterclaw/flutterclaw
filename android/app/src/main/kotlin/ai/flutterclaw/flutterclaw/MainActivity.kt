@@ -24,7 +24,10 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "ai.flutterclaw/ui_automation"
+        private const val SANDBOX_CHANNEL = "ai.flutterclaw/sandbox"
     }
+
+    private var sandboxHandler: SandboxHandler? = null
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +54,18 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // Sandbox shell (PRoot + Alpine rootfs)
+        sandboxHandler = SandboxHandler(applicationContext)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SANDBOX_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                sandboxHandler?.handleMethodCall(call, result) ?: result.notImplemented()
+            }
+    }
+
+    override fun onDestroy() {
+        sandboxHandler?.cleanup()
+        super.onDestroy()
     }
 
     // ─── Permission ───────────────────────────────────────────────────────────

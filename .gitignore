@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# PRoot build artifacts (rebuild with ./scripts/build-proot.sh)
+.proot-build/
+
 # Secrets and local config (do not commit)
 .env
 .env.*

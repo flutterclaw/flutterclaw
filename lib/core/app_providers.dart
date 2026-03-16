@@ -50,7 +50,9 @@ import 'package:flutterclaw/tools/web_tools.dart';
 import 'package:flutterclaw/tools/headless_browser_tool.dart';
 import 'package:flutterclaw/services/deep_link_service.dart';
 import 'package:flutterclaw/services/notification_service.dart';
+import 'package:flutterclaw/services/sandbox_service.dart';
 import 'package:flutterclaw/services/ui_automation_service.dart';
+import 'package:flutterclaw/tools/sandbox_tools.dart';
 
 final configManagerProvider = Provider<ConfigManager>((ref) {
   return ConfigManager();
@@ -146,6 +148,10 @@ final subagentRegistryProvider = Provider<SubagentRegistry>((ref) {
 
 final uiAutomationServiceProvider = Provider<UiAutomationService>((ref) {
   return UiAutomationService();
+});
+
+final sandboxServiceProvider = Provider<SandboxService>((ref) {
+  return SandboxService();
 });
 
 /// Late-binder so MessageTool can send to channels without a circular provider dep.
@@ -360,6 +366,10 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
   registry.register(UiClickElementTool(uiSvc));
   registry.register(UiScreenshotTool(uiSvc));
   registry.register(UiGlobalActionTool(uiSvc));
+
+  // Sandbox shell tool (Android: PRoot + Alpine rootfs; iOS: unavailable stub)
+  final sandboxSvc = ref.read(sandboxServiceProvider);
+  registry.register(RunShellCommandTool(sandboxSvc));
 
   return registry;
 });
