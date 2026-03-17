@@ -13,6 +13,7 @@ import 'messages/message_retry.dart';
 import 'messages/message_send.dart' as msg_send;
 import 'signal/sender_key.dart';
 import 'signal/signal_auth.dart' as signal_auth;
+import 'signal/signal_store.dart' show FileBasedSignalStore, PreKeyRecord;
 import 'socket/wa_socket.dart' as low;
 import 'socket/wa_socket_config.dart';
 import 'types.dart';
@@ -188,10 +189,13 @@ class _ClientImpl {
             ..routingInfo = null
             ..additionalData = null;
 
-          authState.keys.init(
-            identityKey: authState.creds.signedIdentityKey,
-            registrationId: authState.creds.registrationId,
-          );
+          final keys = authState.keys;
+          if (keys is FileBasedSignalStore) {
+            keys.init(
+              identityKey: authState.creds.signedIdentityKey,
+              registrationId: authState.creds.registrationId,
+            );
+          }
           await authState.saveCreds();
           return authState.creds.noiseKey;
         }
@@ -311,11 +315,16 @@ class _ClientImpl {
   Future<void> _uploadPreKeysIfRequired() async {
     final identPub =
         await authState.creds.signedIdentityKey.extractPublicKey();
+    final signedPreKey = PreKeyRecord(
+      id: authState.creds.signedPreKey.id,
+      keyPair: authState.creds.signedPreKey.keyPair,
+    );
+
     final newNext = await signal_auth.maybeRefillPreKeys(
       socket: socket,
       store: authState.keys,
       identityPublicKey: Uint8List.fromList(identPub.bytes),
-      signedPreKey: authState.creds.signedPreKey,
+      signedPreKey: signedPreKey,
       signedPreKeySignature: authState.creds.signedPreKey.signature,
       nextPreKeyId: authState.creds.nextPreKeyId,
       registrationId: authState.creds.registrationId,
