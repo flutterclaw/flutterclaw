@@ -38,8 +38,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          install: true
 
       - name: Set up QEMU (for riscv64 cross-build)
         uses: docker/setup-qemu-action@v3
@@ -61,12 +59,29 @@ jobs:
 
       - name: Build Alpine container image
         run: |
+          # Dockerfile is inlined here so the workflow is self-contained.
+          # Keep in sync with scripts/ios-sandbox/Dockerfile on the feature branch.
+          cat > /tmp/Dockerfile.ios-sandbox << 'DOCKERFILE'
+          FROM riscv64/alpine:3.21
+          RUN apk add --no-cache \
+              python3 \
+              py3-pip \
+              git \
+              curl \
+              wget \
+              jq \
+              bash \
+              file
+          RUN mkdir -p /root
+          WORKDIR /root
+          DOCKERFILE
+
           docker buildx build \
             --platform linux/riscv64 \
             --tag flutterclaw-ios-sandbox:build \
             --load \
-            -f scripts/ios-sandbox/Dockerfile \
-            scripts/ios-sandbox/
+            -f /tmp/Dockerfile.ios-sandbox \
+            /tmp/
 
       - name: Convert to Wasm (container2wasm)
         run: |
