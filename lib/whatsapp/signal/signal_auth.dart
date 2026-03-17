@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../binary/generic_utils.dart';
 import '../binary/types.dart';
 import '../socket/wa_socket.dart';
 import 'signal_keys.dart';
@@ -10,6 +11,88 @@ const _preKeyBatchSize = 30;
 
 /// Minimum pre-keys remaining on server before we upload more.
 const _preKeyLowWatermark = 5;
+
+// ---------------------------------------------------------------------------
+// Pre-key bundle fetch (for new sessions)
+// ---------------------------------------------------------------------------
+
+Future<PreKeyBundle> fetchPreKeyBundle({
+  required WASocket socket,
+  required String jid,
+  bool forceIdentity = false,
+}) async {
+  final iq = BinaryNode(
+    tag: 'iq',
+    attrs: {
+      'id': 'get-prekey-${DateTime.now().millisecondsSinceEpoch}',
+      'xmlns': 'encrypt',
+      'type': 'get',
+      'to': '@s.whatsapp.net',
+    },
+    content: [
+      BinaryNode(
+        tag: 'key',
+        attrs: {},
+        content: [
+          BinaryNode(
+            tag: 'user',
+            attrs: {
+              'jid': jid,
+              if (forceIdentity) 'reason': 'identity',
+            },
+          ),
+        ],
+      ),
+    ],
+  );
+
+  final response = await socket.query(iq);
+  final listNode = getBinaryNodeChild(response, 'list');
+  final users = getBinaryNodeChildren(listNode, 'user');
+  if (users.isEmpty) {
+    throw StateError('No pre-key bundle returned for $jid');
+  }
+
+  final userNode =
+      users.firstWhere((u) => u.attrs['jid'] == jid, orElse: () => users.first);
+  assertNodeErrorFree(userNode);
+
+  final identity = getBinaryNodeChildBuffer(userNode, 'identity');
+  final registration = getBinaryNodeChildUInt(userNode, 'registration', 4);
+  if (identity == null || registration == null) {
+    throw StateError('Missing identity/registration for $jid');
+  }
+
+  final skey = getBinaryNodeChild(userNode, 'skey');
+  final key = getBinaryNodeChild(userNode, 'key');
+  if (skey == null) {
+    throw StateError('Missing signed pre-key data for $jid');
+  }
+
+  final signedPreKeyId = getBinaryNodeChildUInt(skey, 'id', 3);
+  final signedPreKeyValue = getBinaryNodeChildBuffer(skey, 'value');
+  final signedPreKeySig = getBinaryNodeChildBuffer(skey, 'signature');
+  if (signedPreKeyId == null ||
+      signedPreKeyValue == null ||
+      signedPreKeySig == null) {
+    throw StateError('Incomplete signed pre-key for $jid');
+  }
+
+  final preKeyId = key != null ? (getBinaryNodeChildUInt(key, 'id', 3) ?? 0) : 0;
+  final preKeyValue =
+      key != null ? (getBinaryNodeChildBuffer(key, 'value') ?? Uint8List(0)) : Uint8List(0);
+
+  return PreKeyBundle(
+    registrationId: registration,
+    deviceId: 0,
+    preKeyId: preKeyId,
+    preKeyPublic: _stripSignalPubKey(preKeyValue),
+    signedPreKeyId: signedPreKeyId,
+    signedPreKeyPublic: _stripSignalPubKey(signedPreKeyValue),
+    signedPreKeySignature: signedPreKeySig,
+    identityKey: _stripSignalPubKey(identity),
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Pre-key upload
@@ -184,4 +267,11 @@ BinaryNode? _findChild(BinaryNode node, String tag) {
     }
   }
   return null;
+}
+
+Uint8List _stripSignalPubKey(Uint8List key) {
+  if (key.length == 33 && key[0] == 0x05) {
+    return key.sublist(1);
+  }
+  return key;
 }

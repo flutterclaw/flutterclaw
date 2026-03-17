@@ -85,16 +85,20 @@ class PreKeyBundle {
 
 /// Sender Key state for group messaging.
 class SenderKeyRecord {
+  /// Random sender key ID.
+  final int senderKeyId;
+
   /// Current chain key (HMAC-ratcheted each message).
   Uint8List chainKey;
 
-  /// Ed25519 signing key pair for sender key distribution messages.
+  /// Curve25519 signing key pair for sender key distribution messages.
   final SimpleKeyPair signingKey;
 
   /// Current chain key iteration counter.
   int iteration;
 
   SenderKeyRecord({
+    required this.senderKeyId,
     required this.chainKey,
     required this.signingKey,
     required this.iteration,
@@ -103,7 +107,9 @@ class SenderKeyRecord {
   static Future<SenderKeyRecord> generate() async {
     final chainKey = generateRandomBytes(32);
     final signingKey = await generateX25519KeyPair();
+    final senderKeyId = _randomSenderKeyId();
     return SenderKeyRecord(
+      senderKeyId: senderKeyId,
       chainKey: chainKey,
       signingKey: signingKey,
       iteration: 0,
@@ -113,6 +119,7 @@ class SenderKeyRecord {
   Future<Map<String, dynamic>> toJson() async {
     final skJson = await keyPairToJson(signingKey);
     return {
+      'senderKeyId': senderKeyId,
       'chainKey': base64Encode(chainKey),
       'signingKey': skJson,
       'iteration': iteration,
@@ -122,9 +129,18 @@ class SenderKeyRecord {
   static Future<SenderKeyRecord> fromJson(Map<String, dynamic> j) async {
     final skPair = await keyPairFromJson(j['signingKey'] as Map<String, dynamic>);
     return SenderKeyRecord(
+      senderKeyId: (j['senderKeyId'] as int?) ?? _randomSenderKeyId(),
       chainKey: base64Decode(j['chainKey'] as String),
       signingKey: skPair,
       iteration: j['iteration'] as int,
     );
   }
+}
+
+int _randomSenderKeyId() {
+  final bytes = generateRandomBytes(4);
+  return (bytes[0] << 24) |
+      (bytes[1] << 16) |
+      (bytes[2] << 8) |
+      bytes[3];
 }

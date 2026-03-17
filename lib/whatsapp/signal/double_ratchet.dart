@@ -164,7 +164,7 @@ Future<RatchetState> initReceiver({
 /// Encrypt [plaintext] and advance the sending chain.
 ///
 /// Returns [header] (to be sent with the message) and [ciphertext].
-Future<(RatchetHeader, Uint8List)> ratchetEncrypt(
+Future<(RatchetHeader, Uint8List, MessageKeys)> ratchetEncrypt(
     RatchetState state, Uint8List plaintext) async {
   final ck = state.sendingChainKey;
   if (ck == null) throw StateError('Sending chain not initialised');
@@ -181,7 +181,7 @@ Future<(RatchetHeader, Uint8List)> ratchetEncrypt(
   state.sendingChainMsgCount++;
 
   final ciphertext = await _aesEncrypt(plaintext, msgKeys);
-  return (header, ciphertext);
+  return (header, ciphertext, msgKeys);
 }
 
 // ---------------------------------------------------------------------------
@@ -189,13 +189,14 @@ Future<(RatchetHeader, Uint8List)> ratchetEncrypt(
 // ---------------------------------------------------------------------------
 
 /// Decrypt [ciphertext] using [header] and advance the receiving chain.
-Future<Uint8List> ratchetDecrypt(
+Future<(Uint8List, MessageKeys)> ratchetDecrypt(
     RatchetState state, RatchetHeader header, Uint8List ciphertext) async {
   // Check skipped keys first.
   final skipKey = _skippedKeyId(header);
   final cached = state.skippedKeys.remove(skipKey);
   if (cached != null) {
-    return _aesDecrypt(ciphertext, cached);
+    final plaintext = await _aesDecrypt(ciphertext, cached);
+    return (plaintext, cached);
   }
 
   // DH ratchet step if sender used a new key.
@@ -216,7 +217,8 @@ Future<Uint8List> ratchetDecrypt(
   state.receivingChainKey = await _advanceChainKey(ck);
   state.receivingChainMsgCount++;
 
-  return _aesDecrypt(ciphertext, msgKeys);
+  final plaintext = await _aesDecrypt(ciphertext, msgKeys);
+  return (plaintext, msgKeys);
 }
 
 // ---------------------------------------------------------------------------
@@ -313,11 +315,11 @@ Future<Uint8List> _advanceChainKey(Uint8List ck) async {
 // ---------------------------------------------------------------------------
 
 Future<Uint8List> _aesEncrypt(Uint8List plaintext, MessageKeys keys) async {
-  return aesEncryptGCM(plaintext, keys.cipherKey, keys.iv, Uint8List(0));
+  return aesEncryptCBC(plaintext, keys.cipherKey, keys.iv);
 }
 
 Future<Uint8List> _aesDecrypt(Uint8List ciphertext, MessageKeys keys) async {
-  return aesDecryptGCM(ciphertext, keys.cipherKey, keys.iv, Uint8List(0));
+  return aesDecryptCBC(ciphertext, keys.cipherKey, keys.iv);
 }
 
 // ---------------------------------------------------------------------------

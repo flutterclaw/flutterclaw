@@ -218,9 +218,14 @@ class _ClientImpl {
       senderKeyManager: senderKeyMgr,
       ev: ev,
       myJid: authState.creds.me?.id ?? '',
+      socket: socket,
     );
 
-    _retry = MessageRetryHandler(socket: socket, ev: ev);
+    _retry = MessageRetryHandler(
+      socket: socket,
+      ev: ev,
+      store: authState.keys,
+    );
 
     socket.on('message', _msgRecv.handleNode);
     socket.on('receipt', (node) async => ev.emit('messages.update', node));

@@ -2,7 +2,8 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:libsignal_protocol_dart/libsignal_protocol_dart.dart' as libsignal;
+import 'package:flutter_curve25519/flutter_curve25519.dart';
+import 'package:pointycastle/export.dart';
 
 /// Crypto primitives for the Noise Protocol and general WhatsApp crypto.
 /// Uses `cryptography` package (Apache 2.0).
@@ -104,8 +105,7 @@ Future<Uint8List> ed25519Sign(Uint8List privateKey, Uint8List message) async {
 /// Curve25519 (Signal) sign.
 Future<Uint8List> curve25519Sign(
     Uint8List privateKey, Uint8List message) async {
-  final key = libsignal.DjbECPrivateKey(privateKey);
-  return libsignal.Curve.calculateSignature(key, message);
+  return Curve25519.sign(privateKey, message, Uint8List(0));
 }
 
 /// Generate cryptographically random bytes.
@@ -126,6 +126,31 @@ Future<bool> ed25519Verify(
 /// Curve25519 (Signal) verify.
 Future<bool> curve25519Verify(
     Uint8List publicKey, Uint8List message, Uint8List signature) async {
-  final key = libsignal.DjbECPublicKey(publicKey);
-  return libsignal.Curve.verifySignature(key, message, signature);
+  return Curve25519.verify(publicKey, message, signature) == 1;
+}
+
+/// AES-256-CBC encrypt with PKCS7 padding.
+Uint8List aesEncryptCBC(Uint8List plaintext, Uint8List key, Uint8List iv) {
+  final cipher = PaddedBlockCipher('AES/CBC/PKCS7');
+  cipher.init(
+    true,
+    PaddedBlockCipherParameters(
+      ParametersWithIV(KeyParameter(key), iv),
+      null,
+    ),
+  );
+  return cipher.process(plaintext);
+}
+
+/// AES-256-CBC decrypt with PKCS7 padding.
+Uint8List aesDecryptCBC(Uint8List ciphertext, Uint8List key, Uint8List iv) {
+  final cipher = PaddedBlockCipher('AES/CBC/PKCS7');
+  cipher.init(
+    false,
+    PaddedBlockCipherParameters(
+      ParametersWithIV(KeyParameter(key), iv),
+      null,
+    ),
+  );
+  return cipher.process(ciphertext);
 }

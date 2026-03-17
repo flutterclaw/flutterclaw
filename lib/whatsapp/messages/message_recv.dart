@@ -7,6 +7,7 @@ import '../proto/wa_proto.pb.dart';
 import '../signal/sender_key.dart';
 import '../signal/session_cipher.dart';
 import '../signal/signal_store.dart';
+import '../socket/wa_socket.dart';
 import '../types.dart';
 import '../utils/event_emitter.dart';
 
@@ -21,12 +22,14 @@ class MessageReceiver {
   final SenderKeyManager senderKeyManager;
   final WAEventEmitter ev;
   final String myJid;
+  final WASocket socket;
 
   MessageReceiver({
     required this.store,
     required this.senderKeyManager,
     required this.ev,
     required this.myJid,
+    required this.socket,
   });
 
   Future<void> handleNode(BinaryNode node) async {
@@ -60,6 +63,9 @@ class MessageReceiver {
       ev.emit('messages.decrypt-error', {
         'id': msgId,
         'from': from,
+        'participant': participant,
+        'recipient': node.attrs['recipient'],
+        'senderId': senderId,
         'error': e.toString(),
       });
       return;
@@ -70,6 +76,26 @@ class MessageReceiver {
     try {
       proto = Message.fromBuffer(plaintext);
     } catch (_) {
+      return;
+    }
+
+    if (proto.hasSenderKeyDistributionMessage()) {
+      final dist = proto.senderKeyDistributionMessage;
+      final groupId = dist.groupId;
+      final bytes = Uint8List.fromList(dist.axolotlSenderKeyDistributionMessage);
+      if (groupId.isNotEmpty && bytes.isNotEmpty) {
+        await senderKeyManager.processDistributionMessage(
+          groupId: groupId,
+          senderId: senderId,
+          message: bytes,
+        );
+      }
+      await _sendDeliveryReceipt(
+        msgId: msgId,
+        to: from,
+        participant: participant,
+        recipient: node.attrs['recipient'],
+      );
       return;
     }
 
@@ -89,8 +115,12 @@ class MessageReceiver {
 
     ev.emit('messages.upsert', {'messages': [msg], 'type': 'notify'});
 
-    // Send delivery receipt.
-    // (Done by wa_socket.dart receipt handler — not here.)
+    await _sendDeliveryReceipt(
+      msgId: msgId,
+      to: from,
+      participant: participant,
+      recipient: node.attrs['recipient'],
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -192,4 +222,26 @@ class MessageReceiver {
   /// Build a Signal Protocol address for [jid].
   /// Format: "number@s.whatsapp.net:deviceId" or just the JID for device 0.
   static String _deviceAddress(String jid) => jid;
+
+  Future<void> _sendDeliveryReceipt({
+    required String msgId,
+    required String to,
+    String? participant,
+    String? recipient,
+  }) async {
+    if (msgId.isEmpty || to.isEmpty) return;
+    final attrs = <String, String>{
+      'id': msgId,
+      'to': to,
+    };
+    if (participant != null && participant.isNotEmpty) {
+      attrs['participant'] = participant;
+    }
+    if (recipient != null && recipient.isNotEmpty) {
+      attrs['recipient'] = recipient;
+    }
+
+    final receipt = BinaryNode(tag: 'receipt', attrs: attrs);
+    await socket.sendNode(receipt);
+  }
 }

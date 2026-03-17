@@ -7,6 +7,8 @@ import 'package:fixnum/fixnum.dart';
 
 import '../proto/wa_proto.pb.dart';
 import '../signal/session_cipher.dart';
+import '../signal/signal_auth.dart' as signal_auth;
+import '../signal/sender_key.dart';
 import '../signal/signal_store.dart';
 import '../socket/wa_socket.dart';
 import '../types.dart';
@@ -63,7 +65,22 @@ Future<void> _relayDirect({
   required Uint8List plaintext,
 }) async {
   final cipher = SessionCipher(store: store, recipientAddress: jid);
-  final cipherMsg = await cipher.encrypt(plaintext);
+  CiphertextMessage cipherMsg;
+  final existing = await store.loadSession(jid);
+  if (existing == null) {
+    final bundle =
+        await signal_auth.fetchPreKeyBundle(socket: socket, jid: jid);
+    cipherMsg = await cipher.initSession(bundle: bundle, plaintext: plaintext);
+  } else {
+    try {
+      cipherMsg = await cipher.encrypt(plaintext);
+    } on StateError {
+      await store.deleteSession(jid);
+      final bundle =
+          await signal_auth.fetchPreKeyBundle(socket: socket, jid: jid);
+      cipherMsg = await cipher.initSession(bundle: bundle, plaintext: plaintext);
+    }
+  }
 
   final encNode = BinaryNode(
     tag: 'enc',
@@ -98,10 +115,27 @@ Future<void> _relayGroup({
   required String msgId,
   required Uint8List plaintext,
 }) async {
-  // Group messages use sender key encryption — participants must have
-  // received the SenderKeyDistributionMessage first.
-  // For now, encode as a plain message node tagged as group type.
-  // Full sender key dispatch is handled in signal_auth.dart.
+  final senderId = socket.creds?.me?.id;
+  if (senderId == null || senderId.isEmpty) {
+    throw StateError('Missing sender id for group message');
+  }
+
+  final senderKeyMgr = SenderKeyManager(store: store);
+  final ciphertext = await senderKeyMgr.encrypt(
+    groupId: jid,
+    senderId: senderId,
+    plaintext: plaintext,
+  );
+
+  final encNode = BinaryNode(
+    tag: 'enc',
+    attrs: {
+      'v': '2',
+      'type': 'skmsg',
+    },
+    content: ciphertext,
+  );
+
   final msgNode = BinaryNode(
     tag: 'message',
     attrs: {
@@ -109,7 +143,7 @@ Future<void> _relayGroup({
       'to': jid,
       'type': 'text',
     },
-    content: plaintext, // Will be encrypted via sender key in full impl.
+    content: [encNode],
   );
 
   await socket.sendNode(msgNode);

@@ -34,32 +34,65 @@ class PreKeyRecord {
   }
 }
 
-/// A sender key for group messaging (serialised chain key + signing key).
+class SenderMessageKeyData {
+  final int iteration;
+  final Uint8List seed;
+
+  const SenderMessageKeyData({required this.iteration, required this.seed});
+
+  Map<String, dynamic> toJson() => {
+        'iteration': iteration,
+        'seed': base64Encode(seed),
+      };
+
+  factory SenderMessageKeyData.fromJson(Map<String, dynamic> j) =>
+      SenderMessageKeyData(
+        iteration: j['iteration'] as int,
+        seed: base64Decode(j['seed'] as String),
+      );
+}
+
+/// A sender key for group messaging (Signal-compatible sender key state).
 class SenderKeyData {
+  final int senderKeyId;
+  final int iteration;
   final Uint8List chainKey;
   final Uint8List signingPublicKey;
-  final int iteration;
-  final int messageKeyIndex;
+  final Uint8List? signingPrivateKey;
+  final List<SenderMessageKeyData> messageKeys;
 
   const SenderKeyData({
+    required this.senderKeyId,
+    required this.iteration,
     required this.chainKey,
     required this.signingPublicKey,
-    required this.iteration,
-    required this.messageKeyIndex,
+    this.signingPrivateKey,
+    this.messageKeys = const [],
   });
 
   Map<String, dynamic> toJson() => {
+        'senderKeyId': senderKeyId,
+        'iteration': iteration,
         'chainKey': base64Encode(chainKey),
         'signingPublicKey': base64Encode(signingPublicKey),
-        'iteration': iteration,
-        'messageKeyIndex': messageKeyIndex,
+        'signingPrivateKey':
+            signingPrivateKey != null ? base64Encode(signingPrivateKey!) : null,
+        'messageKeys': messageKeys.map((m) => m.toJson()).toList(),
       };
 
   factory SenderKeyData.fromJson(Map<String, dynamic> j) => SenderKeyData(
+        senderKeyId: (j['senderKeyId'] as int?) ?? 0,
+        iteration: (j['iteration'] as int?) ?? 0,
         chainKey: base64Decode(j['chainKey'] as String),
         signingPublicKey: base64Decode(j['signingPublicKey'] as String),
-        iteration: j['iteration'] as int,
-        messageKeyIndex: j['messageKeyIndex'] as int,
+        signingPrivateKey: j['signingPrivateKey'] != null
+            ? base64Decode(j['signingPrivateKey'] as String)
+            : null,
+        messageKeys: (j['messageKeys'] as List?)
+                ?.map((e) => SenderMessageKeyData.fromJson(
+                    e as Map<String, dynamic>))
+                .toList() ??
+            const [],
       );
 }
 

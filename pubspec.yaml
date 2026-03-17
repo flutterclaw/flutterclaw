@@ -78,7 +78,7 @@ dependencies:
   cryptography: ^2.9.0
   pointycastle: ^3.9.1
   qr_flutter: ^4.1.0
-  libsignal_protocol_dart: ^0.7.1
+  flutter_curve25519: ^0.1.2
 
 dev_dependencies:
   flutter_test:

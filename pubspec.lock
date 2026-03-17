@@ -9,14 +9,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "93.0.0"
-  adaptive_number:
-    dependency: transitive
-    description:
-      name: adaptive_number
-      sha256: "3a567544e9b5c9c803006f51140ad544aedc79604fd4f3f2c1380003f97c1d77"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   analyzer:
     dependency: transitive
     description:
@@ -257,14 +249,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.2"
-  ed25519_edwards:
-    dependency: transitive
-    description:
-      name: ed25519_edwards
-      sha256: "6ce0112d131327ec6d42beede1e5dfd526069b18ad45dcf654f15074ad9276cd"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.3.1"
   fake_async:
     dependency: transitive
     description:
@@ -366,6 +350,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  flutter_curve25519:
+    dependency: "direct main"
+    description:
+      name: flutter_curve25519
+      sha256: d2d196e51de878f5f0289d2d7c5e93dc0c62ccda7ca98c7e47b5a58a6851b861
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.2"
   flutter_foreground_task:
     dependency: "direct main"
     description:
@@ -869,14 +861,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
-  libsignal_protocol_dart:
-    dependency: "direct main"
-    description:
-      name: libsignal_protocol_dart
-      sha256: "2a8d54cddb89eab0301d333c4346d7edc920da0a0c0daa5e324878de2841dce6"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.1"
   lints:
     dependency: transitive
     description:
@@ -965,14 +949,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.3.0"
-  optional:
-    dependency: transitive
-    description:
-      name: optional
-      sha256: f80327d7a3335a0be68418072668043c7ab291df575c21aa42e0c5633641da39
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.1.0+1"
   package_config:
     dependency: transitive
     description:
@@ -1554,14 +1530,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
-  very_good_analysis:
-    dependency: transitive
-    description:
-      name: very_good_analysis
-      sha256: "9ae7f3a3bd5764fb021b335ca28a34f040cd0ab6eec00a1b213b445dae58a4b8"
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.1.0"
   vm_service:
     dependency: transitive
     description:
@@ -1626,14 +1594,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
-  x25519:
-    dependency: transitive
-    description:
-      name: x25519
-      sha256: cec3c125f0d934dccba6c4cab48f3fbf866dc78895dcc5a1584d35b0a845005b
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.1"
   xdg_directories:
     dependency: transitive
     description:
