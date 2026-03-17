@@ -301,8 +301,38 @@ class WasmSandboxHandler {
                 cEnvs.forEach { free($0) }
             }
 
-            // wasm_runtime_set_wasi_args takes const char** for dirs/envs (immutable)
-            // but char** for argv (mutable). Build const-typed arrays for dirs/envs.
+            // --- CRITICAL: redirect fds BEFORE wasm_runtime_instantiate ---
+            // WAMR calls dup() on STDIN/STDOUT/STDERR at instantiation time to build
+            // its internal WASI fd table. Any dup2 redirect done after instantiate
+            // has no effect on WAMR's I/O. All pipe setup must happen here.
+
+            // stdin: write command + EOF so the Alpine shell reads and exits.
+            var inPipe = [Int32](repeating: 0, count: 2)
+            pipe(&inPipe)
+            let commandInput = (wrappedCommand + "\n").data(using: .utf8)!
+            commandInput.withUnsafeBytes { ptr in
+                _ = write(inPipe[1], ptr.baseAddress!, commandInput.count)
+            }
+            close(inPipe[1])
+
+            // stdout/stderr: concurrent drain threads prevent pipe-full deadlock.
+            var outPipe = [Int32](repeating: 0, count: 2)
+            var errPipe = [Int32](repeating: 0, count: 2)
+            pipe(&outPipe)
+            pipe(&errPipe)
+
+            let savedIn  = dup(STDIN_FILENO)
+            let savedOut = dup(STDOUT_FILENO)
+            let savedErr = dup(STDERR_FILENO)
+            dup2(inPipe[0],  STDIN_FILENO)
+            dup2(outPipe[1], STDOUT_FILENO)
+            dup2(errPipe[1], STDERR_FILENO)
+            close(inPipe[0])
+            close(outPipe[1])
+            close(errPipe[1])
+
+            // wasm_runtime_set_wasi_args and instantiate happen AFTER fd redirect
+            // so WAMR's internal fd table captures the pipe fds.
             var constDirs = cDirs.map { UnsafePointer($0) }
             var constEnvs = cEnvs.map { UnsafePointer($0) }
             cArgv.withUnsafeMutableBufferPointer { ab in
@@ -319,49 +349,19 @@ class WasmSandboxHandler {
 
             guard let instance = wasm_runtime_instantiate(
                 module,
-                64 * 1024,    // stack: 64 KB
-                4 * 1024 * 1024, // heap: 4 MB
+                64 * 1024,
+                4 * 1024 * 1024,
                 &errBuf, UInt32(errBuf.count)
             ) else {
+                // Restore fds before returning error.
+                dup2(savedIn, STDIN_FILENO); dup2(savedOut, STDOUT_FILENO); dup2(savedErr, STDERR_FILENO)
+                close(savedIn); close(savedOut); close(savedErr)
+                // Close drain pipe read ends (drain threads haven't started yet).
+                close(outPipe[0]); close(errPipe[0])
                 loadError = String(cString: errBuf)
                 return
             }
             defer { wasm_runtime_deinstantiate(instance) }
-
-            // --- Inject command via stdin pipe ---
-            // container2wasm boots Alpine and runs /bin/sh reading from WASI stdin.
-            // We pipe the command in, then close the write end (EOF → sh exits).
-            var inPipe = [Int32](repeating: 0, count: 2)  // [0]=read  [1]=write
-            pipe(&inPipe)
-
-            let commandInput = (wrappedCommand + "\n").data(using: .utf8)!
-            commandInput.withUnsafeBytes { ptr in
-                _ = write(inPipe[1], ptr.baseAddress!, commandInput.count)
-            }
-            close(inPipe[1])  // EOF — shell exits after executing the command
-
-            let savedIn = dup(STDIN_FILENO)
-            dup2(inPipe[0], STDIN_FILENO)
-            close(inPipe[0])
-
-            // --- Capture stdout/stderr via POSIX pipes ---
-            // WAMR maps WASI fd 1/2 to the process's POSIX stdout/stderr,
-            // so we redirect them to pipes before running the VM.
-            //
-            // Deadlock prevention: drainer threads run concurrently with the VM.
-            // When the VM finishes, dup2(savedOut, STDOUT_FILENO) closes the
-            // write end of outPipe (last reference), signalling EOF to the drainer.
-            var outPipe = [Int32](repeating: 0, count: 2)  // [0]=read  [1]=write
-            var errPipe = [Int32](repeating: 0, count: 2)
-            pipe(&outPipe)
-            pipe(&errPipe)
-
-            let savedOut = dup(STDOUT_FILENO)
-            let savedErr = dup(STDERR_FILENO)
-            dup2(outPipe[1], STDOUT_FILENO)  // stdout → pipe write end
-            dup2(errPipe[1], STDERR_FILENO)  // stderr → pipe write end
-            close(outPipe[1])                // STDOUT_FILENO is now the only write ref
-            close(errPipe[1])
 
             // Start drainer threads BEFORE the VM runs so the pipe never fills up.
             let drainGroup = DispatchGroup()
