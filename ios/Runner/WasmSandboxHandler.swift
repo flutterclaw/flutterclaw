@@ -1,6 +1,6 @@
 import Flutter
 import Foundation
-import Darwin  // pipe, dup, dup2, read, close, STDOUT_FILENO, STDERR_FILENO
+import Darwin  // pipe, read, write, close
 
 // WasmSandboxHandler — iOS implementation of the ai.flutterclaw/sandbox MethodChannel.
 //
@@ -32,6 +32,9 @@ class WasmSandboxHandler {
     static let wasmDownloadURL = "https://github.com/flutterclaw/flutterclaw/releases/download/ios-sandbox%2Fv3.21.0-1/alpine-ios-sandbox.initialized.wasm"
     static let wasmSHA256 = "8bf66d9b7702ae97bd60f97637b305ca1791a77168fe851b1af8bc2e28bb2ff8"
     static let wasmVersion = "3.21.0-1"
+
+    // wasm_runtime_init must be called exactly once per process lifetime.
+    private static var runtimeInitialised = false
 
     private let channel: FlutterMethodChannel
 
@@ -208,9 +211,11 @@ class WasmSandboxHandler {
     //   The shared_path directory is also pre-opened for host <-> VM file exchange.
     //
     // Output capture:
-    //   WAMR maps WASI fd 1/2 to the process's POSIX stdout/stderr.
-    //   We redirect them to pipes before calling wasm_application_execute_main,
-    //   then restore and drain the pipes after the call returns.
+    //   We create POSIX pipes for stdin/stdout/stderr and pass the pipe fd numbers
+    //   DIRECTLY to wasm_runtime_set_wasi_args_ex.  WAMR stores (or dups) these
+    //   fds into its internal WASI fd table, so when TinyEMU calls fd_write(1,…)
+    //   the bytes land in our pipe.  After deinstantiate we close the write-ends to
+    //   signal EOF to the drain threads.
     //
     // Exit code:
     //   The command is wrapped with a sentinel echo: `echo "__EXIT_$?__"`.
@@ -271,15 +276,20 @@ class WasmSandboxHandler {
 
         var stdoutData = Data()
         var stderrData = Data()
-        var timedOut   = false
-        var loadError  = ""
+        var timedOut      = false
+        var loadError     = ""
+        var execOk        = false
+        var execException = ""
 
         // wasm_runtime_load takes a mutable uint8_t* (it may patch the buffer).
         var mutableWasm = wasmBytes
         mutableWasm.withUnsafeMutableBytes { (rawPtr: UnsafeMutableRawBufferPointer) in
             guard let base = rawPtr.baseAddress else { loadError = "Nil Wasm buffer"; return }
 
-            wasm_runtime_init()
+            if !Self.runtimeInitialised {
+                _ = wasm_runtime_init()
+                Self.runtimeInitialised = true
+            }
 
             var errBuf = [CChar](repeating: 0, count: 256)
             guard let module = wasm_runtime_load(
@@ -301,29 +311,28 @@ class WasmSandboxHandler {
                 cEnvs.forEach { free($0) }
             }
 
-            // --- I/O via wasm_runtime_set_wasi_args_ex ---
-            // Pass pipe fds DIRECTLY to WAMR — no dup2 needed.
-            // WAMR 2.1.0 exposes wasm_runtime_set_wasi_args_ex which takes explicit
-            // stdinfd/stdoutfd/stderrfd raw handles, bypassing the process's fd 0/1/2.
-
-            // stdin: write command + close write end before WAMR starts (EOF on read).
-            var inPipe = [Int32](repeating: 0, count: 2)
+            // --- I/O pipes ---
+            // stdin:  write command then close write-end → EOF after command.
+            // stdout/stderr: drain threads read concurrently to prevent pipe-full deadlock.
+            //
+            // We pass the pipe fd numbers DIRECTLY to wasm_runtime_set_wasi_args_ex
+            // so WAMR stores them (and internally dups them) in its WASI fd table.
+            // TinyEMU's fd_write(1, …) calls then land in our outPipe.
+            // We do NOT dup2 process fd 0/1/2 — no global fd redirect needed.
+            var inPipe  = [Int32](repeating: 0, count: 2)
+            var outPipe = [Int32](repeating: 0, count: 2)
+            var errPipe = [Int32](repeating: 0, count: 2)
             pipe(&inPipe)
+            pipe(&outPipe)
+            pipe(&errPipe)
+
             let commandInput = (wrappedCommand + "\n").data(using: .utf8)!
             commandInput.withUnsafeBytes { ptr in
                 _ = write(inPipe[1], ptr.baseAddress!, commandInput.count)
             }
-            close(inPipe[1])  // EOF — shell exits after running the command
+            close(inPipe[1])  // EOF — shell exits after reading the command
 
-            // stdout/stderr: drain threads run concurrently to prevent pipe-full deadlock.
-            var outPipe = [Int32](repeating: 0, count: 2)
-            var errPipe = [Int32](repeating: 0, count: 2)
-            pipe(&outPipe)
-            pipe(&errPipe)
-
-            // Pass pipe fds to WAMR. WAMR stores them and calls dup() on each
-            // during wasm_runtime_instantiate — so fds MUST stay open until after
-            // instantiate returns.
+            // Pass explicit pipe fds so WAMR maps WASI stdin/stdout/stderr to them.
             var constDirs = cDirs.map { UnsafePointer($0) }
             var constEnvs = cEnvs.map { UnsafePointer($0) }
             cArgv.withUnsafeMutableBufferPointer { ab in
@@ -335,30 +344,27 @@ class WasmSandboxHandler {
                     nil, 0,
                     eb.baseAddress, UInt32(envs.count),
                     ab.baseAddress, Int32(argv.count),
-                    Int64(inPipe[0]),   // stdinfd  — read end of command pipe
-                    Int64(outPipe[1]),  // stdoutfd — write end of stdout pipe
-                    Int64(errPipe[1])   // stderrfd — write end of stderr pipe
+                    Int64(inPipe[0]),   // stdin  = pipe read-end
+                    Int64(outPipe[1]),  // stdout = pipe write-end
+                    Int64(errPipe[1])   // stderr = pipe write-end
                 )
             }}}
 
             guard let instance = wasm_runtime_instantiate(
                 module,
-                64 * 1024,
-                4 * 1024 * 1024,
+                1024 * 1024,       // stack: 1MB (c2w TinyEMU needs deep call stacks)
+                16 * 1024 * 1024,  // heap: 16MB (WAMR internal allocator)
                 &errBuf, UInt32(errBuf.count)
             ) else {
-                // instantiate failed — close our ends before returning.
-                close(inPipe[0]); close(outPipe[1]); close(errPipe[1])
-                close(outPipe[0]); close(errPipe[0])
+                close(inPipe[0])
+                close(outPipe[0]); close(outPipe[1])
+                close(errPipe[0]); close(errPipe[1])
                 loadError = String(cString: errBuf)
                 return
             }
-            // Do NOT use defer for deinstantiate — see deadlock explanation below.
-            // Keep outPipe[1]/errPipe[1] open while the VM runs so writes succeed.
-            // Only close stdin read end now (we've already written + closed write end).
-            close(inPipe[0])
 
-            // Start drainer threads BEFORE the VM runs.
+            // Start drainer threads BEFORE the VM runs so they consume data in
+            // real time and prevent the pipe buffer from filling up (deadlock).
             let drainGroup = DispatchGroup()
             drainGroup.enter()
             DispatchQueue.global(qos: .utility).async {
@@ -376,9 +382,20 @@ class WasmSandboxHandler {
             let deadline = DispatchTime.now() + .milliseconds(timeoutMs)
 
             DispatchQueue.global(qos: .userInitiated).async {
+                // Each host thread that calls into WAMR must have its signal
+                // environment initialised (trap handling for stack overflow,
+                // out-of-bounds memory, etc.).  The thread that called
+                // wasm_runtime_init() gets this automatically, but GCD worker
+                // threads do not.
+                _ = wasm_runtime_init_thread_env()
+                defer { wasm_runtime_destroy_thread_env() }
+
                 var execArgv = cArgv
                 execArgv.withUnsafeMutableBufferPointer { buf in
-                    wasm_application_execute_main(instance, Int32(argv.count), buf.baseAddress)
+                    execOk = wasm_application_execute_main(instance, Int32(argv.count), buf.baseAddress)
+                }
+                if !execOk, let ex = wasm_runtime_get_exception(instance) {
+                    execException = String(cString: ex)
                 }
                 runSema.signal()
             }
@@ -390,19 +407,12 @@ class WasmSandboxHandler {
                 _ = runSema.wait(timeout: DispatchTime.now() + .seconds(5))
             }
 
-            // Deadlock fix: deinstantiate BEFORE drainGroup.wait().
-            //
-            // drainGroup.wait() blocks until drain threads see EOF on outPipe[0]/errPipe[0].
-            // EOF requires ALL write ends of each pipe to be closed:
-            //   - outPipe[1]: our copy (closed below) + WAMR's dup'd copy (closed by deinstantiate)
-            // If we called defer{deinstantiate} at scope exit (= after drainGroup.wait()),
-            // drain would wait forever for EOF that only arrives after deinstantiate.
-            //
-            // Correct order:
-            //   1. deinstantiate → WAMR closes its dup'd copies of outPipe[1]/errPipe[1]
-            //   2. close our copies → both write ends now closed → EOF for drain threads
-            //   3. drainGroup.wait() → drain threads finish and return data
+            // EOF signalling to drain threads:
+            //   1. deinstantiate → WAMR closes its dup'd copies of the pipe fds
+            //   2. close our own references to the write-ends → all write-ends
+            //      are now closed → drain threads receive EOF and exit
             wasm_runtime_deinstantiate(instance)
+            close(inPipe[0])
             close(outPipe[1])
             close(errPipe[1])
 
@@ -421,7 +431,9 @@ class WasmSandboxHandler {
 
         // Extract sentinel exit code and strip it from stdout.
         var exitCode = 0
+        var sentinelFound = false
         if let range = stdoutStr.range(of: sentinel) {
+            sentinelFound = true
             let rest = stdoutStr[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
             exitCode = Int(rest.components(separatedBy: .newlines).first ?? "0") ?? 0
             stdoutStr = String(stdoutStr[..<range.lowerBound])
@@ -435,8 +447,10 @@ class WasmSandboxHandler {
             // DEBUG — remove before merge
             "_debug_stdout_bytes": stdoutData.count,
             "_debug_stderr_bytes": stderrData.count,
-            "_debug_sentinel_found": stdoutStr.isEmpty ? "no" : "yes",
+            "_debug_sentinel_found": sentinelFound ? "yes" : "no",
             "_debug_raw_stdout_preview": String(data: stdoutData.prefix(200), encoding: .utf8) ?? "(non-utf8)",
+            "_debug_exec_ok": execOk,
+            "_debug_exec_exception": execException,
         ]
         if stdoutData.count >= maxOutputBytes { out["stdout_truncated"] = true }
         if stderrData.count >= maxOutputBytes { out["stderr_truncated"] = true }
