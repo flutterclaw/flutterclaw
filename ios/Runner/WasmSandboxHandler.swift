@@ -231,7 +231,8 @@ class WasmSandboxHandler {
         let wrappedCommand =
             "cd \(shellEscape(workingDir)) 2>/dev/null || cd /root\n" +
             command + "\n" +
-            "echo \"\(sentinel)$?\"\n"
+            "echo \"\(sentinel)$?\"\n" +
+            "exit 0\n"  // causes the shell (and thus the VM) to exit cleanly
 
         #if WAMR_AVAILABLE
         return wamrExec(wrappedCommand: wrappedCommand,
@@ -265,11 +266,11 @@ class WasmSandboxHandler {
         let rootPath   = rootPersistenceDirectoryURL().path
         let sharedPath = sharedDirectoryURL().path
 
-        // container2wasm does NOT accept commands via argv.
-        // The Wasm module boots Alpine, starts /bin/sh as PID 1, and reads
-        // commands from WASI stdin. We inject the command by piping it to stdin
-        // before calling wasm_application_execute_main (see stdinPipe setup below).
-        let argv: [String] = ["tinyemu"]
+        // container2wasm's init (running inside TinyEMU) reads WASM argv[0] as the
+        // container command to exec.  Pass "/bin/sh" so it runs an Alpine shell.
+        // Without this, c2w tries to exec the embedded CMD from the Docker image
+        // metadata, which may be missing or wrong → "exec: ... not found" error.
+        let argv: [String] = ["/bin/sh"]
         let dirs: [String] = [rootPath, sharedPath]
         let envs: [String] = ["TERM=xterm-256color", "HOME=/root",
                                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
@@ -330,7 +331,13 @@ class WasmSandboxHandler {
             commandInput.withUnsafeBytes { ptr in
                 _ = write(inPipe[1], ptr.baseAddress!, commandInput.count)
             }
-            close(inPipe[1])  // EOF — shell exits after reading the command
+            // Do NOT close inPipe[1] here.
+            // The Linux serial console inside TinyEMU is a real tty device.
+            // If the write-end of stdin closes before the VM's /bin/sh has
+            // started (i.e., during the ~15-60s kernel boot), the VM exits
+            // immediately with no output.  Instead we rely on "exit 0" at the
+            // end of the command script to shut the shell down cleanly, which
+            // in turn shuts the VM down.  We close inPipe[1] after deinstantiate.
 
             // Pass explicit pipe fds so WAMR maps WASI stdin/stdout/stderr to them.
             var constDirs = cDirs.map { UnsafePointer($0) }
@@ -409,10 +416,10 @@ class WasmSandboxHandler {
 
             // EOF signalling to drain threads:
             //   1. deinstantiate → WAMR closes its dup'd copies of the pipe fds
-            //   2. close our own references to the write-ends → all write-ends
-            //      are now closed → drain threads receive EOF and exit
+            //   2. close our own write-end references → drain threads receive EOF
             wasm_runtime_deinstantiate(instance)
             close(inPipe[0])
+            close(inPipe[1])  // close AFTER deinstantiate (keep open during boot)
             close(outPipe[1])
             close(errPipe[1])
 
@@ -426,10 +433,37 @@ class WasmSandboxHandler {
             return ["exit_code": -1, "stdout": "", "stderr": "Command timed out.", "timed_out": true]
         }
 
-        var stdoutStr = String(data: stdoutData, encoding: .utf8) ?? ""
-        let stderrStr = String(data: stderrData, encoding: .utf8) ?? ""
+        // TinyEMU's serial console uses \r\n line endings (standard tty).
+        // Strip \r before any further processing.
+        var stdoutStr = (String(data: stdoutData, encoding: .utf8) ?? "")
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let stderrStr = (String(data: stderrData, encoding: .utf8) ?? "")
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        // Strip the TinyEMU noise from stdout:
+        //
+        //   The Linux serial console is a real tty device inside TinyEMU.
+        //   When /bin/sh reads stdin (our piped commands), the tty line
+        //   discipline echoes every character back to stdout (the UART).
+        //   ash also prints a shell prompt before each command.  So the raw
+        //   stdout contains:
+        //
+        //     [PREAMBLE]  raw echo of all stdin chars — before first prompt
+        //     ~ # cd /root         prompt line (working dir + " # " + cmd)
+        //     ~ # echo hello       prompt line
+        //     hello                ← actual command output  (KEEP)
+        //     /tmp # echo sentinel prompt line
+        //     __FLUTTERCLAW_EXIT__0 ← sentinel              (KEEP)
+        //     /tmp # exit 0        prompt line
+        //
+        //   We discard the PREAMBLE and all prompt lines, keeping only the
+        //   interleaved command outputs.
+        stdoutStr = stripTinyEMUNoise(stdoutStr)
 
         // Extract sentinel exit code and strip it from stdout.
+        // After stripTinyEMUNoise the sentinel appears on its own line.
         var exitCode = 0
         var sentinelFound = false
         if let range = stdoutStr.range(of: sentinel) {
@@ -484,6 +518,51 @@ class WasmSandboxHandler {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return docs.appendingPathComponent("sandbox")
     }
+}
+
+// MARK: - TinyEMU output post-processing
+
+// Strip the UART echo preamble and ash shell-prompt lines from TinyEMU stdout.
+//
+// Raw TinyEMU stdout structure (serial console / tty echo):
+//
+//   [preamble] echo of all stdin chars (before shell is ready)
+//   ~ # cmd1          ← ash prompt + command
+//   output1           ← kept
+//   /tmp # cmd2       ← ash prompt (workdir changed)
+//   output2           ← kept
+//   ...
+//
+// Prompt lines are identified by: starts with "~" or "/" and contains " # "
+// with no space in the working-directory portion (e.g. "~ # " or "/tmp # ").
+//
+// Limitation: output lines that happen to match the prompt pattern (e.g. a
+// line like "/bin # something") will be incorrectly stripped.  This is
+// acceptable for typical command output.
+private func stripTinyEMUNoise(_ raw: String) -> String {
+    let lines = raw.components(separatedBy: "\n")
+    var pastPreamble = false
+    var result: [String] = []
+
+    for line in lines {
+        if isTinyEMUPromptLine(line) {
+            pastPreamble = true
+            // Skip prompt lines.
+        } else if pastPreamble {
+            result.append(line)
+        }
+        // Skip preamble lines (before first prompt).
+    }
+    return result.joined(separator: "\n")
+}
+
+// Returns true if `line` looks like an ash prompt: starts with "~" or "/"
+// and contains " # " with no spaces before the " # ".
+private func isTinyEMUPromptLine(_ line: String) -> Bool {
+    guard line.hasPrefix("~") || line.hasPrefix("/") else { return false }
+    guard let hashRange = line.range(of: " # ") else { return false }
+    let workingDir = String(line[..<hashRange.lowerBound])
+    return !workingDir.contains(" ")
 }
 
 // MARK: - SHA256
