@@ -321,7 +321,9 @@ class WasmSandboxHandler {
             pipe(&outPipe)
             pipe(&errPipe)
 
-            // Pass pipe fds directly — WAMR stores them in its WASI fd table.
+            // Pass pipe fds to WAMR. WAMR stores them and calls dup() on each
+            // during wasm_runtime_instantiate — so fds MUST stay open until after
+            // instantiate returns.
             var constDirs = cDirs.map { UnsafePointer($0) }
             var constEnvs = cEnvs.map { UnsafePointer($0) }
             cArgv.withUnsafeMutableBufferPointer { ab in
@@ -333,16 +335,11 @@ class WasmSandboxHandler {
                     nil, 0,
                     eb.baseAddress, UInt32(envs.count),
                     ab.baseAddress, Int32(argv.count),
-                    Int64(inPipe[0]),   // stdinfd  ← read end of command pipe
-                    Int64(outPipe[1]),  // stdoutfd ← write end of stdout pipe
-                    Int64(errPipe[1])   // stderrfd ← write end of stderr pipe
+                    Int64(inPipe[0]),   // stdinfd  — read end of command pipe
+                    Int64(outPipe[1]),  // stdoutfd — write end of stdout pipe
+                    Int64(errPipe[1])   // stderrfd — write end of stderr pipe
                 )
             }}}
-
-            // Close write ends — WAMR now owns them via its fd table.
-            close(inPipe[0])
-            close(outPipe[1])
-            close(errPipe[1])
 
             guard let instance = wasm_runtime_instantiate(
                 module,
@@ -350,11 +347,19 @@ class WasmSandboxHandler {
                 4 * 1024 * 1024,
                 &errBuf, UInt32(errBuf.count)
             ) else {
+                // instantiate failed — close our ends before returning.
+                close(inPipe[0]); close(outPipe[1]); close(errPipe[1])
                 close(outPipe[0]); close(errPipe[0])
                 loadError = String(cString: errBuf)
                 return
             }
             defer { wasm_runtime_deinstantiate(instance) }
+
+            // WAMR has dup()'d the pipe fds during instantiate — close our originals.
+            // WAMR's copies keep the pipe open; our drainer threads read from [0] ends.
+            close(inPipe[0])
+            close(outPipe[1])
+            close(errPipe[1])
 
             // Start drainer threads BEFORE the VM runs.
             let drainGroup = DispatchGroup()
