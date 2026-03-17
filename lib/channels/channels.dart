@@ -7,3 +7,4 @@ export 'discord.dart';
 export 'router.dart';
 export 'telegram.dart';
 export 'webchat.dart';
+export 'whatsapp.dart';

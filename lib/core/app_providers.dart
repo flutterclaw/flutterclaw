@@ -11,6 +11,7 @@ import 'package:flutterclaw/channels/discord.dart';
 import 'package:flutterclaw/channels/router.dart';
 import 'package:flutterclaw/channels/telegram.dart';
 import 'package:flutterclaw/channels/webchat.dart';
+import 'package:flutterclaw/channels/whatsapp.dart';
 import 'package:flutterclaw/core/agent/chat_commands.dart';
 import 'package:flutterclaw/core/agent/message_queue.dart';
 import 'package:flutterclaw/core/providers/provider_interface.dart';
@@ -583,6 +584,21 @@ final channelStartupProvider = FutureProvider<void>((ref) async {
       allowedUserIds: config.channels.discord.allowFrom,
     );
     router.registerAdapter(discord);
+  }
+
+  // Wire WhatsApp adapter if configured
+  if (config.channels.whatsapp.enabled) {
+    final whatsapp = WhatsAppChannelAdapter(
+      authDir: config.channels.whatsapp.authDir,
+      allowedUserIds: config.channels.whatsapp.allowFrom,
+      dmPolicy: config.channels.whatsapp.dmPolicy,
+      pairingService: pairingService,
+      chatCommandHandler: (sessionKey, command) async {
+        final result = await commandHandler.handle(sessionKey, command);
+        return result.handled ? result.response : null;
+      },
+    );
+    router.registerAdapter(whatsapp);
   }
 
   // Start all registered adapters
