@@ -301,51 +301,48 @@ class WasmSandboxHandler {
                 cEnvs.forEach { free($0) }
             }
 
-            // --- CRITICAL: redirect fds BEFORE wasm_runtime_instantiate ---
-            // WAMR calls dup() on STDIN/STDOUT/STDERR at instantiation time to build
-            // its internal WASI fd table. Any dup2 redirect done after instantiate
-            // has no effect on WAMR's I/O. All pipe setup must happen here.
+            // --- I/O via wasm_runtime_set_wasi_args_ex ---
+            // Pass pipe fds DIRECTLY to WAMR — no dup2 needed.
+            // WAMR 2.1.0 exposes wasm_runtime_set_wasi_args_ex which takes explicit
+            // stdinfd/stdoutfd/stderrfd raw handles, bypassing the process's fd 0/1/2.
 
-            // stdin: write command + EOF so the Alpine shell reads and exits.
+            // stdin: write command + close write end before WAMR starts (EOF on read).
             var inPipe = [Int32](repeating: 0, count: 2)
             pipe(&inPipe)
             let commandInput = (wrappedCommand + "\n").data(using: .utf8)!
             commandInput.withUnsafeBytes { ptr in
                 _ = write(inPipe[1], ptr.baseAddress!, commandInput.count)
             }
-            close(inPipe[1])
+            close(inPipe[1])  // EOF — shell exits after running the command
 
-            // stdout/stderr: concurrent drain threads prevent pipe-full deadlock.
+            // stdout/stderr: drain threads run concurrently to prevent pipe-full deadlock.
             var outPipe = [Int32](repeating: 0, count: 2)
             var errPipe = [Int32](repeating: 0, count: 2)
             pipe(&outPipe)
             pipe(&errPipe)
 
-            let savedIn  = dup(STDIN_FILENO)
-            let savedOut = dup(STDOUT_FILENO)
-            let savedErr = dup(STDERR_FILENO)
-            dup2(inPipe[0],  STDIN_FILENO)
-            dup2(outPipe[1], STDOUT_FILENO)
-            dup2(errPipe[1], STDERR_FILENO)
-            close(inPipe[0])
-            close(outPipe[1])
-            close(errPipe[1])
-
-            // wasm_runtime_set_wasi_args and instantiate happen AFTER fd redirect
-            // so WAMR's internal fd table captures the pipe fds.
+            // Pass pipe fds directly — WAMR stores them in its WASI fd table.
             var constDirs = cDirs.map { UnsafePointer($0) }
             var constEnvs = cEnvs.map { UnsafePointer($0) }
             cArgv.withUnsafeMutableBufferPointer { ab in
             constDirs.withUnsafeMutableBufferPointer { db in
             constEnvs.withUnsafeMutableBufferPointer { eb in
-                wasm_runtime_set_wasi_args(
+                wasm_runtime_set_wasi_args_ex(
                     module,
                     db.baseAddress, UInt32(dirs.count),
                     nil, 0,
                     eb.baseAddress, UInt32(envs.count),
-                    ab.baseAddress, Int32(argv.count)
+                    ab.baseAddress, Int32(argv.count),
+                    Int64(inPipe[0]),   // stdinfd  ← read end of command pipe
+                    Int64(outPipe[1]),  // stdoutfd ← write end of stdout pipe
+                    Int64(errPipe[1])   // stderrfd ← write end of stderr pipe
                 )
             }}}
+
+            // Close write ends — WAMR now owns them via its fd table.
+            close(inPipe[0])
+            close(outPipe[1])
+            close(errPipe[1])
 
             guard let instance = wasm_runtime_instantiate(
                 module,
@@ -353,17 +350,13 @@ class WasmSandboxHandler {
                 4 * 1024 * 1024,
                 &errBuf, UInt32(errBuf.count)
             ) else {
-                // Restore fds before returning error.
-                dup2(savedIn, STDIN_FILENO); dup2(savedOut, STDOUT_FILENO); dup2(savedErr, STDERR_FILENO)
-                close(savedIn); close(savedOut); close(savedErr)
-                // Close drain pipe read ends (drain threads haven't started yet).
                 close(outPipe[0]); close(errPipe[0])
                 loadError = String(cString: errBuf)
                 return
             }
             defer { wasm_runtime_deinstantiate(instance) }
 
-            // Start drainer threads BEFORE the VM runs so the pipe never fills up.
+            // Start drainer threads BEFORE the VM runs.
             let drainGroup = DispatchGroup()
             drainGroup.enter()
             DispatchQueue.global(qos: .utility).async {
@@ -381,7 +374,7 @@ class WasmSandboxHandler {
             let deadline = DispatchTime.now() + .milliseconds(timeoutMs)
 
             DispatchQueue.global(qos: .userInitiated).async {
-                var execArgv = cArgv  // local mutable copy for the call
+                var execArgv = cArgv
                 execArgv.withUnsafeMutableBufferPointer { buf in
                     wasm_application_execute_main(instance, Int32(argv.count), buf.baseAddress)
                 }
@@ -395,16 +388,9 @@ class WasmSandboxHandler {
                 _ = runSema.wait(timeout: DispatchTime.now() + .seconds(5))
             }
 
-            // Restore stdin, stdout, stderr.
-            // Restoring stdout/stderr closes the pipe write ends → EOF for drainers.
-            dup2(savedIn,  STDIN_FILENO)
-            dup2(savedOut, STDOUT_FILENO)
-            dup2(savedErr, STDERR_FILENO)
-            close(savedIn)
-            close(savedOut)
-            close(savedErr)
-
-            // Wait for drainers to finish reading.
+            // WAMR closes its copies of the pipe fds when the instance is deinstantiated.
+            // Signal EOF to drain threads by closing our remaining read-end references
+            // only AFTER draining — drainGroup.wait() does that below.
             drainGroup.wait()
         }
 
