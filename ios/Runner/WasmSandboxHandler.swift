@@ -277,10 +277,8 @@ class WasmSandboxHandler {
 
         var stdoutData = Data()
         var stderrData = Data()
-        var timedOut      = false
-        var loadError     = ""
-        var execOk        = false
-        var execException = ""
+        var timedOut   = false
+        var loadError  = ""
 
         // wasm_runtime_load takes a mutable uint8_t* (it may patch the buffer).
         var mutableWasm = wasmBytes
@@ -399,10 +397,7 @@ class WasmSandboxHandler {
 
                 var execArgv = cArgv
                 execArgv.withUnsafeMutableBufferPointer { buf in
-                    execOk = wasm_application_execute_main(instance, Int32(argv.count), buf.baseAddress)
-                }
-                if !execOk, let ex = wasm_runtime_get_exception(instance) {
-                    execException = String(cString: ex)
+                    _ = wasm_application_execute_main(instance, Int32(argv.count), buf.baseAddress)
                 }
                 runSema.signal()
             }
@@ -478,13 +473,6 @@ class WasmSandboxHandler {
             "stdout": stdoutStr,
             "stderr": stderrStr,
             "timed_out": false,
-            // DEBUG — remove before merge
-            "_debug_stdout_bytes": stdoutData.count,
-            "_debug_stderr_bytes": stderrData.count,
-            "_debug_sentinel_found": sentinelFound ? "yes" : "no",
-            "_debug_raw_stdout_preview": String(data: stdoutData.prefix(200), encoding: .utf8) ?? "(non-utf8)",
-            "_debug_exec_ok": execOk,
-            "_debug_exec_exception": execException,
         ]
         if stdoutData.count >= maxOutputBytes { out["stdout_truncated"] = true }
         if stderrData.count >= maxOutputBytes { out["stderr_truncated"] = true }
