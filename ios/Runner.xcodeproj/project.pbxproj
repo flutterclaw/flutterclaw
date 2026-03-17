@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0120BFB9A546878EC9DE3DF6 /* WasmSandboxHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCE41EDB103EE84885D57352 /* WasmSandboxHandler.swift */; };
 		104AF79385346D00CE34E428 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AACB4962C0D84AADE2592A37 /* Foundation.framework */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		1573148481D589E0E239999D /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3D5F35D700A9E9B096733945 /* Pods_Runner.framework */; };
@@ -96,6 +97,7 @@
 		AF7AB8D53E620C8EB531E1E8 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		B9820BE7FEFBC89D71D847EB /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		BA5310F31C6EF62246CFD059 /* GatewayLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GatewayLiveActivity.swift; sourceTree = "<group>"; };
+		BCE41EDB103EE84885D57352 /* WasmSandboxHandler.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WasmSandboxHandler.swift; sourceTree = "<group>"; };
 		E67633045DCD0C4A7592145E /* FlutterClawWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FlutterClawWidgetsBundle.swift; sourceTree = "<group>"; };
 		E8F901A21CF9000F007C117F /* FlutterClawWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = FlutterClawWidgets.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -208,6 +210,7 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				97E801A21CF9000F007C117E /* Runner.entitlements */,
+				BCE41EDB103EE84885D57352 /* WasmSandboxHandler.swift */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -490,6 +493,7 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
+				0120BFB9A546878EC9DE3DF6 /* WasmSandboxHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
