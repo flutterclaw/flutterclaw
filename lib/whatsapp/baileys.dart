@@ -155,10 +155,48 @@ class _ClientImpl {
       passive: authState.creds.me != null,
       creds: authState.creds,
       onKeyRefreshNeeded: (reason) async {
+        // Mirror Baileys' behavior:
+        // - badSession (500) on an unpaired connection => full creds reset
+        // - other auth errors (405/401, etc.)        => rotate only noise key
+        if (reason == 500 && authState.creds.me == null) {
+          final fresh = await AuthenticationCreds.generate();
+
+          authState.creds
+            ..noiseKey = fresh.noiseKey
+            ..pairingEphemeralKeyPair = fresh.pairingEphemeralKeyPair
+            ..signedIdentityKey = fresh.signedIdentityKey
+            ..signedPreKey = fresh.signedPreKey
+            ..advSecretKey = fresh.advSecretKey
+            ..registrationId = fresh.registrationId
+            ..me = null
+            ..platform = 'smba'
+            ..account = null
+            ..signalIdentities = null
+            ..lastAccountSyncTimestamp = null
+            ..myAppStateKeyId = null
+            ..processedHistoryMessages = <dynamic>[]
+            ..nextPreKeyId = 1
+            ..firstUnuploadedPreKeyId = 1
+            ..accountSyncCounter = 0
+            ..accountSettings = {'unarchiveChats': false}
+            ..registered = false
+            ..pairingCode = null
+            ..lastPropHash = null
+            ..routingInfo = null
+            ..additionalData = null;
+
+          await authState.saveCreds();
+          return authState.creds.noiseKey;
+        }
+
         final newKey = await generateX25519KeyPair();
         authState.creds.noiseKey = newKey;
         await authState.saveCreds();
         return newKey;
+      },
+      onRoutingInfo: (info) async {
+        authState.creds.routingInfo = info;
+        await authState.saveCreds();
       },
     );
 

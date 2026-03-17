@@ -6,6 +6,7 @@ import '../binary/generic_utils.dart';
 import '../binary/types.dart';
 import '../socket/wa_socket.dart';
 import 'auth_state.dart';
+import 'pair_success.dart';
 
 /// Manages the QR-code authentication flow.
 ///
@@ -39,7 +40,22 @@ class QRAuth {
   }
 
   Future<void> _onIq(BinaryNode node) async {
+    final success = getBinaryNodeChild(node, 'pair-success');
+
     if (node.attrs['type'] == 'set') {
+      final contentType = node.content == null
+          ? 'null'
+          : node.content.runtimeType.toString();
+      final childTags = node.children.map((c) => c.tag).toList();
+      socket.config.logger.info(
+          'iq:set md contentType=$contentType children=$childTags');
+      if (success != null) {
+        await _processPairSuccess(
+          stanza: node,
+          iqId: node.attrs['id']?.toString() ?? '',
+        );
+        return;
+      }
       final pair = getBinaryNodeChild(node, 'pair-device');
       if (pair != null) {
         // ACK the IQ immediately so the server doesn't disconnect.
@@ -47,13 +63,18 @@ class QRAuth {
         await _handlePairDevice(pair);
         return;
       }
+
+      // If we got a set IQ without pair-device, ACK it to avoid stream errors.
+      final id = node.attrs['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        await _ackIq(id);
+      }
     }
 
     // pair-success may arrive with any type.
-    final success = getBinaryNodeChild(node, 'pair-success');
     if (success != null) {
       await _processPairSuccess(
-        successNode: success,
+        stanza: node,
         iqId: node.attrs['id']?.toString() ?? '',
       );
     }
@@ -89,12 +110,22 @@ class QRAuth {
     final advB64 = base64Encode(advKey);
 
     var index = 0;
+    final overrideMs = socket.config.qrTimeout?.inMilliseconds;
+    var qrMs = overrideMs ?? 60000;
+
     void emitNext() {
-      if (index >= refs.length || _qrController.isClosed) return;
+      if (_qrController.isClosed) return;
+      if (index >= refs.length) {
+        socket.config.logger.warning('QR refs exhausted, closing connection');
+        unawaited(socket.close());
+        return;
+      }
+
       _qrController.add('${refs[index]},$noiseB64,$identB64,$advB64');
       index++;
       if (index < refs.length) {
-        _qrRefreshTimer = Timer(const Duration(seconds: 20), emitNext);
+        _qrRefreshTimer = Timer(Duration(milliseconds: qrMs), emitNext);
+        qrMs = overrideMs ?? 20000;
       }
     }
 
@@ -102,23 +133,45 @@ class QRAuth {
   }
 
   Future<void> _processPairSuccess({
-    required BinaryNode successNode,
+    required BinaryNode stanza,
     required String iqId,
   }) async {
-    final deviceIdentityNode =
-        getBinaryNodeChild(successNode, 'device-identity');
-    if (deviceIdentityNode == null) return;
+    _qrRefreshTimer?.cancel();
+    _qrRefreshTimer = null;
+    socket.config.logger.info(
+        'pair-success received — processing (iqId=$iqId)');
 
-    final platform =
-        getBinaryNodeChild(successNode, 'platform')?.contentString ?? 'smba';
-    final deviceIdentityBytes = deviceIdentityNode.contentBytes;
-    if (deviceIdentityBytes == null) return;
+    try {
+      final result = await configureSuccessfulPairingDart(
+        stanza,
+        authState.creds,
+        msgIdOverride: iqId.isNotEmpty ? iqId : null,
+      );
 
-    authState.creds.platform = platform;
-    await authState.saveCreds();
+      // Send reply IQ constructed by the helper.
+      await socket.sendNode(result.replyNode);
 
-    // ACK the pair-success IQ using the parent IQ id.
-    await _ackIq(iqId);
+      // Update credentials with authenticated user info.
+      authState.creds.platform = result.platform ?? 'smba';
+      authState.creds.me = WAMe(
+        id: result.jid,
+        name: result.bizName ?? '',
+        lid: result.lid,
+      );
+      authState.creds.account = result.account;
+      if (result.signalIdentity != null) {
+        final current = authState.creds.signalIdentities ?? <SignalIdentity>[];
+        authState.creds.signalIdentities = [...current, result.signalIdentity!];
+      }
+      await authState.saveCreds();
+
+      socket.config.logger.info(
+        'Pairing successful — me=${authState.creds.me?.id}, '
+        'platform=${authState.creds.platform}',
+      );
+    } catch (e, st) {
+      socket.config.logger.warning('pair-success processing failed: $e\n$st');
+    }
   }
 }
 

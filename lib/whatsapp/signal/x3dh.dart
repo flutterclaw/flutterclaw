@@ -56,9 +56,12 @@ Future<X3DHInitResult> x3dhInitiate({
   required PreKeyBundle bundle,
 }) async {
   // Verify Bob's signed pre-key signature before proceeding.
-  final valid = await ed25519Verify(
+  final signedPreKeyMsg = bundle.signedPreKeyPublic.length == 33
+      ? bundle.signedPreKeyPublic
+      : Uint8List.fromList([0x05, ...bundle.signedPreKeyPublic]);
+  final valid = await curve25519Verify(
     bundle.identityKey,
-    bundle.signedPreKeyPublic,
+    signedPreKeyMsg,
     bundle.signedPreKeySignature,
   );
   if (!valid) {

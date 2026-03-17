@@ -5,7 +5,8 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 
 import '../noise/noise_crypto.dart'
-    show generateX25519KeyPair, generateRandomBytes, ed25519Sign;
+    show generateX25519KeyPair, generateRandomBytes, curve25519Sign;
+import '../proto/wa_proto.pb.dart' show ADVSignedDeviceIdentity;
 import '../signal/signal_store.dart';
 
 // ---------------------------------------------------------------------------
@@ -16,13 +17,73 @@ import '../signal/signal_store.dart';
 class WAMe {
   final String id;
   final String name;
+  final String? lid;
 
-  const WAMe({required this.id, required this.name});
+  const WAMe({required this.id, required this.name, this.lid});
 
   factory WAMe.fromJson(Map<String, dynamic> j) =>
-      WAMe(id: j['id'] as String, name: j['name'] as String? ?? '');
+      WAMe(
+        id: j['id'] as String,
+        name: j['name'] as String? ?? '',
+        lid: j['lid'] as String?,
+      );
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'lid': lid,
+      };
+}
+
+/// Signal Protocol address (jid + device id).
+class ProtocolAddress {
+  final String name;
+  final int deviceId;
+
+  const ProtocolAddress({required this.name, required this.deviceId});
+
+  factory ProtocolAddress.fromJson(Map<String, dynamic> j) =>
+      ProtocolAddress(
+        name: j['name'] as String,
+        deviceId: j['deviceId'] as int? ?? 0,
+      );
+
+  Map<String, dynamic> toJson() => {'name': name, 'deviceId': deviceId};
+}
+
+/// Signal identity entry.
+class SignalIdentity {
+  final ProtocolAddress identifier;
+  final Uint8List identifierKey;
+
+  const SignalIdentity({required this.identifier, required this.identifierKey});
+
+  factory SignalIdentity.fromJson(Map<String, dynamic> j) =>
+      SignalIdentity(
+        identifier:
+            ProtocolAddress.fromJson(j['identifier'] as Map<String, dynamic>),
+        identifierKey:
+            base64Decode(j['identifierKey'] as String? ?? ''),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'identifier': identifier.toJson(),
+        'identifierKey': base64Encode(identifierKey),
+      };
+}
+
+/// Prefix version byte to public keys for Signal compatibility.
+Uint8List generateSignalPubKey(Uint8List pubKey) {
+  if (pubKey.length == 33) return pubKey;
+  return Uint8List.fromList([0x05, ...pubKey]);
+}
+
+/// Create a Signal identity entry (mirrors Baileys createSignalIdentity).
+SignalIdentity createSignalIdentity(String wid, Uint8List accountSignatureKey) {
+  return SignalIdentity(
+    identifier: ProtocolAddress(name: wid, deviceId: 0),
+    identifierKey: generateSignalPubKey(accountSignatureKey),
+  );
 }
 
 /// All persisted credentials for a WhatsApp session.
@@ -30,6 +91,9 @@ class WAMe {
 class AuthenticationCreds {
   /// Long-term Noise keypair (X25519).
   SimpleKeyPair noiseKey;
+
+  /// Pairing ephemeral keypair (X25519).
+  SimpleKeyPair pairingEphemeralKeyPair;
 
   /// Signed identity keypair (X25519 for X3DH).
   SimpleKeyPair signedIdentityKey;
@@ -50,13 +114,26 @@ class AuthenticationCreds {
   String platform;
 
   // Timestamps / account data set post-QR.
-  Map<String, dynamic>? account;
-  String? signalIdentities;
+  ADVSignedDeviceIdentity? account;
+  List<SignalIdentity>? signalIdentities;
   int? lastAccountSyncTimestamp;
-  int? myAppStateKeyId;
+  String? myAppStateKeyId;
+
+  // Baileys-aligned state fields.
+  List<dynamic> processedHistoryMessages;
+  int nextPreKeyId;
+  int firstUnuploadedPreKeyId;
+  int accountSyncCounter;
+  Map<String, dynamic> accountSettings;
+  bool registered;
+  String? pairingCode;
+  String? lastPropHash;
+  Uint8List? routingInfo;
+  Object? additionalData;
 
   AuthenticationCreds({
     required this.noiseKey,
+    required this.pairingEphemeralKeyPair,
     required this.signedIdentityKey,
     required this.signedPreKey,
     required this.advSecretKey,
@@ -67,11 +144,24 @@ class AuthenticationCreds {
     this.signalIdentities,
     this.lastAccountSyncTimestamp,
     this.myAppStateKeyId,
-  });
+    List<dynamic>? processedHistoryMessages,
+    this.nextPreKeyId = 1,
+    this.firstUnuploadedPreKeyId = 1,
+    this.accountSyncCounter = 0,
+    Map<String, dynamic>? accountSettings,
+    this.registered = false,
+    this.pairingCode,
+    this.lastPropHash,
+    this.routingInfo,
+    this.additionalData,
+  })  : processedHistoryMessages =
+            processedHistoryMessages ?? <dynamic>[],
+        accountSettings = accountSettings ?? {'unarchiveChats': false};
 
   /// Create brand-new credentials (first run).
   static Future<AuthenticationCreds> generate() async {
     final noiseKey = await generateX25519KeyPair();
+    final pairingEphemeralKeyPair = await generateX25519KeyPair();
     final identityKey = await generateX25519KeyPair();
     final advSecret = generateRandomBytes(32);
     final regId = _generateRegistrationId();
@@ -81,6 +171,7 @@ class AuthenticationCreds {
 
     return AuthenticationCreds(
       noiseKey: noiseKey,
+      pairingEphemeralKeyPair: pairingEphemeralKeyPair,
       signedIdentityKey: identityKey,
       signedPreKey: spk,
       advSecretKey: advSecret,
@@ -153,8 +244,9 @@ Future<SignedPreKeyRecord> _generateSignedPreKey(
   // Sign the public key with our identity key (Ed25519 semantics via X25519 sign).
   // WhatsApp uses Curve25519 signing here (same as Signal Protocol).
   final privBytes = await identityKey.extractPrivateKeyBytes();
-  final sig = await ed25519Sign(
-      Uint8List.fromList(privBytes), Uint8List.fromList(pub.bytes));
+  final pubBytes = Uint8List.fromList(pub.bytes);
+  final sig = await curve25519Sign(
+      Uint8List.fromList(privBytes), generateSignalPubKey(pubBytes));
 
   return SignedPreKeyRecord(
     id: id,
@@ -165,9 +257,9 @@ Future<SignedPreKeyRecord> _generateSignedPreKey(
 }
 
 int _generateRegistrationId() {
-  // 31-bit random integer (Signal Protocol spec).
-  final bytes = generateRandomBytes(4);
-  return ((bytes[0] << 16) | (bytes[1] << 8) | bytes[2]) & 0x3fffff;
+  // 14-bit random integer (Baileys / Signal Protocol).
+  final bytes = generateRandomBytes(2);
+  return ((bytes[0] << 8) | bytes[1]) & 0x3fff;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,44 +320,124 @@ class WAAuthState {
 
 Future<Map<String, dynamic>> _credsToJson(AuthenticationCreds c) async {
   final noiseJson = await _keyPairToJson(c.noiseKey);
+  final pairingJson = await _keyPairToJson(c.pairingEphemeralKeyPair);
   final identJson = await _keyPairToJson(c.signedIdentityKey);
   final spkJson = await c.signedPreKey.toJson();
+  final accountEnc =
+      c.account == null ? null : base64Encode(c.account!.writeToBuffer());
 
   return {
     'noiseKey': noiseJson,
+    'pairingEphemeralKeyPair': pairingJson,
     'signedIdentityKey': identJson,
     'signedPreKey': spkJson,
     'advSecretKey': base64Encode(c.advSecretKey),
     'registrationId': c.registrationId,
     'me': c.me?.toJson(),
     'platform': c.platform,
-    'account': c.account,
-    'signalIdentities': c.signalIdentities,
+    'account': accountEnc,
+    'signalIdentities': c.signalIdentities?.map((s) => s.toJson()).toList(),
     'lastAccountSyncTimestamp': c.lastAccountSyncTimestamp,
     'myAppStateKeyId': c.myAppStateKeyId,
+    'processedHistoryMessages': c.processedHistoryMessages,
+    'nextPreKeyId': c.nextPreKeyId,
+    'firstUnuploadedPreKeyId': c.firstUnuploadedPreKeyId,
+    'accountSyncCounter': c.accountSyncCounter,
+    'accountSettings': c.accountSettings,
+    'registered': c.registered,
+    'pairingCode': c.pairingCode,
+    'lastPropHash': c.lastPropHash,
+    'routingInfo':
+        c.routingInfo == null ? null : base64Encode(c.routingInfo!),
+    'additionalData': c.additionalData,
   };
 }
 
 Future<AuthenticationCreds> _credsFromJson(Map<String, dynamic> j) async {
+  Uint8List? _decodeBytes(dynamic value) {
+    if (value is String && value.isNotEmpty) {
+      return base64Decode(value);
+    }
+    if (value is List) {
+      final ints = value.whereType<int>().toList();
+      return Uint8List.fromList(ints);
+    }
+    return null;
+  }
+
   final noiseKey = await _keyPairFromJson(j['noiseKey'] as Map<String, dynamic>);
+  final pairingJson = j['pairingEphemeralKeyPair'];
+  final pairingKey = pairingJson is Map<String, dynamic>
+      ? await _keyPairFromJson(pairingJson)
+      : await generateX25519KeyPair();
   final identKey =
       await _keyPairFromJson(j['signedIdentityKey'] as Map<String, dynamic>);
   final spk = await SignedPreKeyRecord.fromJson(
       j['signedPreKey'] as Map<String, dynamic>);
 
+  ADVSignedDeviceIdentity? account;
+  final accountRaw = j['account'];
+  if (accountRaw is String && accountRaw.isNotEmpty) {
+    account = ADVSignedDeviceIdentity.fromBuffer(base64Decode(accountRaw));
+  } else if (accountRaw is Map<String, dynamic>) {
+    final details = _decodeBytes(accountRaw['details']);
+    final accountSigKey = _decodeBytes(accountRaw['accountSignatureKey']);
+    final accountSig = _decodeBytes(accountRaw['accountSignature']);
+    final deviceSig = _decodeBytes(accountRaw['deviceSignature']);
+    if (details != null) {
+      account = ADVSignedDeviceIdentity(
+        details: details,
+        accountSignatureKey: accountSigKey,
+        accountSignature: accountSig,
+        deviceSignature: deviceSig,
+      );
+    }
+  }
+
+  List<SignalIdentity>? signalIdentities;
+  final rawSignal = j['signalIdentities'];
+  if (rawSignal is List) {
+    signalIdentities = rawSignal
+        .whereType<Map<String, dynamic>>()
+        .map(SignalIdentity.fromJson)
+        .toList();
+  }
+
+  final me = j['me'] != null
+      ? WAMe.fromJson(j['me'] as Map<String, dynamic>)
+      : null;
+  var regId =
+      int.tryParse(j['registrationId']?.toString() ?? '') ?? 0;
+  if (regId <= 0 || (me == null && regId > 0x3fff)) {
+    regId = _generateRegistrationId();
+  }
+
   return AuthenticationCreds(
     noiseKey: noiseKey,
+    pairingEphemeralKeyPair: pairingKey,
     signedIdentityKey: identKey,
     signedPreKey: spk,
-    advSecretKey: base64Decode(j['advSecretKey'] as String),
-    registrationId: j['registrationId'] as int,
-    me: j['me'] != null
-        ? WAMe.fromJson(j['me'] as Map<String, dynamic>)
-        : null,
+    advSecretKey:
+        _decodeBytes(j['advSecretKey']) ?? generateRandomBytes(32),
+    registrationId: regId,
+    me: me,
     platform: j['platform'] as String? ?? 'smba',
-    account: j['account'] as Map<String, dynamic>?,
-    signalIdentities: j['signalIdentities'] as String?,
+    account: account,
+    signalIdentities: signalIdentities,
     lastAccountSyncTimestamp: j['lastAccountSyncTimestamp'] as int?,
-    myAppStateKeyId: j['myAppStateKeyId'] as int?,
+    myAppStateKeyId: j['myAppStateKeyId']?.toString(),
+    processedHistoryMessages:
+        (j['processedHistoryMessages'] as List?) ?? <dynamic>[],
+    nextPreKeyId: j['nextPreKeyId'] as int? ?? 1,
+    firstUnuploadedPreKeyId: j['firstUnuploadedPreKeyId'] as int? ?? 1,
+    accountSyncCounter: j['accountSyncCounter'] as int? ?? 0,
+    accountSettings:
+        (j['accountSettings'] as Map<String, dynamic>?) ??
+            {'unarchiveChats': false},
+    registered: j['registered'] as bool? ?? false,
+    pairingCode: j['pairingCode'] as String?,
+    lastPropHash: j['lastPropHash'] as String?,
+    routingInfo: _decodeBytes(j['routingInfo']),
+    additionalData: j['additionalData'],
   );
 }

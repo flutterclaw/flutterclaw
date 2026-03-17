@@ -25,6 +25,15 @@ class WASocketConfig {
   /// Browser description sent in the client payload [name, platform, version].
   final List<String> browser;
 
+  /// Whether to request full history sync when pairing.
+  final bool syncFullHistory;
+
+  /// Country code used in client payload.
+  final String countryCode;
+
+  /// Optional QR timeout override. If set, applies to both first and subsequent QR rotations.
+  final Duration? qrTimeout;
+
   /// Logger for socket events.
   final Logger logger;
 
@@ -38,6 +47,9 @@ class WASocketConfig {
     this.keepaliveTimeout = const Duration(seconds: 10),
     this.maxRetries = 0,
     this.browser = const ['Mac OS', 'Chrome', '14.4.1'],
+    this.syncFullHistory = true,
+    this.countryCode = 'US',
+    this.qrTimeout,
     Logger? logger,
     this.routingInfo,
   }) : logger = logger ?? Logger('WASocket');

@@ -5,11 +5,14 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../auth/auth_state.dart';
 import '../binary/encoder.dart';
+import '../binary/generic_utils.dart';
+import '../binary/jid_utils.dart';
 import '../binary/types.dart';
 import '../noise/noise_handler.dart';
 import '../proto/wa_proto.pb.dart';
@@ -26,6 +29,13 @@ class ConnectionUpdate {
   final Object? lastDisconnect;
 
   const ConnectionUpdate({required this.state, this.qr, this.lastDisconnect});
+}
+
+class _StreamErrorInfo {
+  final String reason;
+  final int statusCode;
+
+  const _StreamErrorInfo({required this.reason, required this.statusCode});
 }
 
 typedef NodeHandler = Future<void> Function(BinaryNode node);
@@ -76,6 +86,9 @@ class WASocket {
   /// Should regenerate the noise key, persist creds, and return the new key.
   final Future<SimpleKeyPair?> Function(int reason)? onKeyRefreshNeeded;
 
+  /// Called when edge routing info is received so creds can be persisted.
+  final Future<void> Function(Uint8List routingInfo)? onRoutingInfo;
+
   /// WhatsApp companion-device version from Baileys' baileys-version.json.
   /// Do NOT use the check-update endpoint — it returns the browser-app version.
   static const _waVersion = [2, 3000, 1035194821];
@@ -84,9 +97,6 @@ class WASocket {
   /// and the subsequent WebSocket close both call _scheduleReconnect.
   bool _reconnectPending = false;
 
-  /// When true, use an extended backoff (30–300 s) instead of the normal 2–60 s.
-  /// Set on stream:error code=500 (server rate-limit / internal error).
-  bool _longBackoff = false;
 
   WASocket({
     required this.config,
@@ -94,6 +104,7 @@ class WASocket {
     this.passive = false,
     this.creds,
     this.onKeyRefreshNeeded,
+    this.onRoutingInfo,
   });
 
   WAConnectionState get state => _state;
@@ -114,14 +125,18 @@ class WASocket {
 
     try {
       // Build Noise handler for this connection attempt.
-      final noise =
-          await NoiseHandler.create(routingInfo: config.routingInfo);
+      final routingInfo = creds?.routingInfo ?? config.routingInfo;
+      final noise = await NoiseHandler.create(routingInfo: routingInfo);
       _noiseHandler = noise;
 
       // Open WebSocket with headers that WhatsApp requires.
       // web_socket_channel.connect() doesn't support headers; use dart:io directly.
-      final ws = await WebSocket.connect(
+      final wsUrl = _buildWebSocketUrl(
         config.url,
+        routingInfo,
+      );
+      final ws = await WebSocket.connect(
+        wsUrl,
         headers: {
           'Origin': 'https://web.whatsapp.com',
           'Host': 'web.whatsapp.com',
@@ -237,8 +252,26 @@ class WASocket {
   Future<Uint8List> _buildClientPayload() async {
     const v = _waVersion;
 
+    // In Baileys, registration vs login is decided solely by whether creds.me
+    // is set: no `pull` on registration (new device), `pull` on login.
+    final hasMe = creds?.me != null;
+    final isPassive = hasMe;
+    Int64? username;
+    int? device;
+    if (isPassive) {
+      final decoded = jidDecode(creds!.me!.id);
+      if (decoded != null) {
+        try {
+          username = Int64.parseInt(decoded.user);
+        } catch (_) {
+          username = null;
+        }
+        device = decoded.device;
+      }
+    }
+
     ClientPayload_DevicePairingRegistrationData? regData;
-    if (!passive && creds != null) {
+    if (!isPassive && creds != null) {
       final c = creds!;
 
       // buildHash = MD5("primary.secondary.tertiary") — matches Baileys createHash('md5')
@@ -251,7 +284,7 @@ class WASocket {
         os: config.browser[0],
         version: DeviceProps_AppVersion(primary: 10, secondary: 15, tertiary: 7),
         platformType: _getPlatformType(config.browser[1]),
-        requireFullSync: false,
+        requireFullSync: config.syncFullHistory,
         historySyncConfig: DeviceProps_HistorySyncConfig(
           storageQuotaMb: 10240,
           inlineInitialPayloadInE2EeMsg: true,
@@ -284,11 +317,17 @@ class WASocket {
       );
     }
 
+    final webSubPlatform = _getWebSubPlatform(config);
     final payload = ClientPayload(
+      username: username,
       connectType: ClientPayload_ConnectType.WIFI_UNKNOWN,
       connectReason: ClientPayload_ConnectReason.USER_ACTIVATED,
-      passive: passive,
-      pull: !passive,
+      passive: isPassive,
+      // For registration (no creds.me): passive=false, pull=false.
+      // For login (creds.me present):   passive=true,  pull=true.
+      pull: isPassive,
+      device: device,
+      lidDbMigrated: isPassive ? false : null,
       userAgent: ClientPayload_UserAgent(
         appVersion: ClientPayload_UserAgent_AppVersion(
             primary: v[0], secondary: v[1], tertiary: v[2]),
@@ -300,10 +339,10 @@ class WASocket {
         device: 'Desktop',
         osBuildNumber: '0.1',
         localeLanguageIso6391: 'en',
-        localeCountryIso31661Alpha2: 'US',
+        localeCountryIso31661Alpha2: config.countryCode,
       ),
       webInfo: ClientPayload_WebInfo(
-        webSubPlatform: ClientPayload_WebInfo_WebSubPlatform.WEB_BROWSER,
+        webSubPlatform: webSubPlatform,
       ),
       devicePairingData: regData,
     );
@@ -318,8 +357,26 @@ class WASocket {
       case 'SAFARI':  return DeviceProps_PlatformType.SAFARI;
       case 'EDGE':    return DeviceProps_PlatformType.EDGE;
       case 'OPERA':   return DeviceProps_PlatformType.OPERA;
-      default:        return DeviceProps_PlatformType.DESKTOP;
+      default:        return DeviceProps_PlatformType.CHROME;
     }
+  }
+
+  /// Mirrors Baileys getWebInfo logic for subplatform selection.
+  static ClientPayload_WebInfo_WebSubPlatform _getWebSubPlatform(
+      WASocketConfig config) {
+    var sub = ClientPayload_WebInfo_WebSubPlatform.WEB_BROWSER;
+    if (!config.syncFullHistory) return sub;
+
+    final os = config.browser[0];
+    final browser = config.browser[1];
+    if (browser != 'Desktop') return sub;
+
+    if (os == 'Mac OS') {
+      sub = ClientPayload_WebInfo_WebSubPlatform.DARWIN;
+    } else if (os == 'Windows') {
+      sub = ClientPayload_WebInfo_WebSubPlatform.WIN32;
+    }
+    return sub;
   }
 
   /// Encode an integer as big-endian bytes.
@@ -419,30 +476,26 @@ class WASocket {
 
     // Stream-level errors — log fully and reconnect.
     if (node.tag == 'stream:error' || node.tag == 'failure') {
-      final reason =
-          int.tryParse(node.attrs['reason']?.toString() ?? '') ?? 0;
-      final code =
-          int.tryParse(node.attrs['code']?.toString() ?? '') ?? 0;
+      final errInfo = node.tag == 'stream:error'
+          ? _parseStreamError(node)
+          : _parseFailure(node);
+      final reason = errInfo.reason;
+      final code = errInfo.statusCode;
       config.logger.warning(
           'Server stream error: tag=${node.tag} attrs=${node.attrs} '
           'content=${node.contentString}');
 
-      // Auth failures (405 = noise key rejected, 401 = logged out):
-      // regenerate the noise key before reconnecting so the next attempt
-      // uses a fresh identity — mirrors Baileys' onCBFailure behaviour.
-      if ((reason == 405 || reason == 401) &&
+      // Auth failures (405 = noise key rejected, 401 = logged out) or
+      // bad-session (500) on an unpaired connection: regenerate the noise key
+      // before reconnecting so the next attempt uses a fresh identity.
+      // 500 = DisconnectReason.badSession in Baileys — NOT a rate-limit.
+      if ((code == 405 || code == 401 ||
+               (code == 500 && creds?.me == null)) &&
           onKeyRefreshNeeded != null) {
         config.logger.info(
-            'Auth failure $reason — refreshing noise key before reconnect');
-        final newKey = await onKeyRefreshNeeded!(reason);
+            'Session rejected ($reason/$code) — refreshing noise key before reconnect');
+        final newKey = await onKeyRefreshNeeded!(code);
         if (newKey != null) noiseKey = newKey;
-      }
-
-      // 500 = server rate-limit / internal error; back off longer to avoid
-      // hammering the server and worsening the rate-limit.
-      if (code == 500) {
-        _longBackoff = true;
-        config.logger.info('Rate-limit (500) — will use extended backoff');
       }
 
       _scheduleReconnect();
@@ -458,6 +511,24 @@ class WASocket {
       }
     }
 
+    // Edge routing info (used for future reconnects).
+    if (node.tag == 'ib') {
+      final edgeNode = getBinaryNodeChild(node, 'edge_routing');
+      final routingNode = edgeNode == null
+          ? null
+          : getBinaryNodeChild(edgeNode, 'routing_info');
+      final bytes = routingNode?.contentBytes;
+      if (bytes != null && bytes.isNotEmpty) {
+        final info = Uint8List.fromList(bytes);
+        if (creds != null) {
+          creds!.routingInfo = info;
+        }
+        if (onRoutingInfo != null) {
+          await onRoutingInfo!(info);
+        }
+      }
+    }
+
     // Dispatch to registered handlers.
     final handlers = [
       ...(_handlers[node.tag] ?? []),
@@ -467,6 +538,44 @@ class WASocket {
       h(node).catchError((e, st) =>
           config.logger.warning('Handler error for <${node.tag}>: $e'));
     }
+  }
+
+  static _StreamErrorInfo _parseStreamError(BinaryNode node) {
+    final children = getAllBinaryNodeChildren(node);
+    final reasonNode = children.isNotEmpty ? children.first : null;
+    var reason = reasonNode?.tag ?? 'unknown';
+    var statusCode = int.tryParse(node.attrs['code']?.toString() ?? '');
+    if (statusCode == null || statusCode == 0) {
+      statusCode = reason == 'conflict' ? 440 : 500;
+    }
+    if (statusCode == 515) {
+      reason = 'restart required';
+    }
+    return _StreamErrorInfo(reason: reason, statusCode: statusCode);
+  }
+
+  static _StreamErrorInfo _parseFailure(BinaryNode node) {
+    final reasonAttr = node.attrs['reason']?.toString();
+    final statusCode = int.tryParse(reasonAttr ?? '') ?? 500;
+    return _StreamErrorInfo(
+      reason: reasonAttr ?? 'unknown',
+      statusCode: statusCode,
+    );
+  }
+
+  static String _buildWebSocketUrl(
+      String baseUrl, Uint8List? routingInfo) {
+    if (routingInfo == null || routingInfo.isEmpty) return baseUrl;
+    final uri = Uri.parse(baseUrl);
+    if (uri.scheme != 'wss') return baseUrl;
+    final qp = Map<String, String>.from(uri.queryParameters);
+    qp['ED'] = _base64UrlNoPad(routingInfo);
+    return uri.replace(queryParameters: qp).toString();
+  }
+
+  static String _base64UrlNoPad(Uint8List data) {
+    final encoded = base64UrlEncode(data);
+    return encoded.replaceAll('=', '');
   }
 
   // ---------------------------------------------------------------------------
@@ -588,14 +697,7 @@ class WASocket {
     }
 
     // Normal backoff: 2s→4s→8s→16s→32s, cap 60s.
-    // Extended backoff (rate-limit): 30s→60s→120s→300s, cap 300s.
-    final int delaySecs;
-    if (_longBackoff) {
-      delaySecs = (30 * (1 << _retryCount.clamp(0, 3))).clamp(30, 300);
-      _longBackoff = false;
-    } else {
-      delaySecs = (2 * (1 << _retryCount.clamp(0, 4))).clamp(2, 60);
-    }
+    final int delaySecs = (2 * (1 << _retryCount.clamp(0, 4))).clamp(2, 60);
     final delay = Duration(seconds: delaySecs);
     _retryCount++;
     config.logger.info(

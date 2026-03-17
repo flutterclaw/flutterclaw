@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:libsignal_protocol_dart/libsignal_protocol_dart.dart' as libsignal;
 
 /// Crypto primitives for the Noise Protocol and general WhatsApp crypto.
 /// Uses `cryptography` package (Apache 2.0).
@@ -100,6 +101,13 @@ Future<Uint8List> ed25519Sign(Uint8List privateKey, Uint8List message) async {
   return Uint8List.fromList(signature.bytes);
 }
 
+/// Curve25519 (Signal) sign.
+Future<Uint8List> curve25519Sign(
+    Uint8List privateKey, Uint8List message) async {
+  final key = libsignal.DjbECPrivateKey(privateKey);
+  return libsignal.Curve.calculateSignature(key, message);
+}
+
 /// Generate cryptographically random bytes.
 Uint8List generateRandomBytes(int length) {
   final rng = Random.secure();
@@ -113,4 +121,11 @@ Future<bool> ed25519Verify(
   final pk = SimplePublicKey(publicKey, type: KeyPairType.ed25519);
   final sig = Signature(signature, publicKey: pk);
   return await algorithm.verify(message, signature: sig);
+}
+
+/// Curve25519 (Signal) verify.
+Future<bool> curve25519Verify(
+    Uint8List publicKey, Uint8List message, Uint8List signature) async {
+  final key = libsignal.DjbECPublicKey(publicKey);
+  return libsignal.Curve.verifySignature(key, message, signature);
 }
