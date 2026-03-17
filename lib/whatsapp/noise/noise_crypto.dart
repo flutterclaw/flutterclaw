@@ -1,23 +1,23 @@
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:cryptography/cryptography.dart';
+import 'package:cryptography/cryptography.dart' as crypto;
 import 'package:flutter_curve25519/flutter_curve25519.dart';
-import 'package:pointycastle/export.dart';
+import 'package:pointycastle/export.dart' as pc;
 
 /// Crypto primitives for the Noise Protocol and general WhatsApp crypto.
 /// Uses `cryptography` package (Apache 2.0).
 
 /// Generate an X25519 key pair.
-Future<SimpleKeyPair> generateX25519KeyPair() async {
-  final algorithm = X25519();
+Future<crypto.SimpleKeyPair> generateX25519KeyPair() async {
+  final algorithm = crypto.X25519();
   return await algorithm.newKeyPair();
 }
 
 /// Perform X25519 Diffie-Hellman shared secret computation.
-Future<Uint8List> x25519SharedKey(
-    SimpleKeyPair ourKeyPair, SimplePublicKey theirPublicKey) async {
-  final algorithm = X25519();
+Future<Uint8List> x25519SharedKey(crypto.SimpleKeyPair ourKeyPair,
+    crypto.SimplePublicKey theirPublicKey) async {
+  final algorithm = crypto.X25519();
   final sharedSecret = await algorithm.sharedSecretKey(
     keyPair: ourKeyPair,
     remotePublicKey: theirPublicKey,
@@ -29,8 +29,8 @@ Future<Uint8List> x25519SharedKey(
 /// AES-256-GCM encrypt. Tag is appended to ciphertext.
 Future<Uint8List> aesEncryptGCM(
     Uint8List plaintext, Uint8List key, Uint8List iv, Uint8List aad) async {
-  final algorithm = AesGcm.with256bits();
-  final secretKey = SecretKey(key);
+  final algorithm = crypto.AesGcm.with256bits();
+  final secretKey = crypto.SecretKey(key);
   final secretBox = await algorithm.encrypt(
     plaintext,
     secretKey: secretKey,
@@ -47,12 +47,12 @@ Future<Uint8List> aesEncryptGCM(
 /// AES-256-GCM decrypt. Expects tag appended to ciphertext.
 Future<Uint8List> aesDecryptGCM(
     Uint8List ciphertext, Uint8List key, Uint8List iv, Uint8List aad) async {
-  final algorithm = AesGcm.with256bits();
+  final algorithm = crypto.AesGcm.with256bits();
   const tagLength = 16; // 128 bits
   final enc = ciphertext.sublist(0, ciphertext.length - tagLength);
   final tag = ciphertext.sublist(ciphertext.length - tagLength);
-  final secretKey = SecretKey(key);
-  final secretBox = SecretBox(enc, nonce: iv, mac: Mac(tag));
+  final secretKey = crypto.SecretKey(key);
+  final secretBox = crypto.SecretBox(enc, nonce: iv, mac: crypto.Mac(tag));
   final decrypted = await algorithm.decrypt(secretBox, secretKey: secretKey, aad: aad);
   return Uint8List.fromList(decrypted);
 }
@@ -60,8 +60,9 @@ Future<Uint8List> aesDecryptGCM(
 /// HKDF-SHA256 key derivation.
 Future<Uint8List> hkdfExpand(Uint8List input, int length,
     {required Uint8List salt, Uint8List? info}) async {
-  final algorithm = Hkdf(hmac: Hmac.sha256(), outputLength: length);
-  final secretKey = SecretKey(input);
+  final algorithm =
+      crypto.Hkdf(hmac: crypto.Hmac.sha256(), outputLength: length);
+  final secretKey = crypto.SecretKey(input);
   final derived = await algorithm.deriveKey(
     secretKey: secretKey,
     nonce: salt,
@@ -73,15 +74,15 @@ Future<Uint8List> hkdfExpand(Uint8List input, int length,
 
 /// SHA-256 hash.
 Future<Uint8List> sha256Hash(Uint8List data) async {
-  final algorithm = Sha256();
+  final algorithm = crypto.Sha256();
   final hash = await algorithm.hash(data);
   return Uint8List.fromList(hash.bytes);
 }
 
 /// HMAC-SHA256 sign.
 Future<Uint8List> hmacSha256(Uint8List data, Uint8List key) async {
-  final algorithm = Hmac.sha256();
-  final secretKey = SecretKey(key);
+  final algorithm = crypto.Hmac.sha256();
+  final secretKey = crypto.SecretKey(key);
   final mac = await algorithm.calculateMac(data, secretKey: secretKey);
   return Uint8List.fromList(mac.bytes);
 }
@@ -96,7 +97,7 @@ Uint8List generateNoiseIV(int counter) {
 
 /// Ed25519 sign.
 Future<Uint8List> ed25519Sign(Uint8List privateKey, Uint8List message) async {
-  final algorithm = Ed25519();
+  final algorithm = crypto.Ed25519();
   final keyPair = await algorithm.newKeyPairFromSeed(privateKey);
   final signature = await algorithm.sign(message, keyPair: keyPair);
   return Uint8List.fromList(signature.bytes);
@@ -117,9 +118,10 @@ Uint8List generateRandomBytes(int length) {
 /// Ed25519 verify.
 Future<bool> ed25519Verify(
     Uint8List publicKey, Uint8List message, Uint8List signature) async {
-  final algorithm = Ed25519();
-  final pk = SimplePublicKey(publicKey, type: KeyPairType.ed25519);
-  final sig = Signature(signature, publicKey: pk);
+  final algorithm = crypto.Ed25519();
+  final pk =
+      crypto.SimplePublicKey(publicKey, type: crypto.KeyPairType.ed25519);
+  final sig = crypto.Signature(signature, publicKey: pk);
   return await algorithm.verify(message, signature: sig);
 }
 
@@ -131,11 +133,11 @@ Future<bool> curve25519Verify(
 
 /// AES-256-CBC encrypt with PKCS7 padding.
 Uint8List aesEncryptCBC(Uint8List plaintext, Uint8List key, Uint8List iv) {
-  final cipher = PaddedBlockCipher('AES/CBC/PKCS7');
+  final cipher = pc.PaddedBlockCipher('AES/CBC/PKCS7');
   cipher.init(
     true,
-    PaddedBlockCipherParameters(
-      ParametersWithIV(KeyParameter(key), iv),
+    pc.PaddedBlockCipherParameters(
+      pc.ParametersWithIV(pc.KeyParameter(key), iv),
       null,
     ),
   );
@@ -144,11 +146,11 @@ Uint8List aesEncryptCBC(Uint8List plaintext, Uint8List key, Uint8List iv) {
 
 /// AES-256-CBC decrypt with PKCS7 padding.
 Uint8List aesDecryptCBC(Uint8List ciphertext, Uint8List key, Uint8List iv) {
-  final cipher = PaddedBlockCipher('AES/CBC/PKCS7');
+  final cipher = pc.PaddedBlockCipher('AES/CBC/PKCS7');
   cipher.init(
     false,
-    PaddedBlockCipherParameters(
-      ParametersWithIV(KeyParameter(key), iv),
+    pc.PaddedBlockCipherParameters(
+      pc.ParametersWithIV(pc.KeyParameter(key), iv),
       null,
     ),
   );
