@@ -1,9 +1,9 @@
 /// Sandbox shell tool — lets the agent execute Linux commands on the device.
 ///
-/// Android: full execution via PRoot + Alpine rootfs (auto-provisioned on
-/// first use).
-/// iOS: returns a clear "not available" message (structured for future iSH
-/// fork integration).
+/// Android: full execution via PRoot + Alpine ARM64 rootfs (auto-provisioned
+/// on first use, full internet access, `apk add` works).
+/// iOS: TinyEMU RISC-V emulator + Alpine 3.21 userspace via WAMR. No internet
+/// in VM, packages pre-installed at image build time.
 library;
 
 import 'dart:convert';
@@ -20,16 +20,28 @@ class RunShellCommandTool extends Tool {
 
   @override
   String get description =>
-      'Execute a shell command in a sandboxed Linux (Alpine) environment.\n\n'
-      'Android: runs in a PRoot sandbox with an Alpine Linux rootfs.\n'
-      'Available by default: sh, busybox utilities (ls, cat, grep, sed, awk, '
-      'wget, etc.), apk package manager.\n'
-      'Install anything you need with `apk add <pkg>` — e.g. '
-      '`apk add python3`, `apk add git`, `apk add curl`, `apk add nodejs`.\n'
-      'You can chain: `apk add python3 && python3 -c "print(42)"`\n\n'
-      'iOS: not available (returns an informational error).\n\n'
-      'The sandbox persists across calls — installed packages and files in '
-      '/root/ survive between invocations. Timeout default is 30 seconds.';
+      'Execute a shell command in a sandboxed Linux (Alpine 3.21) environment.\n\n'
+      '=== ANDROID ===\n'
+      'Runs in a PRoot sandbox (Alpine ARM64, native speed).\n'
+      '`apk add <pkg>` downloads and installs at runtime — e.g. `apk add python3`, `apk add nodejs`.\n'
+      'Full internet access from inside the sandbox (curl, wget, apk all work).\n'
+      'Installed packages and files in /root/ persist across calls.\n\n'
+      '=== iOS ===\n'
+      'Runs in a TinyEMU RISC-V emulator (Alpine 3.21 userspace, ~10-100x slower than Android).\n'
+      'IMPORTANT LIMITATIONS:\n'
+      '- NO internet access inside the VM: curl, wget, and apk CANNOT reach the internet. Do not attempt network operations.\n'
+      '- NO runtime package installation: `apk add <pkg>` will fail with a network error.\n'
+      '- Pre-installed packages (only these are available): python3, pip, git, curl (local only), wget (local only), jq, bash, file, standard Alpine busybox utilities.\n'
+      '- Architecture: riscv64 (not ARM64). `uname -m` returns riscv64.\n'
+      '- Single-core CPU (no SMP). Parallel workloads do not benefit from multiple cores.\n'
+      '- Performance: simple commands ~0.5-2s, python scripts ~2-10s, heavy operations minutes.\n'
+      '- Use longer timeout_ms for heavy operations (60000-120000 recommended).\n'
+      'FILE SHARING (host app <-> VM):\n'
+      '- Call sandbox_status first to get shared_path.\n'
+      '- Files written to shared_path by the host app are visible inside the VM at the same absolute path.\n'
+      '- Files written by the VM to that path are readable by the host app.\n'
+      '- Use this to pass input files into the VM or retrieve output files.\n'
+      'Persistent filesystem: files in /root/ survive between calls (same as Android).';
 
   @override
   Map<String, dynamic> get parameters => {
@@ -74,14 +86,6 @@ class RunShellCommandTool extends Tool {
     if (status['error'] == true) {
       return ToolResult.error(status['message'] as String? ?? 'Status check failed');
     }
-    if (status['platform'] == 'ios') {
-      return ToolResult.error(
-        'Shell sandbox is not available on iOS. '
-        'This feature requires Android with PRoot. '
-        'For a local Linux shell on iOS, consider the iSH app.',
-      );
-    }
-
     // Auto-provision on first call.
     if (status['ready'] != true) {
       final setup = await _svc.setup();
