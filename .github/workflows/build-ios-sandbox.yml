@@ -1,0 +1,128 @@
+name: Build iOS Sandbox Wasm Image
+
+# Builds alpine-ios-sandbox.initialized.wasm and attaches it to a GitHub release.
+#
+# Trigger:
+#   - Manually via workflow_dispatch (with optional version tag)
+#   - On push of tags matching ios-sandbox/v*
+#
+# Artifacts:
+#   - alpine-ios-sandbox.initialized.wasm  (TinyEMU + Linux 6.1 + Alpine 3.21)
+#   - alpine-ios-sandbox.initialized.wasm.sha256
+#
+# After a successful run:
+#   1. Download the .wasm from the release assets
+#   2. Host it on your CDN
+#   3. Update WasmSandboxHandler.wasmDownloadURL + wasmVersion
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Image version (e.g. 3.21.0-2)'
+        required: true
+        default: '3.21.0-1'
+  push:
+    tags:
+      - 'ios-sandbox/v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to upload release assets
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      - name: Set up QEMU (for riscv64 cross-build)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: riscv64
+
+      - name: Install container2wasm
+        run: |
+          C2W_VERSION=$(curl -sL https://api.github.com/repos/container2wasm/container2wasm/releases/latest | jq -r '.tag_name')
+          echo "Installing container2wasm ${C2W_VERSION}"
+          curl -sL "https://github.com/container2wasm/container2wasm/releases/download/${C2W_VERSION}/container2wasm-${C2W_VERSION}-linux-amd64.tar.gz" \
+            | tar xz -C /usr/local/bin c2w
+          c2w --version
+
+      - name: Install wizer
+        run: |
+          cargo install wizer --all-features --locked
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Build Alpine container image
+        run: |
+          docker buildx build \
+            --platform linux/riscv64 \
+            --tag flutterclaw-ios-sandbox:build \
+            --load \
+            -f scripts/ios-sandbox/Dockerfile \
+            scripts/ios-sandbox/
+
+      - name: Convert to Wasm (container2wasm)
+        run: |
+          mkdir -p scripts/ios-sandbox/out
+          c2w \
+            --target-arch riscv64 \
+            flutterclaw-ios-sandbox:build \
+            scripts/ios-sandbox/out/alpine-ios-sandbox.wasm
+          ls -lh scripts/ios-sandbox/out/
+
+      - name: Pre-boot kernel with wizer
+        run: |
+          wizer \
+            --allow-wasi \
+            --wasm-bulk-memory true \
+            -o scripts/ios-sandbox/out/alpine-ios-sandbox.initialized.wasm \
+            scripts/ios-sandbox/out/alpine-ios-sandbox.wasm
+          ls -lh scripts/ios-sandbox/out/
+
+      - name: Generate SHA256
+        run: |
+          cd scripts/ios-sandbox/out
+          sha256sum alpine-ios-sandbox.initialized.wasm \
+            > alpine-ios-sandbox.initialized.wasm.sha256
+          cat alpine-ios-sandbox.initialized.wasm.sha256
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Extract version from tag ios-sandbox/v3.21.0-2 → 3.21.0-2
+            TAG="${{ github.ref_name }}"
+            echo "version=${TAG#ios-sandbox/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create / update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-sandbox/v${{ steps.version.outputs.version }}
+          name: iOS Sandbox Wasm v${{ steps.version.outputs.version }}
+          body: |
+            ## iOS Sandbox Alpine Wasm Image
+
+            Alpine 3.21 riscv64 userspace + Linux 6.1 kernel (TinyEMU-compatible).
+
+            **Pre-installed packages**: python3, pip, git, curl, wget, jq, bash, file
+
+            **Usage**: Update `WasmSandboxHandler.swift`:
+            ```swift
+            static let wasmDownloadURL = "<URL to alpine-ios-sandbox.initialized.wasm>"
+            static let wasmVersion = "${{ steps.version.outputs.version }}"
+            ```
+          files: |
+            scripts/ios-sandbox/out/alpine-ios-sandbox.initialized.wasm
+            scripts/ios-sandbox/out/alpine-ios-sandbox.initialized.wasm.sha256
+          draft: false
+          prerelease: false
