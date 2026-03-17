@@ -186,13 +186,43 @@ class DiscordConfig {
       };
 }
 
+class WhatsAppConfig {
+  final bool enabled;
+  final String? authDir;
+  final List<String> allowFrom;
+  final String dmPolicy;
+
+  const WhatsAppConfig({
+    this.enabled = false,
+    this.authDir,
+    this.allowFrom = const [],
+    this.dmPolicy = 'pairing',
+  });
+
+  factory WhatsAppConfig.fromJson(Map<String, dynamic> json) => WhatsAppConfig(
+        enabled: json['enabled'] as bool? ?? false,
+        authDir: json['auth_dir'] as String?,
+        allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
+        dmPolicy: json['dm_policy'] as String? ?? 'pairing',
+      );
+
+  Map<String, dynamic> toJson() => {
+        'enabled': enabled,
+        if (authDir != null) 'auth_dir': authDir,
+        'allow_from': allowFrom,
+        'dm_policy': dmPolicy,
+      };
+}
+
 class ChannelsConfig {
   final TelegramConfig telegram;
   final DiscordConfig discord;
+  final WhatsAppConfig whatsapp;
 
   const ChannelsConfig({
     this.telegram = const TelegramConfig(),
     this.discord = const DiscordConfig(),
+    this.whatsapp = const WhatsAppConfig(),
   });
 
   factory ChannelsConfig.fromJson(Map<String, dynamic> json) => ChannelsConfig(
@@ -202,11 +232,15 @@ class ChannelsConfig {
         discord: json['discord'] != null
             ? DiscordConfig.fromJson(json['discord'] as Map<String, dynamic>)
             : const DiscordConfig(),
+        whatsapp: json['whatsapp'] != null
+            ? WhatsAppConfig.fromJson(json['whatsapp'] as Map<String, dynamic>)
+            : const WhatsAppConfig(),
       );
 
   Map<String, dynamic> toJson() => {
         'telegram': telegram.toJson(),
         'discord': discord.toJson(),
+        'whatsapp': whatsapp.toJson(),
       };
 }
 
