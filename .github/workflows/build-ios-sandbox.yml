@@ -52,10 +52,9 @@ jobs:
             | tar xz -C /usr/local/bin c2w
           c2w --version
 
-      - name: Install wizer
-        run: |
-          cargo install wizer --all-features --locked
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      # wizer is skipped: container2wasm's TinyEMU output does not export
+      # 'wizer.initialize', so pre-boot checkpointing is not supported.
+      # The raw c2w output is used directly — cold boot takes ~15-60s on device.
 
       - name: Build Alpine container image
         run: |
@@ -92,13 +91,11 @@ jobs:
             scripts/ios-sandbox/out/alpine-ios-sandbox.wasm
           ls -lh scripts/ios-sandbox/out/
 
-      - name: Pre-boot kernel with wizer
+      - name: Prepare final artefact
         run: |
-          wizer \
-            --allow-wasi \
-            --wasm-bulk-memory true \
-            -o scripts/ios-sandbox/out/alpine-ios-sandbox.initialized.wasm \
-            scripts/ios-sandbox/out/alpine-ios-sandbox.wasm
+          # Rename to the expected filename (no wizer pre-boot — see comment above).
+          cp scripts/ios-sandbox/out/alpine-ios-sandbox.wasm \
+             scripts/ios-sandbox/out/alpine-ios-sandbox.initialized.wasm
           ls -lh scripts/ios-sandbox/out/
 
       - name: Generate SHA256
