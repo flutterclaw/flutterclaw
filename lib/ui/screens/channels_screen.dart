@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/channels/channel_interface.dart';
 import 'package:flutterclaw/channels/discord.dart';
 import 'package:flutterclaw/channels/telegram.dart';
+import 'package:flutterclaw/channels/whatsapp.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/services/pairing_service.dart';
@@ -86,10 +88,13 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                                 children: [
                                   Icon(Icons.live_tv, size: 14, color: Colors.green),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    'Live Activity active',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: Colors.green,
+                                  Flexible(
+                                    child: Text(
+                                      'Live Activity active',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: Colors.green,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -426,6 +431,18 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
             onTap: () => _showDiscordConfig(context, ref),
           ),
 
+          // WhatsApp
+          _ChannelTile(
+            icon: Icons.chat,
+            name: 'WhatsApp',
+            subtitle: _channelStatus(config.channels.whatsapp.enabled,
+                adapters.any((a) => a.type == 'whatsapp')),
+            isConnected:
+                adapters.any((a) => a.type == 'whatsapp' && a.isConnected),
+            isConfigured: config.channels.whatsapp.enabled,
+            onTap: () => _showWhatsAppConfig(context, ref),
+          ),
+
           const SizedBox(height: 16),
 
           // Pending pairing requests
@@ -470,6 +487,15 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => _DiscordConfigScreen(),
+      ),
+    );
+  }
+
+  void _showWhatsAppConfig(BuildContext context, WidgetRef ref) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _WhatsAppConfigScreen(),
       ),
     );
   }
@@ -1526,6 +1552,491 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
             ),
           ),
 
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// WhatsApp Configuration Screen
+// ---------------------------------------------------------------------------
+
+class _WhatsAppConfigScreen extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_WhatsAppConfigScreen> createState() =>
+      _WhatsAppConfigScreenState();
+}
+
+class _WhatsAppConfigScreenState
+    extends ConsumerState<_WhatsAppConfigScreen> {
+  late String _dmPolicy;
+  Map<String, String> _approvedDevices = {};
+  bool _isLoading = false;
+  String? _qrCode;
+  StreamSubscription<String>? _qrSub;
+  StreamSubscription<WAConnectionStatus>? _connSub;
+  WAConnectionStatus _connStatus = WAConnectionStatus.disconnected;
+  WhatsAppChannelAdapter? _adapter;
+
+  @override
+  void initState() {
+    super.initState();
+    final config =
+        ref.read(configManagerProvider).config.channels.whatsapp;
+    _dmPolicy = config.dmPolicy;
+    _loadApprovedDevices();
+    _attachToAdapter();
+  }
+
+  @override
+  void dispose() {
+    _qrSub?.cancel();
+    _connSub?.cancel();
+    super.dispose();
+  }
+
+  void _attachToAdapter() {
+    final router = ref.read(channelRouterProvider);
+    final adapter =
+        router.adapters.whereType<WhatsAppChannelAdapter>().firstOrNull;
+    if (adapter == null) return;
+    _adapter = adapter;
+    _connStatus = adapter.connectionStatus;
+    // Show the cached QR immediately if it was emitted before this screen opened.
+    if (adapter.lastQrCode != null) {
+      _qrCode = adapter.lastQrCode;
+    }
+    _qrSub = adapter.qrStream.listen((qr) {
+      if (mounted) setState(() => _qrCode = qr);
+    });
+    _connSub = adapter.connectionStateStream.listen((s) {
+      if (mounted) setState(() {
+        _connStatus = s;
+        if (s == WAConnectionStatus.connected) _qrCode = null;
+      });
+    });
+  }
+
+  Future<void> _loadApprovedDevices() async {
+    final map =
+        await ref.read(pairingServiceProvider).getApproved('whatsapp');
+    if (mounted) setState(() => _approvedDevices = map);
+  }
+
+  Future<void> _removeDevice(String id) async {
+    setState(() => _approvedDevices.remove(id));
+    ref.read(pairingServiceProvider).removeApproved('whatsapp', id);
+  }
+
+  Future<void> _addDevice() async {
+    final id = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        final ctl = TextEditingController();
+        return AlertDialog(
+          title: const Text('Add Number'),
+          content: TextField(
+            controller: ctl,
+            decoration: const InputDecoration(
+              labelText: 'Phone number / JID',
+              hintText: 'e.g. 5511999123456',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.phone,
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, ctl.text.trim()),
+                child: const Text('Add')),
+          ],
+        );
+      },
+    );
+    if (id != null && id.isNotEmpty && !_approvedDevices.containsKey(id)) {
+      setState(() => _approvedDevices[id] = '');
+      await ref.read(pairingServiceProvider).addApproved('whatsapp', id, '');
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _isLoading = true);
+    try {
+      final configManager = ref.read(configManagerProvider);
+      configManager.update(configManager.config.copyWith(
+        channels: ChannelsConfig(
+          telegram: configManager.config.channels.telegram,
+          discord: configManager.config.channels.discord,
+          whatsapp: WhatsAppConfig(
+            enabled: true,
+            dmPolicy: _dmPolicy,
+            allowFrom: _dmPolicy == 'allowlist'
+                ? _approvedDevices.keys.toList()
+                : [],
+          ),
+        ),
+      ));
+      await configManager.save();
+
+      final router = ref.read(channelRouterProvider);
+      router.unregisterAdapter('whatsapp');
+
+      final pairingService = ref.read(pairingServiceProvider);
+      final cmdHandler = ref.read(chatCommandHandlerProvider);
+      final agentLoop = ref.read(agentLoopProvider);
+
+      final adapter = WhatsAppChannelAdapter(
+        allowedUserIds: _dmPolicy == 'allowlist'
+            ? _approvedDevices.keys.toList()
+            : [],
+        dmPolicy: _dmPolicy,
+        pairingService: pairingService,
+        chatCommandHandler: (sessionKey, command) async {
+          final result = await cmdHandler.handle(sessionKey, command);
+          return result.handled ? result.response : null;
+        },
+      );
+
+      router.registerAdapter(adapter);
+      _adapter = adapter;
+      _qrSub?.cancel();
+      _connSub?.cancel();
+      _qrSub = adapter.qrStream.listen((qr) {
+        if (mounted) setState(() => _qrCode = qr);
+      });
+      _connSub = adapter.connectionStateStream.listen((s) {
+        if (mounted) setState(() {
+          _connStatus = s;
+          if (s == WAConnectionStatus.connected) _qrCode = null;
+        });
+      });
+
+      await adapter.start((msg) async {
+        final response = await agentLoop.processMessage(
+          msg.sessionKey,
+          msg.text,
+          channelType: msg.channelType,
+          chatId: msg.chatId,
+        );
+        await adapter.sendMessage(OutgoingMessage(
+          channelType: msg.channelType,
+          chatId: msg.chatId,
+          text: response.content,
+        ));
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('WhatsApp configuration saved')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _disconnect() async {
+    ref.read(channelRouterProvider).unregisterAdapter('whatsapp');
+    final configManager = ref.read(configManagerProvider);
+    configManager.update(configManager.config.copyWith(
+      channels: ChannelsConfig(
+        telegram: configManager.config.channels.telegram,
+        discord: configManager.config.channels.discord,
+        whatsapp: const WhatsAppConfig(enabled: false),
+      ),
+    ));
+    await configManager.save();
+    setState(() {
+      _qrCode = null;
+      _connStatus = WAConnectionStatus.disconnected;
+      _adapter = null;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('WhatsApp disconnected')),
+      );
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final isConnected = _connStatus == WAConnectionStatus.connected;
+    final isConnecting = _connStatus == WAConnectionStatus.connecting;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('WhatsApp'),
+        actions: [
+          if (_adapter != null)
+            TextButton.icon(
+              onPressed: _disconnect,
+              icon: const Icon(Icons.logout),
+              label: const Text('Disconnect'),
+            ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            color: isConnected
+                ? Colors.green.withValues(alpha: 0.15)
+                : isConnecting
+                    ? Colors.orange.withValues(alpha: 0.15)
+                    : colors.surfaceContainerHighest,
+            child: ListTile(
+              leading: Icon(
+                isConnected
+                    ? Icons.check_circle
+                    : isConnecting
+                        ? Icons.hourglass_top
+                        : Icons.radio_button_unchecked,
+                color: isConnected
+                    ? Colors.green
+                    : isConnecting
+                        ? Colors.orange
+                        : colors.onSurfaceVariant,
+              ),
+              title: Text(
+                isConnected
+                    ? 'Connected'
+                    : isConnecting
+                        ? 'Connecting...'
+                        : 'Not connected',
+                style: theme.textTheme.titleSmall,
+              ),
+              subtitle: Text(isConnected
+                  ? 'WhatsApp is active and receiving messages'
+                  : _qrCode != null
+                      ? 'Scan the QR code below with WhatsApp'
+                      : 'Tap "Connect WhatsApp" to link your account'),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          if (_qrCode != null) ...[
+            Text('Scan with WhatsApp', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Center(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: QrImageView(
+                    data: _qrCode!,
+                    version: QrVersions.auto,
+                    size: 240,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Open WhatsApp → Settings → Linked Devices → Link a Device',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: colors.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          Text('Security Method', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          _SecurityMethodCard(
+            title: 'Pairing (Recommended)',
+            description: 'New senders get a pairing code. You approve them.',
+            icon: Icons.link,
+            isSelected: _dmPolicy == 'pairing',
+            onTap: () => setState(() => _dmPolicy = 'pairing'),
+            color: Colors.blue,
+          ),
+          _SecurityMethodCard(
+            title: 'Allowlist',
+            description: 'Only specific phone numbers can message the bot.',
+            icon: Icons.list_alt,
+            isSelected: _dmPolicy == 'allowlist',
+            onTap: () => setState(() => _dmPolicy = 'allowlist'),
+            color: Colors.green,
+          ),
+          _SecurityMethodCard(
+            title: 'Open',
+            description: 'Anyone who messages you can use the bot.',
+            icon: Icons.public,
+            isSelected: _dmPolicy == 'open',
+            onTap: () => setState(() => _dmPolicy = 'open'),
+            color: Colors.orange,
+          ),
+          _SecurityMethodCard(
+            title: 'Disabled',
+            description: 'Bot will not respond to any incoming messages.',
+            icon: Icons.block,
+            isSelected: _dmPolicy == 'disabled',
+            onTap: () => setState(() => _dmPolicy = 'disabled'),
+            color: Colors.red,
+          ),
+          const SizedBox(height: 24),
+
+          if (_dmPolicy == 'pairing' || _dmPolicy == 'allowlist') ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _dmPolicy == 'pairing'
+                        ? 'Approved Devices'
+                        : 'Allowed Numbers',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                if (_dmPolicy == 'allowlist')
+                  IconButton.filledTonal(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Add number',
+                    onPressed: _addDevice,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_approvedDevices.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Icon(
+                        _dmPolicy == 'pairing'
+                            ? Icons.link_off
+                            : Icons.info_outline,
+                        size: 40,
+                        color: colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _dmPolicy == 'pairing'
+                            ? 'No approved devices yet'
+                            : 'No allowed numbers configured',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _dmPolicy == 'pairing'
+                            ? 'Devices appear here after you approve pairing requests'
+                            : 'Add phone numbers to allow them to use the bot',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: colors.onSurfaceVariant),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ..._approvedDevices.entries.map((entry) => Card(
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: colors.primaryContainer,
+                        child: Icon(Icons.person, color: colors.primary),
+                      ),
+                      title: Text(entry.value.isNotEmpty
+                          ? entry.value
+                          : entry.key),
+                      subtitle: Text(entry.value.isNotEmpty
+                          ? entry.key
+                          : (_dmPolicy == 'pairing'
+                              ? 'Approved device'
+                              : 'Allowed number')),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            color: Colors.red),
+                        tooltip: 'Remove',
+                        onPressed: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Remove device?'),
+                              content: Text(
+                                  'Remove access for ${entry.value.isNotEmpty ? entry.value : entry.key}?'),
+                              actions: [
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(ctx, false),
+                                    child: const Text('Cancel')),
+                                FilledButton(
+                                    onPressed: () =>
+                                        Navigator.pop(ctx, true),
+                                    child: const Text('Remove')),
+                              ],
+                            ),
+                          );
+                          if (ok == true) await _removeDevice(entry.key);
+                        },
+                      ),
+                    ),
+                  )),
+            const SizedBox(height: 24),
+          ],
+
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: _isLoading ? null : _save,
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.chat),
+              label: Text(_isLoading
+                  ? 'Connecting...'
+                  : isConnected
+                      ? 'Save Settings'
+                      : 'Connect WhatsApp'),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          Card(
+            color: colors.primaryContainer.withValues(alpha: 0.3),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.help_outline,
+                          size: 20, color: colors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'How to connect',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: colors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '1. Tap "Connect WhatsApp" above\n'
+                    '2. A QR code will appear — scan it with WhatsApp\n'
+                    '   (Settings → Linked Devices → Link a Device)\n'
+                    '3. Once connected, incoming messages are routed\n'
+                    '   to your active AI agent automatically',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: colors.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
         ],
       ),
