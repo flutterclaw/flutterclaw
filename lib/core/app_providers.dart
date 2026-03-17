@@ -916,6 +916,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
               isUser: false,
               timestamp: DateTime.now(),
               isToolStatus: true,
+              isStreaming: true,
             ),
           );
           state = updated;
@@ -1236,17 +1237,18 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
               isUser: false,
               timestamp: DateTime.now(),
               isToolStatus: true,
+              isStreaming: true, // spinner while tool is running
             ),
           );
           state = updated;
         }
 
         if (event.toolResult != null) {
-          // Update the last tool status pill to show completed
+          // Mark the most recent running tool pill as completed.
           final updated = List<ChatMessage>.from(state);
           for (var i = updated.length - 1; i >= 0; i--) {
-            if (updated[i].isToolStatus && updated[i].isStreaming != true) {
-              // Mark as no longer streaming by keeping it as-is (already done)
+            if (updated[i].isToolStatus && updated[i].isStreaming == true) {
+              updated[i] = updated[i].copyWith(isStreaming: false);
               break;
             }
           }

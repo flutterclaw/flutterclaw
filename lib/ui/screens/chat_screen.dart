@@ -340,6 +340,7 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
     final isUser = widget.message.isUser;
 
     if (widget.message.isToolStatus) {
+      final running = widget.message.isStreaming == true;
       return Center(
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 3),
@@ -359,8 +360,18 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
                   color: colors.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(width: 4),
-              Icon(Icons.check, size: 12, color: Colors.green.shade600),
+              const SizedBox(width: 6),
+              if (running)
+                SizedBox(
+                  width: 11,
+                  height: 11,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: colors.primary,
+                  ),
+                )
+              else
+                Icon(Icons.check, size: 12, color: Colors.green.shade600),
             ],
           ),
         ),
