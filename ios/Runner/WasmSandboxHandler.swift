@@ -422,6 +422,11 @@ class WasmSandboxHandler {
             "stdout": stdoutStr,
             "stderr": stderrStr,
             "timed_out": false,
+            // DEBUG — remove before merge
+            "_debug_stdout_bytes": stdoutData.count,
+            "_debug_stderr_bytes": stderrData.count,
+            "_debug_sentinel_found": stdoutStr.isEmpty ? "no" : "yes",
+            "_debug_raw_stdout_preview": String(data: stdoutData.prefix(200), encoding: .utf8) ?? "(non-utf8)",
         ]
         if stdoutData.count >= maxOutputBytes { out["stdout_truncated"] = true }
         if stderrData.count >= maxOutputBytes { out["stderr_truncated"] = true }
