@@ -73,6 +73,11 @@ dependencies:
   timezone: ^0.11.0
   shared_preferences: ^2.3.0
   flutter_inappwebview: ^6.1.5
+  protobuf: ^2.1.0
+  fixnum: ^1.1.0
+  cryptography: ^2.9.0
+  pointycastle: ^3.9.1
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
