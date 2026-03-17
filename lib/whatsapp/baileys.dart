@@ -12,6 +12,7 @@ import 'messages/message_recv.dart';
 import 'messages/message_retry.dart';
 import 'messages/message_send.dart' as msg_send;
 import 'signal/sender_key.dart';
+import 'signal/signal_auth.dart' as signal_auth;
 import 'socket/wa_socket.dart' as low;
 import 'socket/wa_socket_config.dart';
 import 'types.dart';
@@ -142,6 +143,8 @@ class _ClientImpl {
   final _qrController = StreamController<String>.broadcast();
   Stream<String> get qrStream => _qrController.stream;
 
+  int _serverTimeOffsetMs = 0;
+
   _ClientImpl({
     required this.authState,
     required this.config,
@@ -185,6 +188,10 @@ class _ClientImpl {
             ..routingInfo = null
             ..additionalData = null;
 
+          authState.keys.init(
+            identityKey: authState.creds.signedIdentityKey,
+            registrationId: authState.creds.registrationId,
+          );
           await authState.saveCreds();
           return authState.creds.noiseKey;
         }
@@ -217,8 +224,104 @@ class _ClientImpl {
 
     socket.on('message', _msgRecv.handleNode);
     socket.on('receipt', (node) async => ev.emit('messages.update', node));
+    socket.on('success', _onSuccess);
 
     await socket.connect();
+  }
+
+  Future<void> _onSuccess(BinaryNode node) async {
+    _updateServerTimeOffset(node);
+
+    try {
+      await _uploadPreKeysIfRequired();
+      await socket.sendPassiveIq('active');
+    } catch (e) {
+      config.logger.warning('failed to send initial passive iq: $e');
+    }
+
+    config.logger.info('opened connection to WA');
+
+    final lid = node.attrs['lid']?.toString();
+    final me = authState.creds.me;
+    if (lid != null && lid.isNotEmpty && me != null && me.lid != lid) {
+      authState.creds.me = WAMe(id: me.id, name: me.name, lid: lid);
+      await authState.saveCreds();
+    }
+
+    await _sendUnifiedSession();
+    await _sendPresenceName();
+  }
+
+  void _updateServerTimeOffset(BinaryNode node) {
+    final tValue = node.attrs['t']?.toString();
+    if (tValue == null || tValue.isEmpty) return;
+    final parsed = int.tryParse(tValue);
+    if (parsed == null || parsed <= 0) return;
+    final localMs = DateTime.now().millisecondsSinceEpoch;
+    _serverTimeOffsetMs = parsed * 1000 - localMs;
+  }
+
+  String _getUnifiedSessionId() {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const weekMs = 7 * dayMs;
+    final now = DateTime.now().millisecondsSinceEpoch + _serverTimeOffsetMs;
+    final id = (now + 3 * dayMs) % weekMs;
+    return id.toString();
+  }
+
+  Future<void> _sendUnifiedSession() async {
+    try {
+      await socket.sendNode(
+        BinaryNode(
+          tag: 'ib',
+          attrs: const {},
+          content: [
+            BinaryNode(
+              tag: 'unified_session',
+              attrs: {'id': _getUnifiedSessionId()},
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      config.logger.fine('failed to send unified_session: $e');
+    }
+  }
+
+  Future<void> _sendPresenceName() async {
+    final name = authState.creds.me?.name;
+    if (name == null || name.isEmpty) return;
+    try {
+      await socket.sendNode(
+        BinaryNode(
+          tag: 'presence',
+          attrs: {'name': name.replaceAll('@', ''), 'type': 'available'},
+        ),
+      );
+    } catch (_) {
+      // Best-effort only.
+    }
+  }
+
+  Future<void> _uploadPreKeysIfRequired() async {
+    final identPub =
+        await authState.creds.signedIdentityKey.extractPublicKey();
+    final newNext = await signal_auth.maybeRefillPreKeys(
+      socket: socket,
+      store: authState.keys,
+      identityPublicKey: Uint8List.fromList(identPub.bytes),
+      signedPreKey: authState.creds.signedPreKey,
+      signedPreKeySignature: authState.creds.signedPreKey.signature,
+      nextPreKeyId: authState.creds.nextPreKeyId,
+      registrationId: authState.creds.registrationId,
+    );
+
+    if (newNext != authState.creds.nextPreKeyId) {
+      authState.creds
+        ..nextPreKeyId = newNext
+        ..firstUnuploadedPreKeyId = newNext;
+      await authState.saveCreds();
+    }
   }
 
   void dispose() {

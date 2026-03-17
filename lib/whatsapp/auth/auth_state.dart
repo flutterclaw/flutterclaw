@@ -298,7 +298,11 @@ class WAAuthState {
       await _saveCreds(credsFile, creds);
     }
 
-    final keys = FileBasedSignalStore(directory: directory);
+    final keys = FileBasedSignalStore(directory: directory)
+      ..init(
+        identityKey: creds.signedIdentityKey,
+        registrationId: creds.registrationId,
+      );
 
     return WAAuthState(
       creds: creds,

@@ -22,6 +22,7 @@ Future<void> uploadPreKeys({
   required PreKeyRecord signedPreKey,
   required Uint8List signedPreKeySignature,
   required Uint8List identityPublicKey,
+  required int registrationId,
 }) async {
   final preKeyNodes = await Future.wait(
     preKeys.map((pk) async {
@@ -57,8 +58,7 @@ Future<void> uploadPreKeys({
       BinaryNode(
         tag: 'registration',
         attrs: {},
-        content: _encodeUint32(
-            socket.config.logger.name.hashCode & 0x7fffffff),
+        content: _encodeUint32(registrationId),
       ),
       BinaryNode(
         tag: 'type',
@@ -126,16 +126,17 @@ Future<int> getAvailablePreKeyCount(WASocket socket) async {
 }
 
 /// Generate and upload pre-keys if the server count is below the watermark.
-Future<void> maybeRefillPreKeys({
+Future<int> maybeRefillPreKeys({
   required WASocket socket,
   required SignalProtocolStore store,
   required Uint8List identityPublicKey,
   required PreKeyRecord signedPreKey,
   required Uint8List signedPreKeySignature,
   required int nextPreKeyId,
+  required int registrationId,
 }) async {
   final count = await getAvailablePreKeyCount(socket);
-  if (count >= _preKeyLowWatermark) return;
+  if (count >= _preKeyLowWatermark) return nextPreKeyId;
 
   final newKeys = await generatePreKeys(nextPreKeyId, _preKeyBatchSize);
   for (final k in newKeys) {
@@ -148,7 +149,10 @@ Future<void> maybeRefillPreKeys({
     signedPreKey: signedPreKey,
     signedPreKeySignature: signedPreKeySignature,
     identityPublicKey: identityPublicKey,
+    registrationId: registrationId,
   );
+
+  return nextPreKeyId + _preKeyBatchSize;
 }
 
 // ---------------------------------------------------------------------------

@@ -609,8 +609,30 @@ class WASocket {
       }
     });
 
-    await sendNode(node);
+    final nodeToSend = node.attrs.containsKey('id')
+        ? node
+        : BinaryNode(
+            tag: node.tag,
+            attrs: {...node.attrs, 'id': id},
+            content: node.content,
+          );
+    await sendNode(nodeToSend);
     return completer.future;
+  }
+
+  /// Send a passive/active IQ (used after login).
+  Future<BinaryNode> sendPassiveIq(String tag) async {
+    return query(
+      BinaryNode(
+        tag: 'iq',
+        attrs: {
+          'to': '@s.whatsapp.net',
+          'xmlns': 'passive',
+          'type': 'set',
+        },
+        content: [BinaryNode(tag: tag, attrs: {})],
+      ),
+    );
   }
 
   String _nextTag() => (_msgTag++).toString();
