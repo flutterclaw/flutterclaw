@@ -353,13 +353,10 @@ class WasmSandboxHandler {
                 loadError = String(cString: errBuf)
                 return
             }
-            defer { wasm_runtime_deinstantiate(instance) }
-
-            // WAMR has dup()'d the pipe fds during instantiate — close our originals.
-            // WAMR's copies keep the pipe open; our drainer threads read from [0] ends.
+            // Do NOT use defer for deinstantiate — see deadlock explanation below.
+            // Keep outPipe[1]/errPipe[1] open while the VM runs so writes succeed.
+            // Only close stdin read end now (we've already written + closed write end).
             close(inPipe[0])
-            close(outPipe[1])
-            close(errPipe[1])
 
             // Start drainer threads BEFORE the VM runs.
             let drainGroup = DispatchGroup()
@@ -393,9 +390,22 @@ class WasmSandboxHandler {
                 _ = runSema.wait(timeout: DispatchTime.now() + .seconds(5))
             }
 
-            // WAMR closes its copies of the pipe fds when the instance is deinstantiated.
-            // Signal EOF to drain threads by closing our remaining read-end references
-            // only AFTER draining — drainGroup.wait() does that below.
+            // Deadlock fix: deinstantiate BEFORE drainGroup.wait().
+            //
+            // drainGroup.wait() blocks until drain threads see EOF on outPipe[0]/errPipe[0].
+            // EOF requires ALL write ends of each pipe to be closed:
+            //   - outPipe[1]: our copy (closed below) + WAMR's dup'd copy (closed by deinstantiate)
+            // If we called defer{deinstantiate} at scope exit (= after drainGroup.wait()),
+            // drain would wait forever for EOF that only arrives after deinstantiate.
+            //
+            // Correct order:
+            //   1. deinstantiate → WAMR closes its dup'd copies of outPipe[1]/errPipe[1]
+            //   2. close our copies → both write ends now closed → EOF for drain threads
+            //   3. drainGroup.wait() → drain threads finish and return data
+            wasm_runtime_deinstantiate(instance)
+            close(outPipe[1])
+            close(errPipe[1])
+
             drainGroup.wait()
         }
 
