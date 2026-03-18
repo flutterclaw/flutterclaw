@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
@@ -254,11 +255,7 @@ class WhatsAppChannelAdapter implements ChannelAdapter {
     }
 
     final text = msg.body ?? '';
-
-    if (text.isEmpty) {
-      _log.info('Ignoring inbound WA message because extracted text is empty');
-      return;
-    }
+    List<Map<String, dynamic>>? contentBlocks;
 
     if (!isGroup) {
       final allowed = await _checkDmPolicy(
@@ -274,6 +271,24 @@ class WhatsAppChannelAdapter implements ChannelAdapter {
         return;
       }
       await _sendAckReaction(msg, chatId);
+    }
+
+    try {
+      contentBlocks = await _buildIncomingContentBlocks(msg, text);
+    } catch (e, st) {
+      _log.warning(
+        'Failed to prepare inbound WhatsApp media message '
+        'messageId=${msg.id} chatId=$chatId mimeType=${msg.media?.mimetype ?? '-'}',
+        e,
+        st,
+      );
+    }
+
+    if (text.isEmpty && (contentBlocks == null || contentBlocks.isEmpty)) {
+      _log.info(
+        'Ignoring inbound WA message because extracted text is empty and no supported media was prepared',
+      );
+      return;
     }
 
     final channelContext = <String, dynamic>{
@@ -296,7 +311,8 @@ class WhatsAppChannelAdapter implements ChannelAdapter {
 
     _log.info(
       'Dispatching inbound WA message to handler '
-      'chatId=$chatId messageId=${msg.id} textLength=${text.length}',
+      'chatId=$chatId messageId=${msg.id} textLength=${text.length} '
+      'contentBlocks=${contentBlocks?.length ?? 0}',
     );
     await _dispatchMessage(
       senderId: senderId,
@@ -309,6 +325,7 @@ class WhatsAppChannelAdapter implements ChannelAdapter {
       replyToMessageId: msg.contextInfo?.stanzaId,
       timestamp: DateTime.fromMillisecondsSinceEpoch(msg.timestamp * 1000),
       channelContext: channelContext,
+      contentBlocks: contentBlocks,
     );
   }
 
@@ -344,8 +361,11 @@ class WhatsAppChannelAdapter implements ChannelAdapter {
     String? participantId,
     String? replyToMessageId,
     Map<String, dynamic>? channelContext,
+    List<Map<String, dynamic>>? contentBlocks,
   }) async {
-    if (text.startsWith('/') && chatCommandHandler != null) {
+    if (contentBlocks == null &&
+        text.startsWith('/') &&
+        chatCommandHandler != null) {
       final sessionKey = '$_type:$chatId';
       _log.info(
         'Routing WhatsApp slash command sessionKey=$sessionKey textLength=${text.length}',
@@ -374,6 +394,7 @@ class WhatsAppChannelAdapter implements ChannelAdapter {
       replyToMessageId: replyToMessageId,
       timestamp: timestamp,
       channelContext: channelContext,
+      contentBlocks: contentBlocks,
     );
 
     final handler = _handler;
@@ -396,6 +417,43 @@ class WhatsAppChannelAdapter implements ChannelAdapter {
     } finally {
       stopTyping(chatId);
     }
+  }
+
+  Future<List<Map<String, dynamic>>?> _buildIncomingContentBlocks(
+    WAMessage msg,
+    String text,
+  ) async {
+    final media = msg.media;
+    if (media == null) return null;
+
+    final mimeType = media.mimetype?.trim();
+    final isImageMessage =
+        msg.message?.hasImageMessage() == true ||
+        (mimeType != null && mimeType.startsWith('image/'));
+    if (!isImageMessage) return null;
+
+    final client = _client;
+    if (client == null) {
+      _log.warning(
+        'Skipping inbound WA image because client is unavailable messageId=${msg.id}',
+      );
+      return null;
+    }
+
+    final mediaBytes = await client.downloadMedia(msg);
+    final resolvedMimeType =
+        mimeType != null && mimeType.isNotEmpty ? mimeType : 'image/jpeg';
+    final blocks = <Map<String, dynamic>>[
+      {
+        'type': 'image',
+        'data': base64Encode(mediaBytes),
+        'mimeType': resolvedMimeType,
+      },
+    ];
+    if (text.isNotEmpty) {
+      blocks.add({'type': 'text', 'text': text});
+    }
+    return blocks;
   }
 
   Future<bool> _checkDmPolicy(

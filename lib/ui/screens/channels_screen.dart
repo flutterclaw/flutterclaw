@@ -948,6 +948,7 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
             msg.text,
             channelType: msg.channelType,
             chatId: msg.chatId,
+            contentBlocks: msg.contentBlocks,
           );
           await adapter.sendMessage(
             OutgoingMessage(
@@ -1443,6 +1444,7 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
             msg.text,
             channelType: msg.channelType,
             chatId: msg.chatId,
+            contentBlocks: msg.contentBlocks,
           );
           await adapter.sendMessage(
             OutgoingMessage(
@@ -1935,6 +1937,7 @@ class _WhatsAppConfigScreenState extends ConsumerState<_WhatsAppConfigScreen> {
           msg.text,
           channelType: msg.channelType,
           chatId: msg.chatId,
+          contentBlocks: msg.contentBlocks,
           channelContext: msg.channelContext,
         );
         await adapter.sendMessage(
