@@ -29,12 +29,7 @@ class WAContact {
   final String? notify;
   final String? imgUrl;
 
-  const WAContact({
-    required this.id,
-    this.name,
-    this.notify,
-    this.imgUrl,
-  });
+  const WAContact({required this.id, this.name, this.notify, this.imgUrl});
 
   String get displayName => name ?? notify ?? id;
 }
@@ -63,9 +58,61 @@ class WAChat {
 
 enum WAMessageStatus { pending, sent, delivered, read, played, failed }
 
+enum WACallUpdateType { offer, ringing, timeout, reject, accept, terminate }
+
+class WACallEvent {
+  final String chatId;
+  final String from;
+  final String? callerPn;
+  final bool isGroup;
+  final String? groupJid;
+  final String id;
+  final DateTime date;
+  final bool isVideo;
+  final WACallUpdateType status;
+  final bool offline;
+  final int? latencyMs;
+
+  WACallEvent({
+    required this.chatId,
+    required this.from,
+    this.callerPn,
+    this.isGroup = false,
+    this.groupJid,
+    required this.id,
+    required this.date,
+    this.isVideo = false,
+    required this.status,
+    this.offline = false,
+    this.latencyMs,
+  });
+}
+
+class WAReactionInfo {
+  final String targetMessageId;
+  final String emoji;
+  final String remoteJid;
+  final String? participant;
+  final bool fromMe;
+
+  const WAReactionInfo({
+    required this.targetMessageId,
+    required this.emoji,
+    required this.remoteJid,
+    this.participant,
+    this.fromMe = false,
+  });
+}
+
 class WAMessage {
   final String id;
   final String remoteJid;
+  final String? remoteJidAlt;
+  final String? participant;
+  final String? participantAlt;
+  final String? author;
+  final String? authorAlt;
+  final String? addressingMode;
   final bool fromMe;
   final int timestamp;
   final WAMessageStatus status;
@@ -82,9 +129,22 @@ class WAMessage {
   /// Media info (set for image/video/audio/doc).
   final WAMediaInfo? media;
 
+  /// Reaction metadata when the message is a reaction event.
+  final WAReactionInfo? reaction;
+
+  /// Optional WhatsApp stub metadata for ciphertext/placeholders/system stubs.
+  final WebMessageInfo_StubType? stubType;
+  final List<String> stubParameters;
+
   const WAMessage({
     required this.id,
     required this.remoteJid,
+    this.remoteJidAlt,
+    this.participant,
+    this.participantAlt,
+    this.author,
+    this.authorAlt,
+    this.addressingMode,
     required this.fromMe,
     required this.timestamp,
     this.status = WAMessageStatus.pending,
@@ -92,6 +152,9 @@ class WAMessage {
     this.contextInfo,
     this.body,
     this.media,
+    this.reaction,
+    this.stubType,
+    this.stubParameters = const [],
   });
 }
 
@@ -133,34 +196,60 @@ class ImageContent extends WAMessageContent {
   final Uint8List bytes;
   final String mimetype;
   final String? caption;
-  ImageContent({required this.bytes, this.mimetype = 'image/jpeg', this.caption});
+  ImageContent({
+    required this.bytes,
+    this.mimetype = 'image/jpeg',
+    this.caption,
+  });
 }
 
 class VideoContent extends WAMessageContent {
   final Uint8List bytes;
   final String mimetype;
   final String? caption;
-  VideoContent({required this.bytes, this.mimetype = 'video/mp4', this.caption});
+  VideoContent({
+    required this.bytes,
+    this.mimetype = 'video/mp4',
+    this.caption,
+  });
 }
 
 class AudioContent extends WAMessageContent {
   final Uint8List bytes;
   final String mimetype;
   final bool ptt; // push-to-talk (voice note)
-  AudioContent({required this.bytes, this.mimetype = 'audio/ogg; codecs=opus', this.ptt = false});
+  AudioContent({
+    required this.bytes,
+    this.mimetype = 'audio/ogg; codecs=opus',
+    this.ptt = false,
+  });
 }
 
 class DocumentContent extends WAMessageContent {
   final Uint8List bytes;
   final String filename;
   final String mimetype;
-  DocumentContent({required this.bytes, required this.filename, this.mimetype = 'application/octet-stream'});
+  DocumentContent({
+    required this.bytes,
+    required this.filename,
+    this.mimetype = 'application/octet-stream',
+  });
 }
 
 class ReactionContent extends WAMessageContent {
   final String targetId;
   final String emoji; // empty string to remove reaction
-  ReactionContent({required this.targetId, required this.emoji});
+  final String remoteJid;
+  final String? participant;
+  final bool fromMe;
+
+  ReactionContent({
+    required this.targetId,
+    required this.emoji,
+    required this.remoteJid,
+    this.participant,
+    this.fromMe = false,
+  });
 }
 
 // ---------------------------------------------------------------------------

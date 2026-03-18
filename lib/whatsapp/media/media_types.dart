@@ -37,4 +37,5 @@ const mediaKeyInfo = {
   'document': 'WhatsApp Document Keys',
   'sticker': 'WhatsApp Image Keys',
   'history': 'WhatsApp History Keys',
+  'md-app-state': 'WhatsApp App State Keys',
 };
