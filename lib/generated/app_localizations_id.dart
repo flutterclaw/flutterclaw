@@ -596,8 +596,8 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Audio latar belakang aktif - gateway bekerja di latar belakang';
+  String get iosBackgroundSupportActive =>
+      'iOS: Dukungan latar belakang aktif - gateway dapat terus memberikan respons';
 
   @override
   String get webChatBuiltIn => 'Antarmuka obrolan bawaan';

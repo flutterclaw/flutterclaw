@@ -173,7 +173,7 @@
   "restartGateway": "Restart Gateway",
   "modelLabel": "Model: {model}",
   "uptimeLabel": "Waktu aktif: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Audio latar belakang aktif - gateway bekerja di latar belakang",
+  "iosBackgroundSupportActive": "iOS: Dukungan latar belakang aktif - gateway dapat terus memberikan respons",
   "webChatBuiltIn": "Antarmuka obrolan bawaan",
   "configure": "Konfigurasi",
   "disconnect": "Putuskan",

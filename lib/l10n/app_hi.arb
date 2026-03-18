@@ -173,7 +173,7 @@
   "restartGateway": "गेटवे पुनः आरंभ करें",
   "modelLabel": "मॉडल: {model}",
   "uptimeLabel": "अपटाइम: {uptime}",
-  "iosBackgroundAudioActive": "iOS: बैकग्राउंड ऑडियो सक्रिय - गेटवे बैकग्राउंड में काम करता है",
+  "iosBackgroundSupportActive": "iOS: बैकग्राउंड समर्थन सक्रिय - गेटवे प्रतिक्रिया देना जारी रख सकता है",
   "webChatBuiltIn": "अंतर्निहित चैट इंटरफ़ेस",
   "configure": "कॉन्फ़िगर करें",
   "disconnect": "डिस्कनेक्ट",

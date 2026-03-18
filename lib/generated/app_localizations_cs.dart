@@ -592,8 +592,8 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Zvuk na pozadí aktivní - brána funguje na pozadí';
+  String get iosBackgroundSupportActive =>
+      'iOS: Podpora na pozadí aktivní - brána může dál odpovídat';
 
   @override
   String get webChatBuiltIn => 'Vestavěné chatovací rozhraní';

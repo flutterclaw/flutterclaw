@@ -7,18 +7,18 @@ import 'package:logging/logging.dart';
 
 final _log = Logger('flutterclaw.ios_background_audio');
 
-/// Service to keep iOS app active in background using audio.
+/// Lightweight background audio helper used on iOS.
 ///
-/// This mimics what ChatGPT and other apps do when they need to run
-/// in background - they play silent audio with the audio background mode.
+/// Provides a background-safe audio session so long-running assistant
+/// activity can continue smoothly when the app is not in the foreground.
 class IosBackgroundAudioService {
   static AudioPlayer? _player;
   static bool _isPlaying = false;
   static StreamSubscription<AudioInterruptionEvent>? _interruptionSub;
   static StreamSubscription<PlayerState>? _playerStateSub;
 
-  /// Start playing silent audio to keep app active in background (iOS only).
-  /// Returns true if audio started successfully, false otherwise.
+  /// Start unobtrusive background audio on iOS (no-op on other platforms).
+  /// Returns true if the session started successfully, false otherwise.
   static Future<bool> start() async {
     if (!Platform.isIOS) {
       _log.fine('Background audio only needed on iOS');
@@ -57,18 +57,18 @@ class IosBackgroundAudioService {
 
       _player = AudioPlayer();
 
-      // Load the silent audio file from assets with timeout
+      // Load the background audio asset from bundled resources with timeout
       await _player!.setAsset('assets/audio/silence.mp3')
           .timeout(const Duration(seconds: 3), onTimeout: () {
         _log.warning('setAsset timed out - continuing without background audio');
         throw TimeoutException('Audio loading timed out');
       });
 
-      // Loop the silent audio indefinitely
+      // Loop the background audio indefinitely
       await _player!.setLoopMode(LoopMode.one)
           .timeout(const Duration(seconds: 3), onTimeout: () {});
 
-      // Set very low volume (almost inaudible, but not zero to avoid optimization)
+      // Set very low volume so playback remains unobtrusive for the user
       await _player!.setVolume(0.01)
           .timeout(const Duration(seconds: 3), onTimeout: () {});
 

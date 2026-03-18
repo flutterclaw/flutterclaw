@@ -173,7 +173,7 @@
   "restartGateway": "Redémarrer Gateway",
   "modelLabel": "Modèle: {model}",
   "uptimeLabel": "Temps de fonctionnement: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Audio en arrière-plan actif - gateway fonctionne en arrière-plan",
+  "iosBackgroundSupportActive": "iOS: Prise en charge en arrière-plan active - la passerelle peut continuer à répondre",
   "webChatBuiltIn": "Interface de chat intégrée",
   "configure": "Configurer",
   "disconnect": "Déconnecter",

@@ -173,7 +173,7 @@
   "restartGateway": "รีสตาร์ทเกตเวย์",
   "modelLabel": "โมเดล: {model}",
   "uptimeLabel": "เวลาทำงาน: {uptime}",
-  "iosBackgroundAudioActive": "iOS: เสียงพื้นหลังเปิดใช้งาน - เกตเวย์ทำงานในพื้นหลัง",
+  "iosBackgroundSupportActive": "iOS: เปิดใช้งานการรองรับเบื้องหลังแล้ว - เกตเวย์สามารถตอบกลับต่อได้",
   "webChatBuiltIn": "อินเทอร์เฟซแชทในตัว",
   "configure": "กำหนดค่า",
   "disconnect": "ตัดการเชื่อมต่อ",

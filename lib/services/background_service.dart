@@ -85,7 +85,7 @@ class FlutterClawTaskHandler extends TaskHandler {
     _running = true;
     _startedAt = DateTime.now();
 
-    // Start background audio on iOS to keep app active
+    // On iOS, prepare background support via the audio helper
     if (Platform.isIOS) {
       final audioStarted = await IosBackgroundAudioService.start();
       if (!audioStarted) {
@@ -417,7 +417,7 @@ class FlutterClawTaskHandler extends TaskHandler {
     _log.info('FlutterClawTaskHandler onDestroy (isTimeout: $isTimeout)');
     _running = false;
 
-    // Stop background audio on iOS
+    // Tear down iOS background helper
     if (Platform.isIOS) {
       await IosBackgroundAudioService.stop();
     }

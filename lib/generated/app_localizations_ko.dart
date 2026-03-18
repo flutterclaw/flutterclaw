@@ -580,8 +580,8 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: 백그라운드 오디오 활성 - 게이트웨이가 백그라운드에서 작동 중';
+  String get iosBackgroundSupportActive =>
+      'iOS: 백그라운드 지원 활성화 - 게이트웨이가 계속 응답할 수 있습니다';
 
   @override
   String get webChatBuiltIn => '내장 채팅 인터페이스';

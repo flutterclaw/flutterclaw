@@ -598,8 +598,8 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Achtergrond audio actief - gateway werkt op de achtergrond';
+  String get iosBackgroundSupportActive =>
+      'iOS: Achtergrondondersteuning actief - gateway kan blijven reageren';
 
   @override
   String get webChatBuiltIn => 'Ingebouwde chat-interface';

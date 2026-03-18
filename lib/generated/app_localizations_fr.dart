@@ -603,8 +603,8 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Audio en arrière-plan actif - gateway fonctionne en arrière-plan';
+  String get iosBackgroundSupportActive =>
+      'iOS: Prise en charge en arrière-plan active - la passerelle peut continuer à répondre';
 
   @override
   String get webChatBuiltIn => 'Interface de chat intégrée';

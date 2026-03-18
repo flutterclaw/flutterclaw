@@ -594,8 +594,8 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Âm thanh nền hoạt động - gateway hoạt động trong nền';
+  String get iosBackgroundSupportActive =>
+      'iOS: Hỗ trợ chạy nền đã bật - gateway có thể tiếp tục phản hồi';
 
   @override
   String get webChatBuiltIn => 'Giao diện trò chuyện tích hợp';

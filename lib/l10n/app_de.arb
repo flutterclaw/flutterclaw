@@ -173,7 +173,7 @@
   "restartGateway": "Gateway neu starten",
   "modelLabel": "Modell: {model}",
   "uptimeLabel": "Betriebszeit: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Hintergrund-Audio aktiv - Gateway läuft im Hintergrund",
+  "iosBackgroundSupportActive": "iOS: Hintergrundunterstützung aktiv - Gateway kann weiter antworten",
   "webChatBuiltIn": "Integrierte Chat-Oberfläche",
   "configure": "Konfigurieren",
   "disconnect": "Trennen"

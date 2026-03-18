@@ -173,7 +173,7 @@
   "restartGateway": "重启网关",
   "modelLabel": "模型：{model}",
   "uptimeLabel": "运行时间：{uptime}",
-  "iosBackgroundAudioActive": "iOS：后台音频已激活 - 网关在后台运行",
+  "iosBackgroundSupportActive": "iOS：后台支持已激活 - 网关可以继续响应",
   "webChatBuiltIn": "内置聊天界面",
   "configure": "配置",
   "disconnect": "断开连接",

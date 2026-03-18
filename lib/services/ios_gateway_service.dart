@@ -1,5 +1,6 @@
 /// iOS-specific gateway service that doesn't use flutter_foreground_task.
-/// Instead, uses background audio to keep the app active.
+/// Uses iOS-compatible background support so the gateway can continue running
+/// when the app is not in the foreground.
 library;
 
 import 'dart:async';
@@ -63,7 +64,7 @@ class IosGatewayService {
       _toolRegistry = toolRegistry;
       _skillsService = skillsService;
 
-      // Start background audio to keep app active
+      // Enable iOS background support if available
       if (Platform.isIOS) {
         try {
           final audioStarted = await IosBackgroundAudioService.start()

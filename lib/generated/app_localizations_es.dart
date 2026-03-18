@@ -600,8 +600,8 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Audio de fondo activo - gateway funciona en segundo plano';
+  String get iosBackgroundSupportActive =>
+      'iOS: Soporte en segundo plano activo - el gateway puede seguir respondiendo';
 
   @override
   String get webChatBuiltIn => 'Interfaz de chat integrada';

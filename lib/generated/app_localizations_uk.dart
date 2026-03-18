@@ -596,8 +596,8 @@ class AppLocalizationsUk extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Фонове аудіо активне - шлюз працює у фоновому режимі';
+  String get iosBackgroundSupportActive =>
+      'iOS: Фонова підтримка активна - шлюз може продовжувати відповідати';
 
   @override
   String get webChatBuiltIn => 'Вбудований інтерфейс чату';

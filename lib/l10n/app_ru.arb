@@ -173,7 +173,7 @@
   "restartGateway": "Перезапустить шлюз",
   "modelLabel": "Модель: {model}",
   "uptimeLabel": "Время работы: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Фоновый звук активен - шлюз работает в фоновом режиме",
+  "iosBackgroundSupportActive": "iOS: Фоновая поддержка активна - шлюз может продолжать отвечать",
   "webChatBuiltIn": "Встроенный интерфейс чата",
   "configure": "Настроить",
   "disconnect": "Отключить",

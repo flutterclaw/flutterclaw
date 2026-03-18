@@ -173,7 +173,7 @@
   "restartGateway": "Restartovat bránu",
   "modelLabel": "Model: {model}",
   "uptimeLabel": "Doba provozu: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Zvuk na pozadí aktivní - brána funguje na pozadí",
+  "iosBackgroundSupportActive": "iOS: Podpora na pozadí aktivní - brána může dál odpovídat",
   "webChatBuiltIn": "Vestavěné chatovací rozhraní",
   "configure": "Konfigurovat",
   "disconnect": "Odpojit",

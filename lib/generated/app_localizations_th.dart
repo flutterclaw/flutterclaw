@@ -586,8 +586,8 @@ class AppLocalizationsTh extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: เสียงพื้นหลังเปิดใช้งาน - เกตเวย์ทำงานในพื้นหลัง';
+  String get iosBackgroundSupportActive =>
+      'iOS: เปิดใช้งานการรองรับเบื้องหลังแล้ว - เกตเวย์สามารถตอบกลับต่อได้';
 
   @override
   String get webChatBuiltIn => 'อินเทอร์เฟซแชทในตัว';

@@ -1178,11 +1178,11 @@ abstract class AppLocalizations {
   /// **'Uptime: {uptime}'**
   String uptimeLabel(String uptime);
 
-  /// iOS background mode message
+  /// iOS background support message
   ///
   /// In en, this message translates to:
-  /// **'iOS: Background audio active - gateway works in background'**
-  String get iosBackgroundAudioActive;
+  /// **'iOS: Background support enabled - gateway can continue responding'**
+  String get iosBackgroundSupportActive;
 
   /// WebChat description
   ///

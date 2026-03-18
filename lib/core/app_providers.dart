@@ -1314,8 +1314,8 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
     final agentLoop = ref.read(agentLoopProvider);
 
-    // On iOS, start background audio keepalive so the event loop stays alive
-    // if the user backgrounds the app mid-response (no-op if already playing).
+    // On iOS, enable temporary background support so a response can finish
+    // even if the user switches apps mid-message (no-op if already active).
     bool startedAudio = false;
     if (Platform.isIOS && !IosBackgroundAudioService.isPlaying) {
       startedAudio = await IosBackgroundAudioService.start();

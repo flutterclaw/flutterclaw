@@ -598,8 +598,8 @@ class AppLocalizationsTr extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Arka plan ses aktif - gateway arka planda çalışıyor';
+  String get iosBackgroundSupportActive =>
+      'iOS: Arka plan desteği etkin - gateway yanıt vermeye devam edebilir';
 
   @override
   String get webChatBuiltIn => 'Yerleşik sohbet arayüzü';

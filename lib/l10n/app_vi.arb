@@ -173,7 +173,7 @@
   "restartGateway": "Khởi động lại Gateway",
   "modelLabel": "Mô hình: {model}",
   "uptimeLabel": "Thời gian hoạt động: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Âm thanh nền hoạt động - gateway hoạt động trong nền",
+  "iosBackgroundSupportActive": "iOS: Hỗ trợ chạy nền đã bật - gateway có thể tiếp tục phản hồi",
   "webChatBuiltIn": "Giao diện trò chuyện tích hợp",
   "configure": "Cấu hình",
   "disconnect": "Ngắt kết nối",

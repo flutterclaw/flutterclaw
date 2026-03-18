@@ -467,7 +467,7 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'iOS: Background audio active - gateway works in background',
+                              'iOS: Background support enabled - gateway can continue responding',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: Colors.blue.shade700,
                               ),

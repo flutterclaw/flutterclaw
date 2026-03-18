@@ -992,8 +992,8 @@
     }
   },
 
-  "iosBackgroundAudioActive": "iOS: Background audio active - gateway works in background",
-  "@iosBackgroundAudioActive": {
+  "iosBackgroundSupportActive": "iOS: Background support enabled - gateway can continue responding",
+  "@iosBackgroundSupportActive": {
     "description": "iOS background mode message"
   },
 

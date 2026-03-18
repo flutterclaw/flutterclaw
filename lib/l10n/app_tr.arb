@@ -173,7 +173,7 @@
   "restartGateway": "Gateway'i Yeniden Başlat",
   "modelLabel": "Model: {model}",
   "uptimeLabel": "Çalışma süresi: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Arka plan ses aktif - gateway arka planda çalışıyor",
+  "iosBackgroundSupportActive": "iOS: Arka plan desteği etkin - gateway yanıt vermeye devam edebilir",
   "webChatBuiltIn": "Yerleşik sohbet arayüzü",
   "configure": "Yapılandır",
   "disconnect": "Bağlantıyı Kes",

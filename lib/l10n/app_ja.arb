@@ -173,7 +173,7 @@
   "restartGateway": "ゲートウェイを再起動",
   "modelLabel": "モデル：{model}",
   "uptimeLabel": "稼働時間：{uptime}",
-  "iosBackgroundAudioActive": "iOS：バックグラウンドオーディオ有効 - ゲートウェイがバックグラウンドで動作中",
+  "iosBackgroundSupportActive": "iOS：バックグラウンドサポートが有効 - ゲートウェイは応答を継続できます",
   "webChatBuiltIn": "内蔵チャットインターフェース",
   "configure": "設定",
   "disconnect": "切断",

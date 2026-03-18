@@ -585,8 +585,8 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: الصوت في الخلفية نشط - تعمل البوابة في الخلفية';
+  String get iosBackgroundSupportActive =>
+      'iOS: دعم الخلفية نشط - يمكن للبوابة الاستمرار في الاستجابة';
 
   @override
   String get webChatBuiltIn => 'واجهة الدردشة المدمجة';

@@ -595,8 +595,8 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: Audio w tle aktywne - brama działa w tle';
+  String get iosBackgroundSupportActive =>
+      'iOS: Obsługa w tle aktywna - brama może dalej odpowiadać';
 
   @override
   String get webChatBuiltIn => 'Wbudowany interfejs czatu';

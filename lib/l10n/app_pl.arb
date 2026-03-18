@@ -173,7 +173,7 @@
   "restartGateway": "Uruchom ponownie bramę",
   "modelLabel": "Model: {model}",
   "uptimeLabel": "Czas pracy: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Audio w tle aktywne - brama działa w tle",
+  "iosBackgroundSupportActive": "iOS: Obsługa w tle aktywna - brama może dalej odpowiadać",
   "webChatBuiltIn": "Wbudowany interfejs czatu",
   "configure": "Konfiguruj",
   "disconnect": "Rozłącz",

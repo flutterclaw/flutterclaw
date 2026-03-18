@@ -173,7 +173,7 @@
   "restartGateway": "Gateway opnieuw starten",
   "modelLabel": "Model: {model}",
   "uptimeLabel": "Uptime: {uptime}",
-  "iosBackgroundAudioActive": "iOS: Achtergrond audio actief - gateway werkt op de achtergrond",
+  "iosBackgroundSupportActive": "iOS: Achtergrondondersteuning actief - gateway kan blijven reageren",
   "webChatBuiltIn": "Ingebouwde chat-interface",
   "configure": "Configureren",
   "disconnect": "Verbinding verbreken",

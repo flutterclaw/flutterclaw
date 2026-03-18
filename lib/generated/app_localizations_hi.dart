@@ -593,8 +593,8 @@ class AppLocalizationsHi extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS: बैकग्राउंड ऑडियो सक्रिय - गेटवे बैकग्राउंड में काम करता है';
+  String get iosBackgroundSupportActive =>
+      'iOS: बैकग्राउंड समर्थन सक्रिय - गेटवे प्रतिक्रिया देना जारी रख सकता है';
 
   @override
   String get webChatBuiltIn => 'अंतर्निहित चैट इंटरफ़ेस';

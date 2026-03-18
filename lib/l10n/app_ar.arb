@@ -173,7 +173,7 @@
   "restartGateway": "إعادة تشغيل البوابة",
   "modelLabel": "النموذج: {model}",
   "uptimeLabel": "وقت التشغيل: {uptime}",
-  "iosBackgroundAudioActive": "iOS: الصوت في الخلفية نشط - تعمل البوابة في الخلفية",
+  "iosBackgroundSupportActive": "iOS: دعم الخلفية نشط - يمكن للبوابة الاستمرار في الاستجابة",
   "webChatBuiltIn": "واجهة الدردشة المدمجة",
   "configure": "تكوين",
   "disconnect": "قطع الاتصال",

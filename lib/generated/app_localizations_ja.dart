@@ -579,8 +579,8 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get iosBackgroundAudioActive =>
-      'iOS：バックグラウンドオーディオ有効 - ゲートウェイがバックグラウンドで動作中';
+  String get iosBackgroundSupportActive =>
+      'iOS：バックグラウンドサポートが有効 - ゲートウェイは応答を継続できます';
 
   @override
   String get webChatBuiltIn => '内蔵チャットインターフェース';
