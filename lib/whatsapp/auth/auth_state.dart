@@ -8,6 +8,7 @@ import '../noise/noise_crypto.dart'
     show generateX25519KeyPair, generateRandomBytes, curve25519Sign;
 import '../proto/wa_proto.pb.dart' show ADVSignedDeviceIdentity;
 import '../signal/signal_store.dart';
+import '../binary/jid_utils.dart';
 
 // ---------------------------------------------------------------------------
 // Credential types
@@ -21,18 +22,13 @@ class WAMe {
 
   const WAMe({required this.id, required this.name, this.lid});
 
-  factory WAMe.fromJson(Map<String, dynamic> j) =>
-      WAMe(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? '',
-        lid: j['lid'] as String?,
-      );
+  factory WAMe.fromJson(Map<String, dynamic> j) => WAMe(
+    id: j['id'] as String,
+    name: j['name'] as String? ?? '',
+    lid: j['lid'] as String?,
+  );
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'lid': lid,
-      };
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'lid': lid};
 }
 
 /// Signal Protocol address (jid + device id).
@@ -42,11 +38,10 @@ class ProtocolAddress {
 
   const ProtocolAddress({required this.name, required this.deviceId});
 
-  factory ProtocolAddress.fromJson(Map<String, dynamic> j) =>
-      ProtocolAddress(
-        name: j['name'] as String,
-        deviceId: j['deviceId'] as int? ?? 0,
-      );
+  factory ProtocolAddress.fromJson(Map<String, dynamic> j) => ProtocolAddress(
+    name: j['name'] as String,
+    deviceId: j['deviceId'] as int? ?? 0,
+  );
 
   Map<String, dynamic> toJson() => {'name': name, 'deviceId': deviceId};
 }
@@ -58,18 +53,17 @@ class SignalIdentity {
 
   const SignalIdentity({required this.identifier, required this.identifierKey});
 
-  factory SignalIdentity.fromJson(Map<String, dynamic> j) =>
-      SignalIdentity(
-        identifier:
-            ProtocolAddress.fromJson(j['identifier'] as Map<String, dynamic>),
-        identifierKey:
-            base64Decode(j['identifierKey'] as String? ?? ''),
-      );
+  factory SignalIdentity.fromJson(Map<String, dynamic> j) => SignalIdentity(
+    identifier: ProtocolAddress.fromJson(
+      j['identifier'] as Map<String, dynamic>,
+    ),
+    identifierKey: base64Decode(j['identifierKey'] as String? ?? ''),
+  );
 
   Map<String, dynamic> toJson() => {
-        'identifier': identifier.toJson(),
-        'identifierKey': base64Encode(identifierKey),
-      };
+    'identifier': identifier.toJson(),
+    'identifierKey': base64Encode(identifierKey),
+  };
 }
 
 /// Prefix version byte to public keys for Signal compatibility.
@@ -130,6 +124,8 @@ class AuthenticationCreds {
   String? lastPropHash;
   Uint8List? routingInfo;
   Object? additionalData;
+  Map<String, String> lidToPn;
+  Map<String, String> pnToLid;
 
   AuthenticationCreds({
     required this.noiseKey,
@@ -154,9 +150,12 @@ class AuthenticationCreds {
     this.lastPropHash,
     this.routingInfo,
     this.additionalData,
-  })  : processedHistoryMessages =
-            processedHistoryMessages ?? <dynamic>[],
-        accountSettings = accountSettings ?? {'unarchiveChats': false};
+    Map<String, String>? lidToPn,
+    Map<String, String>? pnToLid,
+  }) : processedHistoryMessages = processedHistoryMessages ?? <dynamic>[],
+       accountSettings = accountSettings ?? {'unarchiveChats': false},
+       lidToPn = lidToPn ?? <String, String>{},
+       pnToLid = pnToLid ?? <String, String>{};
 
   /// Create brand-new credentials (first run).
   static Future<AuthenticationCreds> generate() async {
@@ -187,10 +186,7 @@ class AuthenticationCreds {
 Future<Map<String, dynamic>> _keyPairToJson(SimpleKeyPair kp) async {
   final priv = await kp.extractPrivateKeyBytes();
   final pub = await kp.extractPublicKey();
-  return {
-    'private': base64Encode(priv),
-    'public': base64Encode(pub.bytes),
-  };
+  return {'private': base64Encode(priv), 'public': base64Encode(pub.bytes)};
 }
 
 Future<SimpleKeyPair> _keyPairFromJson(Map<String, dynamic> j) async {
@@ -231,14 +227,17 @@ class SignedPreKeyRecord {
       id: j['keyId'] as int,
       keyPair: kp,
       signature: base64Decode(j['signature'] as String),
-      timestamp: j['timestamp'] as int? ??
+      timestamp:
+          j['timestamp'] as int? ??
           DateTime.now().millisecondsSinceEpoch ~/ 1000,
     );
   }
 }
 
 Future<SignedPreKeyRecord> _generateSignedPreKey(
-    SimpleKeyPair identityKey, int id) async {
+  SimpleKeyPair identityKey,
+  int id,
+) async {
   final spkPair = await generateX25519KeyPair();
   final pub = await spkPair.extractPublicKey();
   // Sign the public key with our identity key (Ed25519 semantics via X25519 sign).
@@ -246,7 +245,9 @@ Future<SignedPreKeyRecord> _generateSignedPreKey(
   final privBytes = await identityKey.extractPrivateKeyBytes();
   final pubBytes = Uint8List.fromList(pub.bytes);
   final sig = await curve25519Sign(
-      Uint8List.fromList(privBytes), generateSignalPubKey(pubBytes));
+    Uint8List.fromList(privBytes),
+    generateSignalPubKey(pubBytes),
+  );
 
   return SignedPreKeyRecord(
     id: id,
@@ -281,6 +282,35 @@ class WAAuthState {
     required this.saveCreds,
   });
 
+  static String credsFilePath(String directory) => '$directory/creds.json';
+
+  static Future<bool> hasLinkedSession(String directory) async {
+    final credsFile = File(credsFilePath(directory));
+    if (!await credsFile.exists()) return false;
+    try {
+      final raw = await credsFile.readAsString();
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      final me = j['me'] as Map<String, dynamic>?;
+      final id = me?['id']?.toString() ?? '';
+      return id.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void storeLidPnMapping({String? lid, String? pn}) {
+    final lidKey = _canonicalUserJid(lid);
+    final pnKey = _canonicalUserJid(pn);
+    if (lidKey == null || pnKey == null) return;
+    if (!isLidUser(lidKey) || !isPnUser(pnKey)) return;
+    creds.lidToPn[lidKey] = pnKey;
+    creds.pnToLid[pnKey] = lidKey;
+  }
+
+  String? getPnForLid(String? lid) => creds.lidToPn[_canonicalUserJid(lid)];
+
+  String? getLidForPn(String? pn) => creds.pnToLid[_canonicalUserJid(pn)];
+
   /// Load (or create) auth state from [directory].
   static Future<WAAuthState> load(String directory) async {
     final dir = Directory(directory);
@@ -303,6 +333,13 @@ class WAAuthState {
         identityKey: creds.signedIdentityKey,
         registrationId: creds.registrationId,
       );
+    await keys.storePreKey(
+      _signedPreKeyStoreId(creds.signedPreKey.id),
+      PreKeyRecord(
+        id: creds.signedPreKey.id,
+        keyPair: creds.signedPreKey.keyPair,
+      ),
+    );
 
     return WAAuthState(
       creds: creds,
@@ -311,12 +348,13 @@ class WAAuthState {
     );
   }
 
-  static Future<void> _saveCreds(
-      File file, AuthenticationCreds creds) async {
+  static Future<void> _saveCreds(File file, AuthenticationCreds creds) async {
     final j = await _credsToJson(creds);
     await file.writeAsString(jsonEncode(j));
   }
 }
+
+int _signedPreKeyStoreId(int id) => 0x80000000 | id;
 
 // ---------------------------------------------------------------------------
 // Creds JSON serialization
@@ -327,8 +365,9 @@ Future<Map<String, dynamic>> _credsToJson(AuthenticationCreds c) async {
   final pairingJson = await _keyPairToJson(c.pairingEphemeralKeyPair);
   final identJson = await _keyPairToJson(c.signedIdentityKey);
   final spkJson = await c.signedPreKey.toJson();
-  final accountEnc =
-      c.account == null ? null : base64Encode(c.account!.writeToBuffer());
+  final accountEnc = c.account == null
+      ? null
+      : base64Encode(c.account!.writeToBuffer());
 
   return {
     'noiseKey': noiseJson,
@@ -351,14 +390,15 @@ Future<Map<String, dynamic>> _credsToJson(AuthenticationCreds c) async {
     'registered': c.registered,
     'pairingCode': c.pairingCode,
     'lastPropHash': c.lastPropHash,
-    'routingInfo':
-        c.routingInfo == null ? null : base64Encode(c.routingInfo!),
+    'routingInfo': c.routingInfo == null ? null : base64Encode(c.routingInfo!),
     'additionalData': c.additionalData,
+    'lidToPn': c.lidToPn,
+    'pnToLid': c.pnToLid,
   };
 }
 
 Future<AuthenticationCreds> _credsFromJson(Map<String, dynamic> j) async {
-  Uint8List? _decodeBytes(dynamic value) {
+  Uint8List? decodeBytes(dynamic value) {
     if (value is String && value.isNotEmpty) {
       return base64Decode(value);
     }
@@ -369,25 +409,29 @@ Future<AuthenticationCreds> _credsFromJson(Map<String, dynamic> j) async {
     return null;
   }
 
-  final noiseKey = await _keyPairFromJson(j['noiseKey'] as Map<String, dynamic>);
+  final noiseKey = await _keyPairFromJson(
+    j['noiseKey'] as Map<String, dynamic>,
+  );
   final pairingJson = j['pairingEphemeralKeyPair'];
   final pairingKey = pairingJson is Map<String, dynamic>
       ? await _keyPairFromJson(pairingJson)
       : await generateX25519KeyPair();
-  final identKey =
-      await _keyPairFromJson(j['signedIdentityKey'] as Map<String, dynamic>);
+  final identKey = await _keyPairFromJson(
+    j['signedIdentityKey'] as Map<String, dynamic>,
+  );
   final spk = await SignedPreKeyRecord.fromJson(
-      j['signedPreKey'] as Map<String, dynamic>);
+    j['signedPreKey'] as Map<String, dynamic>,
+  );
 
   ADVSignedDeviceIdentity? account;
   final accountRaw = j['account'];
   if (accountRaw is String && accountRaw.isNotEmpty) {
     account = ADVSignedDeviceIdentity.fromBuffer(base64Decode(accountRaw));
   } else if (accountRaw is Map<String, dynamic>) {
-    final details = _decodeBytes(accountRaw['details']);
-    final accountSigKey = _decodeBytes(accountRaw['accountSignatureKey']);
-    final accountSig = _decodeBytes(accountRaw['accountSignature']);
-    final deviceSig = _decodeBytes(accountRaw['deviceSignature']);
+    final details = decodeBytes(accountRaw['details']);
+    final accountSigKey = decodeBytes(accountRaw['accountSignatureKey']);
+    final accountSig = decodeBytes(accountRaw['accountSignature']);
+    final deviceSig = decodeBytes(accountRaw['deviceSignature']);
     if (details != null) {
       account = ADVSignedDeviceIdentity(
         details: details,
@@ -410,8 +454,7 @@ Future<AuthenticationCreds> _credsFromJson(Map<String, dynamic> j) async {
   final me = j['me'] != null
       ? WAMe.fromJson(j['me'] as Map<String, dynamic>)
       : null;
-  var regId =
-      int.tryParse(j['registrationId']?.toString() ?? '') ?? 0;
+  var regId = int.tryParse(j['registrationId']?.toString() ?? '') ?? 0;
   if (regId <= 0 || (me == null && regId > 0x3fff)) {
     regId = _generateRegistrationId();
   }
@@ -421,8 +464,7 @@ Future<AuthenticationCreds> _credsFromJson(Map<String, dynamic> j) async {
     pairingEphemeralKeyPair: pairingKey,
     signedIdentityKey: identKey,
     signedPreKey: spk,
-    advSecretKey:
-        _decodeBytes(j['advSecretKey']) ?? generateRandomBytes(32),
+    advSecretKey: decodeBytes(j['advSecretKey']) ?? generateRandomBytes(32),
     registrationId: regId,
     me: me,
     platform: j['platform'] as String? ?? 'smba',
@@ -437,11 +479,31 @@ Future<AuthenticationCreds> _credsFromJson(Map<String, dynamic> j) async {
     accountSyncCounter: j['accountSyncCounter'] as int? ?? 0,
     accountSettings:
         (j['accountSettings'] as Map<String, dynamic>?) ??
-            {'unarchiveChats': false},
+        {'unarchiveChats': false},
     registered: j['registered'] as bool? ?? false,
     pairingCode: j['pairingCode'] as String?,
     lastPropHash: j['lastPropHash'] as String?,
-    routingInfo: _decodeBytes(j['routingInfo']),
+    routingInfo: decodeBytes(j['routingInfo']),
     additionalData: j['additionalData'],
+    lidToPn:
+        (j['lidToPn'] as Map<String, dynamic>?)?.map(
+          (k, v) => MapEntry(k, v.toString()),
+        ) ??
+        <String, String>{},
+    pnToLid:
+        (j['pnToLid'] as Map<String, dynamic>?)?.map(
+          (k, v) => MapEntry(k, v.toString()),
+        ) ??
+        <String, String>{},
   );
+}
+
+String? _canonicalUserJid(String? jid) {
+  if (jid == null || jid.isEmpty) return null;
+  final decoded = jidDecode(jid);
+  if (decoded == null) return jid;
+  if (isJidGroup(jid) || isJidBroadcast(jid) || isJidNewsletter(jid)) {
+    return jid;
+  }
+  return jidEncode(decoded.user, decoded.server);
 }

@@ -11,7 +11,8 @@ import 'signal_keys.dart';
 
 const _maxSkipKeys = 1000;
 const _messageKeyInfo = 'WhisperMessageKeys';
-const _rootKeyInfo = 'WhisperText';
+const _rootKeyInfo = 'WhisperRatchet';
+const _messageKeySeed = [0x01];
 
 // ---------------------------------------------------------------------------
 // Message key
@@ -126,8 +127,10 @@ Future<RatchetState> initSender({
   required Uint8List recipientRatchetKey,
 }) async {
   final sendingKP = await generateX25519KeyPair();
-  final bobRatchetPub =
-      SimplePublicKey(recipientRatchetKey, type: KeyPairType.x25519);
+  final bobRatchetPub = SimplePublicKey(
+    recipientRatchetKey,
+    type: KeyPairType.x25519,
+  );
 
   // Root key derivation: RK, CK_s = KDF_RK(SK, DH(sending_kp, Bob_ratchet))
   final dh = await x25519SharedKey(sendingKP, bobRatchetPub);
@@ -165,7 +168,9 @@ Future<RatchetState> initReceiver({
 ///
 /// Returns [header] (to be sent with the message) and [ciphertext].
 Future<(RatchetHeader, Uint8List, MessageKeys)> ratchetEncrypt(
-    RatchetState state, Uint8List plaintext) async {
+  RatchetState state,
+  Uint8List plaintext,
+) async {
   final ck = state.sendingChainKey;
   if (ck == null) throw StateError('Sending chain not initialised');
 
@@ -190,7 +195,10 @@ Future<(RatchetHeader, Uint8List, MessageKeys)> ratchetEncrypt(
 
 /// Decrypt [ciphertext] using [header] and advance the receiving chain.
 Future<(Uint8List, MessageKeys)> ratchetDecrypt(
-    RatchetState state, RatchetHeader header, Uint8List ciphertext) async {
+  RatchetState state,
+  RatchetHeader header,
+  Uint8List ciphertext,
+) async {
   // Check skipped keys first.
   final skipKey = _skippedKeyId(header);
   final cached = state.skippedKeys.remove(skipKey);
@@ -201,8 +209,7 @@ Future<(Uint8List, MessageKeys)> ratchetDecrypt(
 
   // DH ratchet step if sender used a new key.
   final remoteKey = state.dhRemotePublicKey;
-  if (remoteKey == null ||
-      !_bytesEqual(header.dhPublicKey, remoteKey)) {
+  if (remoteKey == null || !_bytesEqual(header.dhPublicKey, remoteKey)) {
     await _skipMessageKeys(state, header.prevChainLength);
     await _dhRatchetStep(state, header.dhPublicKey);
   }
@@ -225,15 +232,13 @@ Future<(Uint8List, MessageKeys)> ratchetDecrypt(
 // DH ratchet step
 // ---------------------------------------------------------------------------
 
-Future<void> _dhRatchetStep(
-    RatchetState state, Uint8List newRemoteKey) async {
+Future<void> _dhRatchetStep(RatchetState state, Uint8List newRemoteKey) async {
   state.prevSendingChainMsgCount = state.sendingChainMsgCount;
   state.sendingChainMsgCount = 0;
   state.receivingChainMsgCount = 0;
   state.dhRemotePublicKey = newRemoteKey;
 
-  final remotePub =
-      SimplePublicKey(newRemoteKey, type: KeyPairType.x25519);
+  final remotePub = SimplePublicKey(newRemoteKey, type: KeyPairType.x25519);
 
   // Receiving chain: RK, CK_r = KDF_RK(RK, DH(current_send_kp, new_remote))
   final dh1 = await x25519SharedKey(state.dhSendingKeyPair, remotePub);
@@ -265,7 +270,9 @@ Future<void> _skipMessageKeys(RatchetState state, int untilIndex) async {
     }
     final msgKeys = await _deriveMessageKeys(ck!);
     final id = _skippedKeyIdFrom(
-        state.dhRemotePublicKey!, state.receivingChainMsgCount);
+      state.dhRemotePublicKey!,
+      state.receivingChainMsgCount,
+    );
     state.skippedKeys[id] = msgKeys;
     ck = await _advanceChainKey(ck);
     state.receivingChainMsgCount++;
@@ -280,7 +287,9 @@ Future<void> _skipMessageKeys(RatchetState state, int untilIndex) async {
 /// KDF_RK: HKDF-SHA256 with root key as salt, DH output as IKM.
 /// Returns [new_root_key, new_chain_key].
 Future<List<Uint8List>> _kdfRootKey(
-    Uint8List rootKey, Uint8List dhOutput) async {
+  Uint8List rootKey,
+  Uint8List dhOutput,
+) async {
   final out = await hkdfExpand(
     dhOutput,
     64,
@@ -292,8 +301,9 @@ Future<List<Uint8List>> _kdfRootKey(
 
 /// Derive message keys from a chain key using HMAC-SHA256.
 Future<MessageKeys> _deriveMessageKeys(Uint8List chainKey) async {
+  final seed = await hmacSha256(Uint8List.fromList(_messageKeySeed), chainKey);
   final material = await hkdfExpand(
-    chainKey,
+    seed,
     80,
     salt: Uint8List(32),
     info: Uint8List.fromList(_messageKeyInfo.codeUnits),

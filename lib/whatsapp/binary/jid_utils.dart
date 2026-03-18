@@ -1,5 +1,6 @@
 /// WhatsApp JID (Jabber ID) utilities.
 /// Port of Baileys WABinary/jid-utils.ts.
+library;
 
 const sWhatsAppNet = '@s.whatsapp.net';
 const officialBizJid = '16505361212@c.us';
@@ -128,4 +129,12 @@ String transferDevice(String fromJid, String toJid) {
   final deviceId = fromDecoded?.device ?? 0;
   final toDecoded = jidDecode(toJid)!;
   return jidEncode(toDecoded.user, toDecoded.server, deviceId);
+}
+
+bool jidHasDevice(String? jid) => (jidDecode(jid)?.device ?? 0) != 0;
+
+String jidWithoutDevice(String? jid) {
+  final decoded = jidDecode(jid);
+  if (decoded == null) return jid ?? '';
+  return jidEncode(decoded.user, decoded.server);
 }

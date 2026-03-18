@@ -24,21 +24,14 @@ Future<String> requestPairingCode({
   final normalised = _normalisePhone(phoneNumber);
 
   // Build the registration payload.
-  final noisePub =
-      await authState.creds.noiseKey.extractPublicKey();
-  final identPub =
-      await authState.creds.signedIdentityKey.extractPublicKey();
+  final noisePub = await authState.creds.noiseKey.extractPublicKey();
+  final identPub = await authState.creds.signedIdentityKey.extractPublicKey();
 
   // Send IQ to request pairing code.
   final iqId = 'pair-${DateTime.now().millisecondsSinceEpoch}';
   final iq = BinaryNode(
     tag: 'iq',
-    attrs: {
-      'to': '@s.whatsapp.net',
-      'type': 'set',
-      'id': iqId,
-      'xmlns': 'md',
-    },
+    attrs: {'to': '@s.whatsapp.net', 'type': 'set', 'id': iqId, 'xmlns': 'md'},
     content: [
       BinaryNode(
         tag: 'link_code_companion_reg',
@@ -61,7 +54,10 @@ Future<String> requestPairingCode({
           BinaryNode(
             tag: 'companion_platform_id',
             attrs: {},
-            content: _encodePlatformId('Chrome', '4.0.0'),
+            content: _encodePlatformId(
+              socket.config.deviceName,
+              socket.config.browser[2],
+            ),
           ),
           BinaryNode(
             tag: 'link_code_pairing_nonce',
@@ -77,16 +73,20 @@ Future<String> requestPairingCode({
 
   // Extract code from response.
   final codeNode = getBinaryNodeChild(
-      getBinaryNodeChild(response, 'link_code_companion_reg') ??
-          BinaryNode(tag: '', attrs: {}),
-      'link_code_pairing_ref');
+    getBinaryNodeChild(response, 'link_code_companion_reg') ??
+        BinaryNode(tag: '', attrs: {}),
+    'link_code_pairing_ref',
+  );
 
   if (codeNode?.contentBytes != null) {
     return _encodeCrockford(codeNode!.contentBytes!);
   }
 
   // Fallback: look for the code in a result iq.
-  final pairingRef = getBinaryNodeChildBuffer(response, 'link_code_pairing_ref');
+  final pairingRef = getBinaryNodeChildBuffer(
+    response,
+    'link_code_pairing_ref',
+  );
   if (pairingRef != null) {
     return _encodeCrockford(pairingRef);
   }
@@ -98,8 +98,7 @@ Future<String> requestPairingCode({
 // Helpers
 // ---------------------------------------------------------------------------
 
-String _normalisePhone(String phone) =>
-    phone.replaceAll(RegExp(r'[^\d]'), '');
+String _normalisePhone(String phone) => phone.replaceAll(RegExp(r'[^\d]'), '');
 
 /// Encode [bytes] as a Crockford Base32 string, inserting a dash every 4 chars.
 String _encodeCrockford(Uint8List bytes) {
