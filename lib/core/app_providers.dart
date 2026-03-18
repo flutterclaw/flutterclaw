@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/services/ios_background_audio_service.dart';
 import 'package:flutterclaw/services/ios_gateway_service.dart';
 import 'package:flutterclaw/services/live_activity_service.dart';
+import 'package:logging/logging.dart';
 import 'package:flutterclaw/channels/channel_interface.dart';
 import 'package:flutterclaw/channels/discord.dart';
 import 'package:flutterclaw/channels/router.dart';
@@ -91,8 +92,10 @@ String resolveSessionModelName(
   final chatId = parts.length > 1 ? parts.sublist(1).join(':') : '';
 
   // Session-level override wins
-  final meta =
-      sessionManager.listSessions().where((s) => s.key == sessionKey).firstOrNull;
+  final meta = sessionManager
+      .listSessions()
+      .where((s) => s.key == sessionKey)
+      .firstOrNull;
   if (meta?.modelOverride != null && meta!.modelOverride!.isNotEmpty) {
     return meta.modelOverride!;
   }
@@ -122,8 +125,11 @@ final activeModelSupportsVisionProvider = Provider<bool>((ref) {
   final sessionManager = ref.watch(sessionManagerProvider);
   final activeKey = ref.watch(activeSessionKeyProvider);
 
-  final modelName =
-      resolveSessionModelName(activeKey, configManager, sessionManager);
+  final modelName = resolveSessionModelName(
+    activeKey,
+    configManager,
+    sessionManager,
+  );
   final entry = configManager.config.getModel(modelName);
   if (entry == null) return false;
 
@@ -180,32 +186,42 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
   registry.register(MemorySearchTool(wsPath));
   registry.register(MemoryGetTool(wsPath));
   registry.register(MemoryWriteTool(wsPath));
-  registry.register(SessionStatusTool((key) async {
-    final sessions = sessionManager.listSessions();
-    final meta = sessions.where((s) => s.key == (key ?? 'webchat:default')).firstOrNull;
-    if (meta == null) return null;
-    return {
-      'key': meta.key,
-      'channel': meta.channelType,
-      'messages': meta.messageCount,
-      'tokens': meta.totalTokens,
-      'inputTokens': meta.inputTokens,
-      'outputTokens': meta.outputTokens,
-      'model': meta.modelOverride ?? configManager.config.agents.defaults.modelName,
-    };
-  }));
-  registry.register(SessionsListTool(({int? limit}) async {
-    final sessions = sessionManager.listActiveSessions();
-    final capped = limit != null ? sessions.take(limit).toList() : sessions;
-    return capped
-        .map((s) => {
+  registry.register(
+    SessionStatusTool((key) async {
+      final sessions = sessionManager.listSessions();
+      final meta = sessions
+          .where((s) => s.key == (key ?? 'webchat:default'))
+          .firstOrNull;
+      if (meta == null) return null;
+      return {
+        'key': meta.key,
+        'channel': meta.channelType,
+        'messages': meta.messageCount,
+        'tokens': meta.totalTokens,
+        'inputTokens': meta.inputTokens,
+        'outputTokens': meta.outputTokens,
+        'model':
+            meta.modelOverride ??
+            configManager.config.agents.defaults.modelName,
+      };
+    }),
+  );
+  registry.register(
+    SessionsListTool(({int? limit}) async {
+      final sessions = sessionManager.listActiveSessions();
+      final capped = limit != null ? sessions.take(limit).toList() : sessions;
+      return capped
+          .map(
+            (s) => {
               'key': s.key,
               'channel': s.channelType,
               'messages': s.messageCount,
               'tokens': s.totalTokens,
-            })
-        .toList();
-  }));
+            },
+          )
+          .toList();
+    }),
+  );
   registry.register(DeviceStatusTool());
   registry.register(ClipboardReadTool());
   registry.register(ClipboardWriteTool());
@@ -219,48 +235,69 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
   registry.register(GetHealthDataTool());
   registry.register(MediaPlayTool());
   registry.register(MediaControlTool());
-  registry.register(SendNotificationTool(
-    notificationService: ref.read(notificationServiceProvider),
-    // Provide the active session key so tapping the notification opens that chat.
-    sessionKeyGetter: () {
-      final activeAgent = configManager.config.activeAgent;
-      return activeAgent != null
-          ? 'webchat:${activeAgent.id}'
-          : 'webchat:default';
-    },
-  ));
-  registry.register(ScheduleReminderTool(
-    notificationService: ref.read(notificationServiceProvider),
-  ));
-  registry.register(CancelReminderTool(
-    notificationService: ref.read(notificationServiceProvider),
-  ));
+  registry.register(
+    SendNotificationTool(
+      notificationService: ref.read(notificationServiceProvider),
+      // Provide the active session key so tapping the notification opens that chat.
+      sessionKeyGetter: () {
+        final activeAgent = configManager.config.activeAgent;
+        return activeAgent != null
+            ? 'webchat:${activeAgent.id}'
+            : 'webchat:default';
+      },
+    ),
+  );
+  registry.register(
+    ScheduleReminderTool(
+      notificationService: ref.read(notificationServiceProvider),
+    ),
+  );
+  registry.register(
+    CancelReminderTool(
+      notificationService: ref.read(notificationServiceProvider),
+    ),
+  );
   // ChannelRouter is bound later (after channelRouterProvider is created) to
   // break the circular dep: toolRegistry → channelRouter → agentLoop → toolRegistry.
   ChannelRouter? channelRouter;
-  registry.register(MessageTool(({
-    required String channel,
-    required String target,
-    required String text,
-    String? action,
-  }) async {
-    final router = channelRouter;
-    if (router == null) {
-      throw StateError('ChannelRouter not yet initialized');
-    }
-    await router.sendMessage(OutgoingMessage(
-      channelType: channel,
-      chatId: target,
-      text: text,
-    ));
-  }));
+  registry.register(
+    MessageTool(({
+      required String channel,
+      required String target,
+      required String text,
+      String? action,
+      String? targetMessageId,
+      String? emoji,
+      String? participantId,
+      bool? fromMe,
+    }) async {
+      final router = channelRouter;
+      if (router == null) {
+        throw StateError('ChannelRouter not yet initialized');
+      }
+      await router.sendMessage(
+        OutgoingMessage(
+          channelType: channel,
+          chatId: target,
+          text: text,
+          action: action,
+          targetMessageId: targetMessageId,
+          emoji: emoji,
+          participantId: participantId,
+          fromMe: fromMe,
+        ),
+      );
+    }),
+  );
   // Expose setter so channelStartupProvider can bind it after creation.
   ref.onDispose(() => channelRouter = null);
   _pendingChannelRouterBinder = (r) => channelRouter = r;
-  registry.register(ChannelSessionsTool(
-    sessionManager: ref.read(sessionManagerProvider),
-    pairingService: ref.read(pairingServiceProvider),
-  ));
+  registry.register(
+    ChannelSessionsTool(
+      sessionManager: ref.read(sessionManagerProvider),
+      pairingService: ref.read(pairingServiceProvider),
+    ),
+  );
 
   // Agent management tools (create/update/delete/switch permanent agents)
   void onConfigChanged() {
@@ -270,22 +307,30 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
     ref.invalidate(activeModelSupportsVisionProvider);
   }
 
-  registry.register(AgentCreateTool(
-    configManager: configManager,
-    onConfigChanged: onConfigChanged,
-  ));
-  registry.register(AgentUpdateTool(
-    configManager: configManager,
-    onConfigChanged: onConfigChanged,
-  ));
-  registry.register(AgentDeleteTool(
-    configManager: configManager,
-    onConfigChanged: onConfigChanged,
-  ));
-  registry.register(AgentSwitchTool(
-    configManager: configManager,
-    onConfigChanged: onConfigChanged,
-  ));
+  registry.register(
+    AgentCreateTool(
+      configManager: configManager,
+      onConfigChanged: onConfigChanged,
+    ),
+  );
+  registry.register(
+    AgentUpdateTool(
+      configManager: configManager,
+      onConfigChanged: onConfigChanged,
+    ),
+  );
+  registry.register(
+    AgentDeleteTool(
+      configManager: configManager,
+      onConfigChanged: onConfigChanged,
+    ),
+  );
+  registry.register(
+    AgentSwitchTool(
+      configManager: configManager,
+      onConfigChanged: onConfigChanged,
+    ),
+  );
 
   // Subagent orchestration tools — declared first so AgentSendTool can share them
   final subagentRegistry = ref.read(subagentRegistryProvider);
@@ -293,61 +338,75 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
 
   String currentSessionKey() {
     final activeAgent = configManager.config.activeAgent;
-    return activeAgent != null ? 'webchat:${activeAgent.id}' : 'webchat:default';
+    return activeAgent != null
+        ? 'webchat:${activeAgent.id}'
+        : 'webchat:default';
   }
 
   // Agent communication tools
-  registry.register(AgentsListTool(
-    configManager: configManager,
-  ));
-  registry.register(AgentSendTool(
-    configManager: configManager,
-    loopProxy: loopProxy,
-    registry: subagentRegistry,
-    parentSessionKeyGetter: currentSessionKey,
-    sendMessageCallback: (sourceId, targetId, message) async {
-      await sessionManager.sendAgentMessage(
-        sourceAgentId: sourceId,
-        targetAgentId: targetId,
-        message: message,
-      );
-    },
-  ));
-  registry.register(AgentMessagesTool(
-    configManager: configManager,
-    getMessagesCallback: (agentId) async {
-      return await sessionManager.getAgentMessages(agentId);
-    },
-  ));
+  registry.register(AgentsListTool(configManager: configManager));
+  registry.register(
+    AgentSendTool(
+      configManager: configManager,
+      loopProxy: loopProxy,
+      registry: subagentRegistry,
+      parentSessionKeyGetter: currentSessionKey,
+      sendMessageCallback: (sourceId, targetId, message) async {
+        await sessionManager.sendAgentMessage(
+          sourceAgentId: sourceId,
+          targetAgentId: targetId,
+          message: message,
+        );
+      },
+    ),
+  );
+  registry.register(
+    AgentMessagesTool(
+      configManager: configManager,
+      getMessagesCallback: (agentId) async {
+        return await sessionManager.getAgentMessages(agentId);
+      },
+    ),
+  );
 
-  registry.register(SessionsSpawnTool(
-    registry: subagentRegistry,
-    loopProxy: loopProxy,
-    sessionManager: sessionManager,
-    parentSessionKeyGetter: currentSessionKey,
-  ));
+  registry.register(
+    SessionsSpawnTool(
+      registry: subagentRegistry,
+      loopProxy: loopProxy,
+      sessionManager: sessionManager,
+      parentSessionKeyGetter: currentSessionKey,
+    ),
+  );
   registry.register(SessionsYieldTool());
-  registry.register(SubagentsTool(
-    registry: subagentRegistry,
-    loopProxy: loopProxy,
-    parentSessionKeyGetter: currentSessionKey,
-  ));
-  registry.register(SessionsHistoryTool(
-    sessionManager: sessionManager,
-    currentSessionKeyGetter: currentSessionKey,
-  ));
-  registry.register(SessionsSendTool(
-    loopProxy: loopProxy,
-    sessionManager: sessionManager,
-    currentSessionKeyGetter: currentSessionKey,
-  ));
+  registry.register(
+    SubagentsTool(
+      registry: subagentRegistry,
+      loopProxy: loopProxy,
+      parentSessionKeyGetter: currentSessionKey,
+    ),
+  );
+  registry.register(
+    SessionsHistoryTool(
+      sessionManager: sessionManager,
+      currentSessionKeyGetter: currentSessionKey,
+    ),
+  );
+  registry.register(
+    SessionsSendTool(
+      loopProxy: loopProxy,
+      sessionManager: sessionManager,
+      currentSessionKeyGetter: currentSessionKey,
+    ),
+  );
 
   // Cron job management tools
   final cronService = ref.read(cronServiceProvider);
-  registry.register(CronCreateTool(
-    cronService: cronService,
-    notificationService: ref.read(notificationServiceProvider),
-  ));
+  registry.register(
+    CronCreateTool(
+      cronService: cronService,
+      notificationService: ref.read(notificationServiceProvider),
+    ),
+  );
   registry.register(CronListTool(cronService: cronService));
   registry.register(CronDeleteTool(cronService: cronService));
   registry.register(CronUpdateTool(cronService: cronService));
@@ -391,9 +450,7 @@ final providerRouterProvider = Provider<ProviderRouter>((ref) {
 
   return FailoverProviderRouter(
     primary: OpenAiProvider(),
-    fallbacks: providers.length > 1
-        ? providers.sublist(1)
-        : [],
+    fallbacks: providers.length > 1 ? providers.sublist(1) : [],
     configManager: configManager,
   );
 });
@@ -409,12 +466,10 @@ final agentLoopProvider = Provider<AgentLoop>((ref) {
   );
   // Bind the singleton proxy so sessions_spawn / subagents steer can call
   // the agent loop without a circular provider dependency.
-  SubagentLoopProxy.instance.bind(
-    (sessionKey, task) async {
-      final response = await loop.processMessage(sessionKey, task);
-      return response.content;
-    },
-  );
+  SubagentLoopProxy.instance.bind((sessionKey, task) async {
+    final response = await loop.processMessage(sessionKey, task);
+    return response.content;
+  });
   return loop;
 });
 
@@ -434,13 +489,16 @@ final channelRouterProvider = Provider<ChannelRouter>((ref) {
         msg.text,
         channelType: msg.channelType,
         chatId: msg.chatId,
+        channelContext: msg.channelContext,
       );
 
-      await router.sendMessage(OutgoingMessage(
-        channelType: msg.channelType,
-        chatId: msg.chatId,
-        text: response.content,
-      ));
+      await router.sendMessage(
+        OutgoingMessage(
+          channelType: msg.channelType,
+          chatId: msg.chatId,
+          text: response.content,
+        ),
+      );
     },
   );
 
@@ -508,8 +566,8 @@ final skillsServiceProvider = Provider<SkillsService>((ref) {
     configManager: configManager,
     llmCall: (systemPrompt, userPrompt) async {
       final config = configManager.config;
-      final modelName = config.activeAgent?.modelName ??
-          config.agents.defaults.modelName;
+      final modelName =
+          config.activeAgent?.modelName ?? config.agents.defaults.modelName;
       final entry = config.getModel(modelName);
       if (entry == null) return null;
 
@@ -519,7 +577,8 @@ final skillsServiceProvider = Provider<SkillsService>((ref) {
 
       final router = model_router.ProviderRouter(config: config);
       final vendorConfig = router.getVendorConfig(entry.vendor);
-      final apiBase = entry.apiBase ??
+      final apiBase =
+          entry.apiBase ??
           vendorConfig?.defaultApiBase ??
           'https://api.openai.com/v1';
       final modelForApi = entry.vendor == 'openrouter'
@@ -587,11 +646,15 @@ final channelStartupProvider = FutureProvider<void>((ref) async {
   }
 
   // Wire WhatsApp adapter if configured
-  if (config.channels.whatsapp.enabled) {
+  if (config.channels.whatsapp.enabled &&
+      await WhatsAppChannelAdapter.hasLinkedAuth(
+        config.channels.whatsapp.authDir,
+      )) {
     final whatsapp = WhatsAppChannelAdapter(
       authDir: config.channels.whatsapp.authDir,
       allowedUserIds: config.channels.whatsapp.allowFrom,
       dmPolicy: config.channels.whatsapp.dmPolicy,
+      selfChatMode: config.channels.whatsapp.selfChatMode,
       pairingService: pairingService,
       chatCommandHandler: (sessionKey, command) async {
         final result = await commandHandler.handle(sessionKey, command);
@@ -599,6 +662,10 @@ final channelStartupProvider = FutureProvider<void>((ref) async {
       },
     );
     router.registerAdapter(whatsapp);
+  } else if (config.channels.whatsapp.enabled) {
+    Logger('ChannelRouter').info(
+      'Skipping WhatsApp startup: channel enabled but no linked auth found yet',
+    );
   }
 
   // Start all registered adapters
@@ -641,12 +708,12 @@ class ChatMessage {
   final bool isToolStatus;
 
   // Image message fields
-  final String? imageData;    // base64-encoded image bytes
+  final String? imageData; // base64-encoded image bytes
   final String? imageMimeType;
 
   // Document message fields
   final bool isDocumentMessage;
-  final String? documentData;     // base64-encoded document bytes
+  final String? documentData; // base64-encoded document bytes
   final String? documentMimeType; // e.g. 'application/pdf' or 'text/plain'
   final String? documentFileName;
 
@@ -669,23 +736,23 @@ class ChatMessage {
     bool? isStreaming,
     String? imageData,
     String? imageMimeType,
-  }) =>
-      ChatMessage(
-        text: text ?? this.text,
-        isUser: isUser,
-        timestamp: timestamp,
-        isStreaming: isStreaming ?? this.isStreaming,
-        isToolStatus: isToolStatus,
-        imageData: imageData ?? this.imageData,
-        imageMimeType: imageMimeType ?? this.imageMimeType,
-      );
+  }) => ChatMessage(
+    text: text ?? this.text,
+    isUser: isUser,
+    timestamp: timestamp,
+    isStreaming: isStreaming ?? this.isStreaming,
+    isToolStatus: isToolStatus,
+    imageData: imageData ?? this.imageData,
+    imageMimeType: imageMimeType ?? this.imageMimeType,
+  );
 }
 
 /// The session key currently displayed in the chat screen.
 /// Defaults to the webchat session of the active agent.
 final activeSessionKeyProvider =
     NotifierProvider<ActiveSessionKeyNotifier, String>(
-        ActiveSessionKeyNotifier.new);
+      ActiveSessionKeyNotifier.new,
+    );
 
 class ActiveSessionKeyNotifier extends Notifier<String> {
   @override
@@ -711,8 +778,9 @@ final activeSessionsProvider = StreamProvider<List<SessionMeta>>((ref) async* {
   }
 });
 
-final chatProvider =
-    NotifierProvider<ChatNotifier, List<ChatMessage>>(ChatNotifier.new);
+final chatProvider = NotifierProvider<ChatNotifier, List<ChatMessage>>(
+  ChatNotifier.new,
+);
 
 class ChatNotifier extends Notifier<List<ChatMessage>> {
   bool _processing = false;
@@ -846,21 +914,21 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           try {
             args = jsonDecode(tc.function.arguments) as Map<String, dynamic>?;
           } catch (_) {}
-          messages.add(ChatMessage(
-            text: _formatToolStatus(tc.function.name, args),
-            isUser: false,
-            timestamp: DateTime.now(),
-            isToolStatus: true,
-          ));
+          messages.add(
+            ChatMessage(
+              text: _formatToolStatus(tc.function.name, args),
+              isUser: false,
+              timestamp: DateTime.now(),
+              isToolStatus: true,
+            ),
+          );
         }
         // If the assistant message also has text content, add it too
         final text = _extractTextFromContent(msg.content);
         if (text.trim().isNotEmpty) {
-          messages.add(ChatMessage(
-            text: text,
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
+          messages.add(
+            ChatMessage(text: text, isUser: false, timestamp: DateTime.now()),
+          );
         }
         continue;
       }
@@ -871,17 +939,19 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
       if (text.trim().isEmpty && imageInfo == null && docInfo == null) continue;
 
-      messages.add(ChatMessage(
-        text: text,
-        isUser: msg.role == 'user',
-        timestamp: DateTime.now(),
-        imageData: imageInfo?.$1,
-        imageMimeType: imageInfo?.$2,
-        isDocumentMessage: docInfo != null,
-        documentData: docInfo?.$1,
-        documentMimeType: docInfo?.$2,
-        documentFileName: docInfo?.$3,
-      ));
+      messages.add(
+        ChatMessage(
+          text: text,
+          isUser: msg.role == 'user',
+          timestamp: DateTime.now(),
+          imageData: imageInfo?.$1,
+          imageMimeType: imageInfo?.$2,
+          isDocumentMessage: docInfo != null,
+          documentData: docInfo?.$1,
+          documentMimeType: docInfo?.$2,
+          documentFileName: docInfo?.$3,
+        ),
+      );
     }
 
     if (messages.isNotEmpty) {
@@ -904,7 +974,11 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     _processing = true;
     state = [
       ChatMessage(
-          text: '', isUser: false, timestamp: DateTime.now(), isStreaming: true),
+        text: '',
+        isUser: false,
+        timestamp: DateTime.now(),
+        isStreaming: true,
+      ),
     ];
 
     final agentLoop = ref.read(agentLoopProvider);
@@ -1128,7 +1202,12 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       // AnthropicProvider converts to {type:"document", source:{type:"base64", ...}}
       // OpenAiProvider: text/plain → decoded text block; PDF → placeholder text
       final contentBlocks = [
-        {'type': 'document', 'data': base64Data, 'mimeType': mimeType, 'fileName': fileName},
+        {
+          'type': 'document',
+          'data': base64Data,
+          'mimeType': mimeType,
+          'fileName': fileName,
+        },
         if (caption.isNotEmpty) {'type': 'text', 'text': caption},
       ];
 
@@ -1194,9 +1273,10 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           ...state,
           ChatMessage(text: text, isUser: true, timestamp: DateTime.now()),
           ChatMessage(
-              text: result.response!,
-              isUser: false,
-              timestamp: DateTime.now()),
+            text: result.response!,
+            isUser: false,
+            timestamp: DateTime.now(),
+          ),
         ];
         return;
       }
@@ -1223,7 +1303,11 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     state = [
       ...state,
       ChatMessage(
-          text: '', isUser: false, timestamp: DateTime.now(), isStreaming: true),
+        text: '',
+        isUser: false,
+        timestamp: DateTime.now(),
+        isStreaming: true,
+      ),
     ];
 
     final agentLoop = ref.read(agentLoopProvider);
@@ -1320,7 +1404,8 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   static String _formatToolStatus(String name, Map<String, dynamic>? args) {
     if (args == null || args.isEmpty) return name;
     // Priority: path > query > url > key > first string value
-    final raw = args['path'] ??
+    final raw =
+        args['path'] ??
         args['query'] ??
         args['url'] ??
         args['key'] ??
@@ -1331,8 +1416,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     final display = label.contains('/')
         ? label.split('/').where((s) => s.isNotEmpty).last
         : label;
-    final truncated =
-        display.length > 40 ? '${display.substring(0, 40)}…' : display;
+    final truncated = display.length > 40
+        ? '${display.substring(0, 40)}…'
+        : display;
     return '$name: $truncated';
   }
 
@@ -1373,14 +1459,18 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
   /// Extracts the first document block from a multimodal content list.
   /// Returns (base64Data, mimeType, fileName) or null if none present.
-  static (String, String, String?)? _extractDocumentFromContent(dynamic content) {
+  static (String, String, String?)? _extractDocumentFromContent(
+    dynamic content,
+  ) {
     if (content is! List) return null;
     for (final item in content) {
       if (item is Map && item['type'] == 'document') {
         final data = item['data'];
         final mime = item['mimeType'] ?? 'application/pdf';
         final fileName = item['fileName'] as String?;
-        if (data is String && data.isNotEmpty) return (data, mime as String, fileName);
+        if (data is String && data.isNotEmpty) {
+          return (data, mime as String, fileName);
+        }
       }
     }
     return null;
@@ -1388,7 +1478,8 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
   void clear() {
     state = [];
-    _historyLoadedForAgent = _getSessionKey(); // prevent reloading cleared history
+    _historyLoadedForAgent =
+        _getSessionKey(); // prevent reloading cleared history
   }
 
   /// Switch to any session by key. Clears the UI and loads that session's history.
@@ -1404,8 +1495,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   Future<void> switchToAgent() async {
     final configManager = ref.read(configManagerProvider);
     final activeAgent = configManager.config.activeAgent;
-    final key =
-        activeAgent != null ? 'webchat:${activeAgent.id}' : 'webchat:default';
+    final key = activeAgent != null
+        ? 'webchat:${activeAgent.id}'
+        : 'webchat:default';
     await switchToSession(key);
   }
 
@@ -1431,7 +1523,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           emoji: newEmoji.isNotEmpty ? newEmoji : null,
         );
       }).toList();
-      configManager.update(configManager.config.copyWith(agentProfiles: updated));
+      configManager.update(
+        configManager.config.copyWith(agentProfiles: updated),
+      );
       await configManager.save();
       ref.invalidate(activeAgentProvider);
       ref.invalidate(agentProfilesProvider);
@@ -1508,24 +1602,24 @@ class GatewayState {
     DateTime? startedAt,
     String? lastError,
     String? state,
-  }) =>
-      GatewayState(
-        isRunning: isRunning ?? this.isRunning,
-        tokensProcessed: tokensProcessed ?? this.tokensProcessed,
-        status: status ?? this.status,
-        currentModel: currentModel ?? this.currentModel,
-        sessionCount: sessionCount ?? this.sessionCount,
-        lastMessageAt: lastMessageAt ?? this.lastMessageAt,
-        uptimeSeconds: uptimeSeconds ?? this.uptimeSeconds,
-        startedAt: startedAt ?? this.startedAt,
-        lastError: lastError ?? this.lastError,
-        state: state ?? this.state,
-      );
+  }) => GatewayState(
+    isRunning: isRunning ?? this.isRunning,
+    tokensProcessed: tokensProcessed ?? this.tokensProcessed,
+    status: status ?? this.status,
+    currentModel: currentModel ?? this.currentModel,
+    sessionCount: sessionCount ?? this.sessionCount,
+    lastMessageAt: lastMessageAt ?? this.lastMessageAt,
+    uptimeSeconds: uptimeSeconds ?? this.uptimeSeconds,
+    startedAt: startedAt ?? this.startedAt,
+    lastError: lastError ?? this.lastError,
+    state: state ?? this.state,
+  );
 }
 
 final gatewayStateProvider =
     NotifierProvider<GatewayStateNotifier, GatewayState>(
-        GatewayStateNotifier.new);
+      GatewayStateNotifier.new,
+    );
 
 class GatewayStateNotifier extends Notifier<GatewayState> {
   Timer? _uptimeTimer;
@@ -1562,7 +1656,10 @@ class GatewayStateNotifier extends Notifier<GatewayState> {
     );
     _syncLiveActivity();
     if (running) {
-      _uptimeTimer = Timer.periodic(const Duration(seconds: 1), (_) => _tickStats());
+      _uptimeTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => _tickStats(),
+      );
       if (Platform.isIOS) {
         _subscribeToWatchdog();
       }
@@ -1593,8 +1690,10 @@ class GatewayStateNotifier extends Notifier<GatewayState> {
           );
           _syncLiveActivity();
           _cancelUptimeTimer();
-          _uptimeTimer =
-              Timer.periodic(const Duration(seconds: 1), (_) => _tickStats());
+          _uptimeTimer = Timer.periodic(
+            const Duration(seconds: 1),
+            (_) => _tickStats(),
+          );
         case 'error':
           final msg = event['error'] as String? ?? 'Gateway crashed';
           setError(msg);

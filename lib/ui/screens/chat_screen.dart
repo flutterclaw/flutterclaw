@@ -353,10 +353,14 @@ class _MessageBubbleState extends ConsumerState<_MessageBubble> {
             children: [
               Icon(Icons.build_circle, size: 14, color: colors.primary),
               const SizedBox(width: 6),
-              Text(
-                widget.message.text,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colors.onSurfaceVariant,
+              Flexible(
+                child: Text(
+                  widget.message.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ),
               const SizedBox(width: 4),

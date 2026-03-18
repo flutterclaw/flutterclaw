@@ -10,13 +10,13 @@ import 'package:flutterclaw/channels/channel_interface.dart';
 import 'package:flutterclaw/channels/discord.dart';
 import 'package:flutterclaw/channels/telegram.dart';
 import 'package:flutterclaw/channels/whatsapp.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/services/pairing_service.dart';
 import 'package:flutterclaw/data/models/config.dart';
 import 'package:flutterclaw/services/background_service.dart';
 import 'package:flutterclaw/services/ios_gateway_service.dart';
+import 'package:flutterclaw/ui/widgets/whatsapp_pairing_status_card.dart';
 
 class ChannelsScreen extends ConsumerStatefulWidget {
   const ChannelsScreen({super.key});
@@ -53,18 +53,20 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                       Icon(
                         gatewayState.state == 'error'
                             ? Icons.cloud_off
-                            : gatewayState.state == 'starting' || gatewayState.state == 'retrying'
-                                ? Icons.cloud_sync
-                                : gatewayState.isRunning
-                                    ? Icons.cloud_done
-                                    : Icons.cloud_off,
+                            : gatewayState.state == 'starting' ||
+                                  gatewayState.state == 'retrying'
+                            ? Icons.cloud_sync
+                            : gatewayState.isRunning
+                            ? Icons.cloud_done
+                            : Icons.cloud_off,
                         color: gatewayState.state == 'error'
                             ? theme.colorScheme.error
-                            : gatewayState.state == 'starting' || gatewayState.state == 'retrying'
-                                ? Colors.orange
-                                : gatewayState.isRunning
-                                    ? Colors.green
-                                    : theme.colorScheme.error,
+                            : gatewayState.state == 'starting' ||
+                                  gatewayState.state == 'retrying'
+                            ? Colors.orange
+                            : gatewayState.isRunning
+                            ? Colors.green
+                            : theme.colorScheme.error,
                         size: 32,
                       ),
                       const SizedBox(width: 12),
@@ -72,28 +74,35 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(context.l10n.gateway, style: theme.textTheme.titleMedium),
+                            Text(
+                              context.l10n.gateway,
+                              style: theme.textTheme.titleMedium,
+                            ),
                             Text(
                               _getGatewayStatusText(gatewayState, context),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: gatewayState.state == 'error'
                                     ? theme.colorScheme.error
-                                    : gatewayState.state == 'starting' || gatewayState.state == 'retrying'
-                                        ? Colors.orange
-                                        : theme.colorScheme.onSurfaceVariant,
+                                    : gatewayState.state == 'starting' ||
+                                          gatewayState.state == 'retrying'
+                                    ? Colors.orange
+                                    : theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                             if (Platform.isIOS && gatewayState.isRunning)
                               Row(
                                 children: [
-                                  Icon(Icons.live_tv, size: 14, color: Colors.green),
+                                  Icon(
+                                    Icons.live_tv,
+                                    size: 14,
+                                    color: Colors.green,
+                                  ),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
                                       'Live Activity active',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: Colors.green,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(color: Colors.green),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -105,23 +114,37 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                       if (gatewayState.state == 'error')
                         FilledButton.tonal(
                           onPressed: () async {
-                            ref.read(gatewayStateProvider.notifier).clearError();
+                            ref
+                                .read(gatewayStateProvider.notifier)
+                                .clearError();
                             if (Platform.isIOS) {
                               await IosGatewayService.stop();
-                              await Future.delayed(const Duration(milliseconds: 500));
+                              await Future.delayed(
+                                const Duration(milliseconds: 500),
+                              );
                               final success = await IosGatewayService.start(
                                 configManager: ref.read(configManagerProvider),
-                                providerRouter: ref.read(providerRouterProvider),
-                                sessionManager: ref.read(sessionManagerProvider),
+                                providerRouter: ref.read(
+                                  providerRouterProvider,
+                                ),
+                                sessionManager: ref.read(
+                                  sessionManagerProvider,
+                                ),
                                 toolRegistry: ref.read(toolRegistryProvider),
                                 skillsService: ref.read(skillsServiceProvider),
                               );
-                              ref.read(gatewayStateProvider.notifier).setRunning(success);
+                              ref
+                                  .read(gatewayStateProvider.notifier)
+                                  .setRunning(success);
                             } else {
                               await BackgroundService.stopService();
-                              await Future.delayed(const Duration(milliseconds: 500));
+                              await Future.delayed(
+                                const Duration(milliseconds: 500),
+                              );
                               if (Platform.isAndroid) {
-                                await ref.read(notificationServiceProvider).ensureAndroidNotificationPermission();
+                                await ref
+                                    .read(notificationServiceProvider)
+                                    .ensureAndroidNotificationPermission();
                               }
                               await BackgroundService.startService();
                             }
@@ -136,105 +159,154 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                           onPressed: _gatewayLoading
                               ? null
                               : () async {
-                            try {
-                              setState(() => _gatewayLoading = true);
-                              if (gatewayState.isRunning) {
-                                print('🔵 Stopping gateway...');
-                                if (Platform.isIOS) {
-                                  await IosGatewayService.stop();
-                                } else {
-                                  await BackgroundService.stopService();
-                                }
-                                ref
-                                    .read(gatewayStateProvider.notifier)
-                                    .setRunning(false);
-                                print('✅ Gateway stopped');
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Gateway stopped')),
-                                  );
-                                }
-                              } else {
-                                print('🔵 Starting gateway on ${Platform.operatingSystem}...');
-                                if (Platform.isIOS) {
-                                  print('🔵 Loading providers...');
-                                  final configManager = ref.read(configManagerProvider);
-                                  final providerRouter = ref.read(providerRouterProvider);
-                                  final sessionManager = ref.read(sessionManagerProvider);
-                                  final toolRegistry = ref.read(toolRegistryProvider);
-                                  final skillsService = ref.read(skillsServiceProvider);
-                                  print('🔵 All providers loaded');
+                                  try {
+                                    setState(() => _gatewayLoading = true);
+                                    if (gatewayState.isRunning) {
+                                      print('🔵 Stopping gateway...');
+                                      if (Platform.isIOS) {
+                                        await IosGatewayService.stop();
+                                      } else {
+                                        await BackgroundService.stopService();
+                                      }
+                                      ref
+                                          .read(gatewayStateProvider.notifier)
+                                          .setRunning(false);
+                                      print('✅ Gateway stopped');
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Gateway stopped'),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      print(
+                                        '🔵 Starting gateway on ${Platform.operatingSystem}...',
+                                      );
+                                      if (Platform.isIOS) {
+                                        print('🔵 Loading providers...');
+                                        final configManager = ref.read(
+                                          configManagerProvider,
+                                        );
+                                        final providerRouter = ref.read(
+                                          providerRouterProvider,
+                                        );
+                                        final sessionManager = ref.read(
+                                          sessionManagerProvider,
+                                        );
+                                        final toolRegistry = ref.read(
+                                          toolRegistryProvider,
+                                        );
+                                        final skillsService = ref.read(
+                                          skillsServiceProvider,
+                                        );
+                                        print('🔵 All providers loaded');
 
-                                  print('🔵 Calling IosGatewayService.start...');
-                                  final success = await IosGatewayService.start(
-                                    configManager: configManager,
-                                    providerRouter: providerRouter,
-                                    sessionManager: sessionManager,
-                                    toolRegistry: toolRegistry,
-                                    skillsService: skillsService,
-                                  );
-                                  print('🔵 IosGatewayService.start returned: $success');
+                                        print(
+                                          '🔵 Calling IosGatewayService.start...',
+                                        );
+                                        final success =
+                                            await IosGatewayService.start(
+                                              configManager: configManager,
+                                              providerRouter: providerRouter,
+                                              sessionManager: sessionManager,
+                                              toolRegistry: toolRegistry,
+                                              skillsService: skillsService,
+                                            );
+                                        print(
+                                          '🔵 IosGatewayService.start returned: $success',
+                                        );
 
-                                  if (!success) {
-                                    print('❌ Gateway failed to start. Error: ${IosGatewayService.lastError}');
+                                        if (!success) {
+                                          print(
+                                            '❌ Gateway failed to start. Error: ${IosGatewayService.lastError}',
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Gateway failed: ${IosGatewayService.lastError}',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                                duration: Duration(seconds: 5),
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Gateway started successfully!',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        }
+
+                                        ref
+                                            .read(gatewayStateProvider.notifier)
+                                            .setRunning(success);
+                                        print(
+                                          '✅ Gateway state set to: $success',
+                                        );
+                                      } else {
+                                        if (Platform.isAndroid) {
+                                          await ref
+                                              .read(notificationServiceProvider)
+                                              .ensureAndroidNotificationPermission();
+                                        }
+                                        await BackgroundService.startService();
+                                        ref
+                                            .read(gatewayStateProvider.notifier)
+                                            .setRunning(true);
+                                      }
+                                      ref
+                                          .read(gatewayStateProvider.notifier)
+                                          .setModel(
+                                            config.agents.defaults.modelName,
+                                          );
+                                    }
+                                  } catch (e, st) {
+                                    print('❌ Exception in gateway start/stop:');
+                                    print('❌ Error: $e');
+                                    print('❌ Stack: $st');
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
-                                          content: Text('Gateway failed: ${IosGatewayService.lastError}'),
+                                          content: Text('Exception: $e'),
                                           backgroundColor: Colors.red,
                                           duration: Duration(seconds: 5),
                                         ),
                                       );
                                     }
-                                  } else {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Gateway started successfully!')),
-                                      );
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _gatewayLoading = false);
                                     }
                                   }
-
-                                  ref
-                                      .read(gatewayStateProvider.notifier)
-                                      .setRunning(success);
-                                  print('✅ Gateway state set to: $success');
-                                } else {
-                                  if (Platform.isAndroid) {
-                                    await ref.read(notificationServiceProvider).ensureAndroidNotificationPermission();
-                                  }
-                                  await BackgroundService.startService();
-                                  ref
-                                      .read(gatewayStateProvider.notifier)
-                                      .setRunning(true);
-                                }
-                                ref
-                                    .read(gatewayStateProvider.notifier)
-                                    .setModel(config.agents.defaults.modelName);
-                              }
-                            } catch (e, st) {
-                              print('❌ Exception in gateway start/stop:');
-                              print('❌ Error: $e');
-                              print('❌ Stack: $st');
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Exception: $e'),
-                                    backgroundColor: Colors.red,
-                                    duration: Duration(seconds: 5),
-                                  ),
-                                );
-                              }
-                            } finally {
-                              if (mounted) setState(() => _gatewayLoading = false);
-                            }
-                          },
+                                },
                           child: _gatewayLoading
                               ? const SizedBox(
                                   width: 16,
                                   height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
-                              : Text(gatewayState.isRunning ? context.l10n.stop : context.l10n.start),
+                              : Text(
+                                  gatewayState.isRunning
+                                      ? context.l10n.stop
+                                      : context.l10n.start,
+                                ),
                         ),
                       if (gatewayState.isRunning) ...[
                         const SizedBox(width: 8),
@@ -244,20 +316,32 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                           onPressed: () async {
                             if (Platform.isIOS) {
                               await IosGatewayService.stop();
-                              await Future.delayed(const Duration(milliseconds: 500));
+                              await Future.delayed(
+                                const Duration(milliseconds: 500),
+                              );
                               final success = await IosGatewayService.start(
                                 configManager: ref.read(configManagerProvider),
-                                providerRouter: ref.read(providerRouterProvider),
-                                sessionManager: ref.read(sessionManagerProvider),
+                                providerRouter: ref.read(
+                                  providerRouterProvider,
+                                ),
+                                sessionManager: ref.read(
+                                  sessionManagerProvider,
+                                ),
                                 toolRegistry: ref.read(toolRegistryProvider),
                                 skillsService: ref.read(skillsServiceProvider),
                               );
-                              ref.read(gatewayStateProvider.notifier).setRunning(success);
+                              ref
+                                  .read(gatewayStateProvider.notifier)
+                                  .setRunning(success);
                             } else {
                               await BackgroundService.stopService();
-                              await Future.delayed(const Duration(milliseconds: 500));
+                              await Future.delayed(
+                                const Duration(milliseconds: 500),
+                              );
                               if (Platform.isAndroid) {
-                                await ref.read(notificationServiceProvider).ensureAndroidNotificationPermission();
+                                await ref
+                                    .read(notificationServiceProvider)
+                                    .ensureAndroidNotificationPermission();
                               }
                               await BackgroundService.startService();
                             }
@@ -273,7 +357,8 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -372,7 +457,9 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
                       decoration: BoxDecoration(
                         color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: Colors.blue.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -411,10 +498,13 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
           _ChannelTile(
             icon: Icons.telegram,
             name: 'Telegram',
-            subtitle: _channelStatus(config.channels.telegram.enabled,
-                adapters.any((a) => a.type == 'telegram')),
-            isConnected:
-                adapters.any((a) => a.type == 'telegram' && a.isConnected),
+            subtitle: _channelStatus(
+              config.channels.telegram.enabled,
+              adapters.any((a) => a.type == 'telegram'),
+            ),
+            isConnected: adapters.any(
+              (a) => a.type == 'telegram' && a.isConnected,
+            ),
             isConfigured: config.channels.telegram.enabled,
             onTap: () => _showTelegramConfig(context, ref),
           ),
@@ -423,10 +513,13 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
           _ChannelTile(
             icon: Icons.forum,
             name: 'Discord',
-            subtitle: _channelStatus(config.channels.discord.enabled,
-                adapters.any((a) => a.type == 'discord')),
-            isConnected:
-                adapters.any((a) => a.type == 'discord' && a.isConnected),
+            subtitle: _channelStatus(
+              config.channels.discord.enabled,
+              adapters.any((a) => a.type == 'discord'),
+            ),
+            isConnected: adapters.any(
+              (a) => a.type == 'discord' && a.isConnected,
+            ),
             isConfigured: config.channels.discord.enabled,
             onTap: () => _showDiscordConfig(context, ref),
           ),
@@ -435,10 +528,13 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
           _ChannelTile(
             icon: Icons.chat,
             name: 'WhatsApp',
-            subtitle: _channelStatus(config.channels.whatsapp.enabled,
-                adapters.any((a) => a.type == 'whatsapp')),
-            isConnected:
-                adapters.any((a) => a.type == 'whatsapp' && a.isConnected),
+            subtitle: _channelStatus(
+              config.channels.whatsapp.enabled,
+              adapters.any((a) => a.type == 'whatsapp'),
+            ),
+            isConnected: adapters.any(
+              (a) => a.type == 'whatsapp' && a.isConnected,
+            ),
             isConfigured: config.channels.whatsapp.enabled,
             onTap: () => _showWhatsAppConfig(context, ref),
           ),
@@ -452,7 +548,10 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
     );
   }
 
-  String _getGatewayStatusText(GatewayState gatewayState, BuildContext context) {
+  String _getGatewayStatusText(
+    GatewayState gatewayState,
+    BuildContext context,
+  ) {
     switch (gatewayState.state) {
       case 'starting':
         return 'Starting gateway...';
@@ -476,27 +575,21 @@ class _ChannelsScreenState extends ConsumerState<ChannelsScreen> {
   void _showTelegramConfig(BuildContext context, WidgetRef ref) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => _TelegramConfigScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => _TelegramConfigScreen()),
     );
   }
 
   void _showDiscordConfig(BuildContext context, WidgetRef ref) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => _DiscordConfigScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => _DiscordConfigScreen()),
     );
   }
 
   void _showWhatsAppConfig(BuildContext context, WidgetRef ref) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => _WhatsAppConfigScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => _WhatsAppConfigScreen()),
     );
   }
 
@@ -544,8 +637,8 @@ class _ChannelTile extends StatelessWidget {
                 color: isConnected
                     ? Colors.green
                     : isConfigured
-                        ? Colors.orange
-                        : Colors.grey,
+                    ? Colors.orange
+                    : Colors.grey,
               ),
             ),
             if (onTap != null) const SizedBox(width: 8),
@@ -629,8 +722,10 @@ class _PairingSectionState extends State<_PairingSection> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_outline,
-                      color: colors.onSurfaceVariant),
+                  Icon(
+                    Icons.check_circle_outline,
+                    color: colors.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -645,60 +740,65 @@ class _PairingSectionState extends State<_PairingSection> {
             ),
           )
         else
-          ..._requests.map((r) => Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.orange.shade100,
-                    child: Icon(Icons.person_add,
-                        color: Colors.orange.shade900, size: 20),
-                  ),
-                  title: Text(r.senderName.isNotEmpty ? r.senderName : r.senderId),
-                  subtitle: Text(
-                    '${r.channel} | Code: ${r.code}\n'
-                    'Expires: ${_timeLeft(r.createdAt)}',
-                  ),
-                  isThreeLine: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.check_circle, color: Colors.green),
-                        tooltip: 'Approve',
-                        onPressed: () async {
-                          await widget.pairingService
-                              .approve(r.channel, r.code);
-                          await _loadRequests();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Pairing request approved'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.cancel, color: Colors.red),
-                        tooltip: 'Reject',
-                        onPressed: () async {
-                          await widget.pairingService
-                              .reject(r.channel, r.code);
-                          await _loadRequests();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Pairing request rejected'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ],
+          ..._requests.map(
+            (r) => Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.orange.shade100,
+                  child: Icon(
+                    Icons.person_add,
+                    color: Colors.orange.shade900,
+                    size: 20,
                   ),
                 ),
-              )),
+                title: Text(
+                  r.senderName.isNotEmpty ? r.senderName : r.senderId,
+                ),
+                subtitle: Text(
+                  '${r.channel} | Code: ${r.code}\n'
+                  'Expires: ${_timeLeft(r.createdAt)}',
+                ),
+                isThreeLine: true,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.check_circle, color: Colors.green),
+                      tooltip: 'Approve',
+                      onPressed: () async {
+                        await widget.pairingService.approve(r.channel, r.code);
+                        await _loadRequests();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Pairing request approved'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.cancel, color: Colors.red),
+                      tooltip: 'Reject',
+                      onPressed: () async {
+                        await widget.pairingService.reject(r.channel, r.code);
+                        await _loadRequests();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Pairing request rejected'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -717,12 +817,14 @@ class _PairingSectionState extends State<_PairingSection> {
 
 class _TelegramConfigScreen extends ConsumerStatefulWidget {
   @override
-  ConsumerState<_TelegramConfigScreen> createState() => _TelegramConfigScreenState();
+  ConsumerState<_TelegramConfigScreen> createState() =>
+      _TelegramConfigScreenState();
 }
 
 class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
   late TextEditingController _tokenCtl;
   late String _dmPolicy;
+
   /// id → display name
   Map<String, String> _approvedDevices = {};
   bool _isLoading = false;
@@ -785,7 +887,9 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
       },
     );
 
-    if (deviceId != null && deviceId.isNotEmpty && !_approvedDevices.containsKey(deviceId)) {
+    if (deviceId != null &&
+        deviceId.isNotEmpty &&
+        !_approvedDevices.containsKey(deviceId)) {
       setState(() => _approvedDevices[deviceId] = '');
       final pairingService = ref.read(pairingServiceProvider);
       await pairingService.addApproved('telegram', deviceId, '');
@@ -799,17 +903,21 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
       final configManager = ref.read(configManagerProvider);
       final token = _tokenCtl.text.trim();
 
-      configManager.update(configManager.config.copyWith(
-        channels: ChannelsConfig(
-          telegram: TelegramConfig(
-            enabled: token.isNotEmpty,
-            token: token.isNotEmpty ? token : null,
-            allowFrom: _dmPolicy == 'allowlist' ? _approvedDevices.keys.toList() : [],
-            dmPolicy: _dmPolicy,
+      configManager.update(
+        configManager.config.copyWith(
+          channels: ChannelsConfig(
+            telegram: TelegramConfig(
+              enabled: token.isNotEmpty,
+              token: token.isNotEmpty ? token : null,
+              allowFrom: _dmPolicy == 'allowlist'
+                  ? _approvedDevices.keys.toList()
+                  : [],
+              dmPolicy: _dmPolicy,
+            ),
+            discord: configManager.config.channels.discord,
           ),
-          discord: configManager.config.channels.discord,
         ),
-      ));
+      );
       await configManager.save();
 
       if (token.isNotEmpty) {
@@ -820,7 +928,9 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
 
         final adapter = TelegramChannelAdapter(
           token: token,
-          allowedUserIds: _dmPolicy == 'allowlist' ? _approvedDevices.keys.toList() : [],
+          allowedUserIds: _dmPolicy == 'allowlist'
+              ? _approvedDevices.keys.toList()
+              : [],
           dmPolicy: _dmPolicy,
           pairingService: pairingService,
           chatCommandHandler: (sessionKey, command) async {
@@ -839,11 +949,13 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
             channelType: msg.channelType,
             chatId: msg.chatId,
           );
-          await adapter.sendMessage(OutgoingMessage(
-            channelType: msg.channelType,
-            chatId: msg.chatId,
-            text: response.content,
-          ));
+          await adapter.sendMessage(
+            OutgoingMessage(
+              channelType: msg.channelType,
+              chatId: msg.chatId,
+              text: response.content,
+            ),
+          );
         });
       }
 
@@ -864,9 +976,7 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Telegram Configuration'),
-      ),
+      appBar: AppBar(title: const Text('Telegram Configuration')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -900,7 +1010,8 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
 
           _SecurityMethodCard(
             title: 'Pairing (Recommended)',
-            description: 'New users get a pairing code. You approve or reject them.',
+            description:
+                'New users get a pairing code. You approve or reject them.',
             icon: Icons.link,
             isSelected: _dmPolicy == 'pairing',
             onTap: () => setState(() => _dmPolicy = 'pairing'),
@@ -918,7 +1029,8 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
 
           _SecurityMethodCard(
             title: 'Open',
-            description: 'Anyone can use the bot immediately (not recommended).',
+            description:
+                'Anyone can use the bot immediately (not recommended).',
             icon: Icons.public,
             isSelected: _dmPolicy == 'open',
             onTap: () => setState(() => _dmPolicy = 'open'),
@@ -927,7 +1039,8 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
 
           _SecurityMethodCard(
             title: 'Disabled',
-            description: 'No DMs allowed. Bot will not respond to any messages.',
+            description:
+                'No DMs allowed. Bot will not respond to any messages.',
             icon: Icons.block,
             isSelected: _dmPolicy == 'disabled',
             onTap: () => setState(() => _dmPolicy = 'disabled'),
@@ -942,7 +1055,9 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    _dmPolicy == 'pairing' ? 'Approved Devices' : 'Allowed User IDs',
+                    _dmPolicy == 'pairing'
+                        ? 'Approved Devices'
+                        : 'Allowed User IDs',
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
@@ -963,7 +1078,9 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
                   child: Column(
                     children: [
                       Icon(
-                        _dmPolicy == 'pairing' ? Icons.link_off : Icons.info_outline,
+                        _dmPolicy == 'pairing'
+                            ? Icons.link_off
+                            : Icons.info_outline,
                         size: 40,
                         color: colors.onSurfaceVariant,
                       ),
@@ -989,42 +1106,54 @@ class _TelegramConfigScreenState extends ConsumerState<_TelegramConfigScreen> {
                 ),
               )
             else
-              ..._approvedDevices.entries.map((entry) => Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: colors.primaryContainer,
-                        child: Icon(Icons.person, color: colors.primary),
-                      ),
-                      title: Text(entry.value.isNotEmpty ? entry.value : entry.key),
-                      subtitle: Text(entry.value.isNotEmpty ? 'ID: ${entry.key}' : (_dmPolicy == 'pairing' ? 'Approved device' : 'Allowed user')),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        tooltip: 'Remove',
-                        onPressed: () async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Remove device?'),
-                              content: Text('Remove access for ${entry.value.isNotEmpty ? entry.value : entry.key}?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                FilledButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Remove'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirmed == true) {
-                            await _removeDevice(entry.key);
-                          }
-                        },
-                      ),
+              ..._approvedDevices.entries.map(
+                (entry) => Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: colors.primaryContainer,
+                      child: Icon(Icons.person, color: colors.primary),
                     ),
-                  )),
+                    title: Text(
+                      entry.value.isNotEmpty ? entry.value : entry.key,
+                    ),
+                    subtitle: Text(
+                      entry.value.isNotEmpty
+                          ? 'ID: ${entry.key}'
+                          : (_dmPolicy == 'pairing'
+                                ? 'Approved device'
+                                : 'Allowed user'),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      tooltip: 'Remove',
+                      onPressed: () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Remove device?'),
+                            content: Text(
+                              'Remove access for ${entry.value.isNotEmpty ? entry.value : entry.key}?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Remove'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          await _removeDevice(entry.key);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
 
             const SizedBox(height: 24),
           ],
@@ -1126,9 +1255,7 @@ class _SecurityMethodCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: isSelected
-                  ? Border.all(color: color, width: 2)
-                  : null,
+              border: isSelected ? Border.all(color: color, width: 2) : null,
             ),
             child: Row(
               children: [
@@ -1186,12 +1313,14 @@ class _SecurityMethodCard extends StatelessWidget {
 
 class _DiscordConfigScreen extends ConsumerStatefulWidget {
   @override
-  ConsumerState<_DiscordConfigScreen> createState() => _DiscordConfigScreenState();
+  ConsumerState<_DiscordConfigScreen> createState() =>
+      _DiscordConfigScreenState();
 }
 
 class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
   late TextEditingController _tokenCtl;
   late String _dmPolicy;
+
   /// id → display name
   Map<String, String> _approvedDevices = {};
   bool _isLoading = false;
@@ -1253,7 +1382,9 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
       },
     );
 
-    if (deviceId != null && deviceId.isNotEmpty && !_approvedDevices.containsKey(deviceId)) {
+    if (deviceId != null &&
+        deviceId.isNotEmpty &&
+        !_approvedDevices.containsKey(deviceId)) {
       setState(() => _approvedDevices[deviceId] = '');
       final pairingService = ref.read(pairingServiceProvider);
       await pairingService.addApproved('discord', deviceId, '');
@@ -1267,17 +1398,21 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
       final configManager = ref.read(configManagerProvider);
       final token = _tokenCtl.text.trim();
 
-      configManager.update(configManager.config.copyWith(
-        channels: ChannelsConfig(
-          telegram: configManager.config.channels.telegram,
-          discord: DiscordConfig(
-            enabled: token.isNotEmpty,
-            token: token.isNotEmpty ? token : null,
-            allowFrom: _dmPolicy == 'allowlist' ? _approvedDevices.keys.toList() : [],
-            dmPolicy: _dmPolicy,
+      configManager.update(
+        configManager.config.copyWith(
+          channels: ChannelsConfig(
+            telegram: configManager.config.channels.telegram,
+            discord: DiscordConfig(
+              enabled: token.isNotEmpty,
+              token: token.isNotEmpty ? token : null,
+              allowFrom: _dmPolicy == 'allowlist'
+                  ? _approvedDevices.keys.toList()
+                  : [],
+              dmPolicy: _dmPolicy,
+            ),
           ),
         ),
-      ));
+      );
       await configManager.save();
 
       if (token.isNotEmpty) {
@@ -1288,7 +1423,9 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
 
         final adapter = DiscordChannelAdapter(
           token: token,
-          allowedUserIds: _dmPolicy == 'allowlist' ? _approvedDevices.keys.toList() : [],
+          allowedUserIds: _dmPolicy == 'allowlist'
+              ? _approvedDevices.keys.toList()
+              : [],
           dmPolicy: _dmPolicy,
           pairingService: pairingService,
           chatCommandHandler: (sessionKey, command) async {
@@ -1307,11 +1444,13 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
             channelType: msg.channelType,
             chatId: msg.chatId,
           );
-          await adapter.sendMessage(OutgoingMessage(
-            channelType: msg.channelType,
-            chatId: msg.chatId,
-            text: response.content,
-          ));
+          await adapter.sendMessage(
+            OutgoingMessage(
+              channelType: msg.channelType,
+              chatId: msg.chatId,
+              text: response.content,
+            ),
+          );
         });
       }
 
@@ -1332,9 +1471,7 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Discord Configuration'),
-      ),
+      appBar: AppBar(title: const Text('Discord Configuration')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -1368,7 +1505,8 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
 
           _SecurityMethodCard(
             title: 'Pairing (Recommended)',
-            description: 'New users get a pairing code. You approve or reject them.',
+            description:
+                'New users get a pairing code. You approve or reject them.',
             icon: Icons.link,
             isSelected: _dmPolicy == 'pairing',
             onTap: () => setState(() => _dmPolicy = 'pairing'),
@@ -1386,7 +1524,8 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
 
           _SecurityMethodCard(
             title: 'Open',
-            description: 'Anyone can use the bot immediately (not recommended).',
+            description:
+                'Anyone can use the bot immediately (not recommended).',
             icon: Icons.public,
             isSelected: _dmPolicy == 'open',
             onTap: () => setState(() => _dmPolicy = 'open'),
@@ -1395,7 +1534,8 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
 
           _SecurityMethodCard(
             title: 'Disabled',
-            description: 'No DMs allowed. Bot will not respond to any messages.',
+            description:
+                'No DMs allowed. Bot will not respond to any messages.',
             icon: Icons.block,
             isSelected: _dmPolicy == 'disabled',
             onTap: () => setState(() => _dmPolicy = 'disabled'),
@@ -1410,7 +1550,9 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    _dmPolicy == 'pairing' ? 'Approved Devices' : 'Allowed User IDs',
+                    _dmPolicy == 'pairing'
+                        ? 'Approved Devices'
+                        : 'Allowed User IDs',
                     style: theme.textTheme.titleMedium,
                   ),
                 ),
@@ -1431,7 +1573,9 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
                   child: Column(
                     children: [
                       Icon(
-                        _dmPolicy == 'pairing' ? Icons.link_off : Icons.info_outline,
+                        _dmPolicy == 'pairing'
+                            ? Icons.link_off
+                            : Icons.info_outline,
                         size: 40,
                         color: colors.onSurfaceVariant,
                       ),
@@ -1457,42 +1601,54 @@ class _DiscordConfigScreenState extends ConsumerState<_DiscordConfigScreen> {
                 ),
               )
             else
-              ..._approvedDevices.entries.map((entry) => Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: colors.primaryContainer,
-                        child: Icon(Icons.person, color: colors.primary),
-                      ),
-                      title: Text(entry.value.isNotEmpty ? entry.value : entry.key),
-                      subtitle: Text(entry.value.isNotEmpty ? 'ID: ${entry.key}' : (_dmPolicy == 'pairing' ? 'Approved device' : 'Allowed user')),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        tooltip: 'Remove',
-                        onPressed: () async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Remove device?'),
-                              content: Text('Remove access for ${entry.value.isNotEmpty ? entry.value : entry.key}?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                FilledButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Remove'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirmed == true) {
-                            await _removeDevice(entry.key);
-                          }
-                        },
-                      ),
+              ..._approvedDevices.entries.map(
+                (entry) => Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: colors.primaryContainer,
+                      child: Icon(Icons.person, color: colors.primary),
                     ),
-                  )),
+                    title: Text(
+                      entry.value.isNotEmpty ? entry.value : entry.key,
+                    ),
+                    subtitle: Text(
+                      entry.value.isNotEmpty
+                          ? 'ID: ${entry.key}'
+                          : (_dmPolicy == 'pairing'
+                                ? 'Approved device'
+                                : 'Allowed user'),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      tooltip: 'Remove',
+                      onPressed: () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Remove device?'),
+                            content: Text(
+                              'Remove access for ${entry.value.isNotEmpty ? entry.value : entry.key}?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Remove'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          await _removeDevice(entry.key);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
 
             const SizedBox(height: 24),
           ],
@@ -1569,9 +1725,9 @@ class _WhatsAppConfigScreen extends ConsumerStatefulWidget {
       _WhatsAppConfigScreenState();
 }
 
-class _WhatsAppConfigScreenState
-    extends ConsumerState<_WhatsAppConfigScreen> {
+class _WhatsAppConfigScreenState extends ConsumerState<_WhatsAppConfigScreen> {
   late String _dmPolicy;
+  late bool _selfChatMode;
   Map<String, String> _approvedDevices = {};
   bool _isLoading = false;
   String? _qrCode;
@@ -1579,13 +1735,15 @@ class _WhatsAppConfigScreenState
   StreamSubscription<WAConnectionStatus>? _connSub;
   WAConnectionStatus _connStatus = WAConnectionStatus.disconnected;
   WhatsAppChannelAdapter? _adapter;
+  bool _restartPending = false;
+  bool _requiresRelink = false;
 
   @override
   void initState() {
     super.initState();
-    final config =
-        ref.read(configManagerProvider).config.channels.whatsapp;
+    final config = ref.read(configManagerProvider).config.channels.whatsapp;
     _dmPolicy = config.dmPolicy;
+    _selfChatMode = config.selfChatMode ?? true;
     _loadApprovedDevices();
     _attachToAdapter();
   }
@@ -1599,11 +1757,14 @@ class _WhatsAppConfigScreenState
 
   void _attachToAdapter() {
     final router = ref.read(channelRouterProvider);
-    final adapter =
-        router.adapters.whereType<WhatsAppChannelAdapter>().firstOrNull;
+    final adapter = router.adapters
+        .whereType<WhatsAppChannelAdapter>()
+        .firstOrNull;
     if (adapter == null) return;
     _adapter = adapter;
     _connStatus = adapter.connectionStatus;
+    _restartPending = adapter.isRestartPending;
+    _requiresRelink = adapter.requiresRelink;
     // Show the cached QR immediately if it was emitted before this screen opened.
     if (adapter.lastQrCode != null) {
       _qrCode = adapter.lastQrCode;
@@ -1612,16 +1773,52 @@ class _WhatsAppConfigScreenState
       if (mounted) setState(() => _qrCode = qr);
     });
     _connSub = adapter.connectionStateStream.listen((s) {
-      if (mounted) setState(() {
-        _connStatus = s;
-        if (s == WAConnectionStatus.connected) _qrCode = null;
-      });
+      if (mounted) {
+        setState(() {
+          _connStatus = s;
+          _restartPending = adapter.isRestartPending;
+          _requiresRelink = adapter.requiresRelink;
+          if (s == WAConnectionStatus.connected) {
+            _qrCode = null;
+            _requiresRelink = false;
+          }
+        });
+      }
     });
   }
 
+  Future<void> _stopActiveAdapter({bool clearAuth = false}) async {
+    final router = ref.read(channelRouterProvider);
+    final adapter =
+        _adapter ??
+        router.adapters.whereType<WhatsAppChannelAdapter>().firstOrNull;
+
+    router.unregisterAdapter('whatsapp');
+    await _qrSub?.cancel();
+    await _connSub?.cancel();
+    _qrSub = null;
+    _connSub = null;
+
+    if (adapter != null) {
+      await adapter.stop();
+      adapter.dispose();
+    }
+
+    if (clearAuth) {
+      final authDir = ref
+          .read(configManagerProvider)
+          .config
+          .channels
+          .whatsapp
+          .authDir;
+      await WhatsAppChannelAdapter.clearAuth(authDir);
+    }
+
+    _adapter = null;
+  }
+
   Future<void> _loadApprovedDevices() async {
-    final map =
-        await ref.read(pairingServiceProvider).getApproved('whatsapp');
+    final map = await ref.read(pairingServiceProvider).getApproved('whatsapp');
     if (mounted) setState(() => _approvedDevices = map);
   }
 
@@ -1648,11 +1845,13 @@ class _WhatsAppConfigScreenState
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, ctl.text.trim()),
-                child: const Text('Add')),
+              onPressed: () => Navigator.pop(ctx, ctl.text.trim()),
+              child: const Text('Add'),
+            ),
           ],
         );
       },
@@ -1667,33 +1866,41 @@ class _WhatsAppConfigScreenState
     setState(() => _isLoading = true);
     try {
       final configManager = ref.read(configManagerProvider);
-      configManager.update(configManager.config.copyWith(
-        channels: ChannelsConfig(
-          telegram: configManager.config.channels.telegram,
-          discord: configManager.config.channels.discord,
-          whatsapp: WhatsAppConfig(
-            enabled: true,
-            dmPolicy: _dmPolicy,
-            allowFrom: _dmPolicy == 'allowlist'
-                ? _approvedDevices.keys.toList()
-                : [],
+      final currentConfig = configManager.config.channels.whatsapp;
+      configManager.update(
+        configManager.config.copyWith(
+          channels: ChannelsConfig(
+            telegram: configManager.config.channels.telegram,
+            discord: configManager.config.channels.discord,
+            whatsapp: WhatsAppConfig(
+              enabled: true,
+              authDir: currentConfig.authDir,
+              dmPolicy: _dmPolicy,
+              allowFrom: _dmPolicy == 'allowlist'
+                  ? _approvedDevices.keys.toList()
+                  : [],
+              selfChatMode: _selfChatMode,
+            ),
           ),
         ),
-      ));
+      );
       await configManager.save();
 
       final router = ref.read(channelRouterProvider);
-      router.unregisterAdapter('whatsapp');
+      final forceRelink = _requiresRelink;
+      await _stopActiveAdapter(clearAuth: forceRelink);
 
       final pairingService = ref.read(pairingServiceProvider);
       final cmdHandler = ref.read(chatCommandHandlerProvider);
       final agentLoop = ref.read(agentLoopProvider);
 
       final adapter = WhatsAppChannelAdapter(
+        authDir: currentConfig.authDir,
         allowedUserIds: _dmPolicy == 'allowlist'
             ? _approvedDevices.keys.toList()
             : [],
         dmPolicy: _dmPolicy,
+        selfChatMode: _selfChatMode,
         pairingService: pairingService,
         chatCommandHandler: (sessionKey, command) async {
           final result = await cmdHandler.handle(sessionKey, command);
@@ -1709,10 +1916,17 @@ class _WhatsAppConfigScreenState
         if (mounted) setState(() => _qrCode = qr);
       });
       _connSub = adapter.connectionStateStream.listen((s) {
-        if (mounted) setState(() {
-          _connStatus = s;
-          if (s == WAConnectionStatus.connected) _qrCode = null;
-        });
+        if (mounted) {
+          setState(() {
+            _connStatus = s;
+            _restartPending = adapter.isRestartPending;
+            _requiresRelink = adapter.requiresRelink;
+            if (s == WAConnectionStatus.connected) {
+              _qrCode = null;
+              _requiresRelink = false;
+            }
+          });
+        }
       });
 
       await adapter.start((msg) async {
@@ -1721,12 +1935,15 @@ class _WhatsAppConfigScreenState
           msg.text,
           channelType: msg.channelType,
           chatId: msg.chatId,
+          channelContext: msg.channelContext,
         );
-        await adapter.sendMessage(OutgoingMessage(
-          channelType: msg.channelType,
-          chatId: msg.chatId,
-          text: response.content,
-        ));
+        await adapter.sendMessage(
+          OutgoingMessage(
+            channelType: msg.channelType,
+            chatId: msg.chatId,
+            text: response.content,
+          ),
+        );
       });
 
       if (mounted) {
@@ -1740,25 +1957,36 @@ class _WhatsAppConfigScreenState
   }
 
   Future<void> _disconnect() async {
-    ref.read(channelRouterProvider).unregisterAdapter('whatsapp');
+    await _stopActiveAdapter(clearAuth: true);
     final configManager = ref.read(configManagerProvider);
-    configManager.update(configManager.config.copyWith(
-      channels: ChannelsConfig(
-        telegram: configManager.config.channels.telegram,
-        discord: configManager.config.channels.discord,
-        whatsapp: const WhatsAppConfig(enabled: false),
+    final currentConfig = configManager.config.channels.whatsapp;
+    configManager.update(
+      configManager.config.copyWith(
+        channels: ChannelsConfig(
+          telegram: configManager.config.channels.telegram,
+          discord: configManager.config.channels.discord,
+          whatsapp: WhatsAppConfig(
+            enabled: false,
+            authDir: currentConfig.authDir,
+            allowFrom: currentConfig.allowFrom,
+            dmPolicy: currentConfig.dmPolicy,
+            selfChatMode: _selfChatMode,
+          ),
+        ),
       ),
-    ));
+    );
     await configManager.save();
     setState(() {
       _qrCode = null;
       _connStatus = WAConnectionStatus.disconnected;
       _adapter = null;
+      _restartPending = false;
+      _requiresRelink = false;
     });
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('WhatsApp disconnected')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('WhatsApp disconnected')));
       Navigator.pop(context);
     }
   }
@@ -1768,7 +1996,6 @@ class _WhatsAppConfigScreenState
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final isConnected = _connStatus == WAConnectionStatus.connected;
-    final isConnecting = _connStatus == WAConnectionStatus.connecting;
 
     return Scaffold(
       appBar: AppBar(
@@ -1785,67 +2012,40 @@ class _WhatsAppConfigScreenState
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Card(
-            color: isConnected
-                ? Colors.green.withValues(alpha: 0.15)
-                : isConnecting
-                    ? Colors.orange.withValues(alpha: 0.15)
-                    : colors.surfaceContainerHighest,
-            child: ListTile(
-              leading: Icon(
-                isConnected
-                    ? Icons.check_circle
-                    : isConnecting
-                        ? Icons.hourglass_top
-                        : Icons.radio_button_unchecked,
-                color: isConnected
-                    ? Colors.green
-                    : isConnecting
-                        ? Colors.orange
-                        : colors.onSurfaceVariant,
-              ),
-              title: Text(
-                isConnected
-                    ? 'Connected'
-                    : isConnecting
-                        ? 'Connecting...'
-                        : 'Not connected',
-                style: theme.textTheme.titleSmall,
-              ),
-              subtitle: Text(isConnected
-                  ? 'WhatsApp is active and receiving messages'
-                  : _qrCode != null
-                      ? 'Scan the QR code below with WhatsApp'
-                      : 'Tap "Connect WhatsApp" to link your account'),
-            ),
+          WhatsAppPairingStatusCard(
+            status: _connStatus,
+            qrCode: _qrCode,
+            isRestartPending: _restartPending,
+            idleDescription: _requiresRelink
+                ? 'The previous WhatsApp session is no longer valid. Tap "Reconnect WhatsApp" to generate a fresh QR.'
+                : 'Tap "Connect WhatsApp" to link your account.',
+            connectingDescription: _restartPending
+                ? 'WhatsApp accepted the QR. Finalizing the link...'
+                : 'Waiting for WhatsApp to complete the link...',
           ),
           const SizedBox(height: 16),
 
-          if (_qrCode != null) ...[
-            Text('Scan with WhatsApp', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Center(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: QrImageView(
-                    data: _qrCode!,
-                    version: QrVersions.auto,
-                    size: 240,
-                    backgroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Open WhatsApp → Settings → Linked Devices → Link a Device',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: colors.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-          ],
+          Text('WhatsApp Mode', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          _SecurityMethodCard(
+            title: 'My personal number',
+            description:
+                'Messages you send to your own WhatsApp chat wake the agent.',
+            icon: Icons.person,
+            isSelected: _selfChatMode,
+            onTap: () => setState(() => _selfChatMode = true),
+            color: Colors.teal,
+          ),
+          _SecurityMethodCard(
+            title: 'Dedicated bot account',
+            description:
+                'Messages sent from the linked account itself are ignored as outbound.',
+            icon: Icons.smart_toy,
+            isSelected: !_selfChatMode,
+            onTap: () => setState(() => _selfChatMode = false),
+            color: Colors.indigo,
+          ),
+          const SizedBox(height: 24),
 
           Text('Security Method', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -1928,8 +2128,9 @@ class _WhatsAppConfigScreenState
                         _dmPolicy == 'pairing'
                             ? 'Devices appear here after you approve pairing requests'
                             : 'Add phone numbers to allow them to use the bot',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: colors.onSurfaceVariant),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1937,48 +2138,52 @@ class _WhatsAppConfigScreenState
                 ),
               )
             else
-              ..._approvedDevices.entries.map((entry) => Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: colors.primaryContainer,
-                        child: Icon(Icons.person, color: colors.primary),
-                      ),
-                      title: Text(entry.value.isNotEmpty
-                          ? entry.value
-                          : entry.key),
-                      subtitle: Text(entry.value.isNotEmpty
+              ..._approvedDevices.entries.map(
+                (entry) => Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: colors.primaryContainer,
+                      child: Icon(Icons.person, color: colors.primary),
+                    ),
+                    title: Text(
+                      entry.value.isNotEmpty ? entry.value : entry.key,
+                    ),
+                    subtitle: Text(
+                      entry.value.isNotEmpty
                           ? entry.key
                           : (_dmPolicy == 'pairing'
-                              ? 'Approved device'
-                              : 'Allowed number')),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline,
-                            color: Colors.red),
-                        tooltip: 'Remove',
-                        onPressed: () async {
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Remove device?'),
-                              content: Text(
-                                  'Remove access for ${entry.value.isNotEmpty ? entry.value : entry.key}?'),
-                              actions: [
-                                TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(ctx, false),
-                                    child: const Text('Cancel')),
-                                FilledButton(
-                                    onPressed: () =>
-                                        Navigator.pop(ctx, true),
-                                    child: const Text('Remove')),
-                              ],
-                            ),
-                          );
-                          if (ok == true) await _removeDevice(entry.key);
-                        },
-                      ),
+                                ? 'Approved device'
+                                : 'Allowed number'),
                     ),
-                  )),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      tooltip: 'Remove',
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Remove device?'),
+                            content: Text(
+                              'Remove access for ${entry.value.isNotEmpty ? entry.value : entry.key}?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Remove'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (ok == true) await _removeDevice(entry.key);
+                      },
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 24),
           ],
 
@@ -1991,13 +2196,18 @@ class _WhatsAppConfigScreenState
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.chat),
-              label: Text(_isLoading
-                  ? 'Connecting...'
-                  : isConnected
-                      ? 'Save Settings'
-                      : 'Connect WhatsApp'),
+              label: Text(
+                _isLoading
+                    ? 'Connecting...'
+                    : _requiresRelink
+                    ? 'Reconnect WhatsApp'
+                    : isConnected
+                    ? 'Save Settings'
+                    : 'Connect WhatsApp',
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -2011,8 +2221,7 @@ class _WhatsAppConfigScreenState
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.help_outline,
-                          size: 20, color: colors.primary),
+                      Icon(Icons.help_outline, size: 20, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
                         'How to connect',
@@ -2030,8 +2239,9 @@ class _WhatsAppConfigScreenState
                     '   (Settings → Linked Devices → Link a Device)\n'
                     '3. Once connected, incoming messages are routed\n'
                     '   to your active AI agent automatically',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: colors.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),

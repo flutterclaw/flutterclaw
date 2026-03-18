@@ -9,6 +9,7 @@ class CompletionSummary {
   final int gatewayPort;
   final bool telegramEnabled;
   final bool discordEnabled;
+  final bool whatsappEnabled;
 
   const CompletionSummary({
     required this.providerName,
@@ -18,6 +19,7 @@ class CompletionSummary {
     this.gatewayPort = 18789,
     this.telegramEnabled = false,
     this.discordEnabled = false,
+    this.whatsappEnabled = false,
   });
 }
 
@@ -124,7 +126,9 @@ class CompletionPage extends StatelessWidget {
             icon: Icons.chat,
             title: context.l10n.channelsPageTitle,
             children: [
-              if (!summary.telegramEnabled && !summary.discordEnabled)
+              if (!summary.telegramEnabled &&
+                  !summary.discordEnabled &&
+                  !summary.whatsappEnabled)
                 Text(
                   context.l10n.webChatOnly,
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -136,6 +140,8 @@ class CompletionPage extends StatelessWidget {
                   _ChannelChip(label: context.l10n.telegram, icon: Icons.send),
                 if (summary.discordEnabled)
                   _ChannelChip(label: context.l10n.discord, icon: Icons.forum),
+                if (summary.whatsappEnabled)
+                  const _ChannelChip(label: 'WhatsApp', icon: Icons.chat),
               ],
               _ChannelChip(label: context.l10n.webChat, icon: Icons.web),
             ],
@@ -161,7 +167,9 @@ class CompletionPage extends StatelessWidget {
                     )
                   : const Icon(Icons.rocket_launch),
               label: Text(
-                isStarting ? context.l10n.starting : context.l10n.startFlutterClaw,
+                isStarting
+                    ? context.l10n.starting
+                    : context.l10n.startFlutterClaw,
                 style: const TextStyle(fontSize: 16),
               ),
             ),
@@ -221,7 +229,7 @@ class _ChannelChip extends StatelessWidget {
   final String label;
   final IconData icon;
 
-  const _ChannelChip({required this.label, required this.icon, super.key});
+  const _ChannelChip({required this.label, required this.icon});
 
   @override
   Widget build(BuildContext context) {

@@ -103,6 +103,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       var telegramConfig = configManager.config.channels.telegram;
       var discordConfig = configManager.config.channels.discord;
+      var whatsappConfig = configManager.config.channels.whatsapp;
 
       if (_channelsResult.telegramEnabled &&
           _channelsResult.telegramToken != null) {
@@ -117,6 +118,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         discordConfig = DiscordConfig(
           enabled: true,
           token: _channelsResult.discordToken,
+        );
+      }
+
+      if (_channelsResult.whatsappEnabled) {
+        whatsappConfig = WhatsAppConfig(
+          enabled: true,
+          authDir: whatsappConfig.authDir,
+          allowFrom: whatsappConfig.allowFrom,
+          dmPolicy: whatsappConfig.dmPolicy,
+          selfChatMode: _channelsResult.whatsappSelfChatMode,
         );
       }
 
@@ -142,6 +153,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         channels: ChannelsConfig(
           telegram: telegramConfig,
           discord: discordConfig,
+          whatsapp: whatsappConfig,
         ),
         onboardingCompleted: true,
       );
@@ -174,7 +186,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       // Start gateway
       if (_gatewayResult.autoStart) {
         if (Platform.isAndroid) {
-          await ref.read(notificationServiceProvider).ensureAndroidNotificationPermission();
+          await ref
+              .read(notificationServiceProvider)
+              .ensureAndroidNotificationPermission();
         }
         await BackgroundService.startService();
         ref.read(gatewayStateProvider.notifier).setRunning(true);
@@ -194,9 +208,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isStarting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -212,7 +226,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final colors = theme.colorScheme;
     final providerName = _selectedProviderId != null
         ? ModelCatalog.getProvider(_selectedProviderId!)?.displayName ??
-            _selectedProviderId!
+              _selectedProviderId!
         : '';
 
     return Scaffold(
@@ -320,6 +334,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       gatewayPort: _gatewayResult.port,
                       telegramEnabled: _channelsResult.telegramEnabled,
                       discordEnabled: _channelsResult.discordEnabled,
+                      whatsappEnabled: _channelsResult.whatsappEnabled,
                     ),
                     onStart: _completeOnboarding,
                     isStarting: _isStarting,

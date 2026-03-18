@@ -72,11 +72,13 @@ class AgentLoop {
     String message, {
     String channelType = 'webchat',
     String chatId = 'default',
+    Map<String, dynamic>? channelContext,
   }) async {
     await sessionManager.getOrCreate(sessionKey, channelType, chatId);
     final session = sessionManager.getSession(sessionKey);
     // Use the agent that owns this session (e.g. Agent B when B is being called)
-    final sessionAgent = _resolveSessionAgent(sessionKey) ?? configManager.config.activeAgent;
+    final sessionAgent =
+        _resolveSessionAgent(sessionKey) ?? configManager.config.activeAgent;
     final systemPrompt = await _buildSystemPrompt(agentId: sessionAgent?.id);
 
     // Persist user message to JSONL (only if not empty)
@@ -92,19 +94,27 @@ class AgentLoop {
     if (systemPrompt.isNotEmpty) {
       messages.add(LlmMessage(role: 'system', content: systemPrompt));
     }
+    final ephemeralContext = _buildChannelContextPrompt(channelContext);
+    if (ephemeralContext != null) {
+      messages.add(LlmMessage(role: 'system', content: ephemeralContext));
+    }
     messages.addAll(context);
 
     // Use the session's agent settings, fall back to defaults
     final defaults = configManager.config.agents.defaults;
-    final modelName = session?.modelOverride ??
-                      sessionAgent?.modelName ??
-                      defaults.modelName;
+    final modelName =
+        session?.modelOverride ?? sessionAgent?.modelName ?? defaults.modelName;
     final temperature = sessionAgent?.temperature ?? defaults.temperature;
     final maxTokens = sessionAgent?.maxTokens ?? defaults.maxTokens;
-    final maxToolIterations = sessionAgent?.maxToolIterations ?? defaults.maxToolIterations;
+    final maxToolIterations =
+        sessionAgent?.maxToolIterations ?? defaults.maxToolIterations;
 
-    _log.info('AgentLoop: using model=$modelName (sessionAgent=${sessionAgent?.name}, sessionAgent.model=${sessionAgent?.modelName}, defaults.model=${defaults.modelName})');
-    _log.info('AgentLoop: available models in config: ${configManager.config.modelList.map((m) => m.modelName).join(", ")}');
+    _log.info(
+      'AgentLoop: using model=$modelName (sessionAgent=${sessionAgent?.name}, sessionAgent.model=${sessionAgent?.modelName}, defaults.model=${defaults.modelName})',
+    );
+    _log.info(
+      'AgentLoop: available models in config: ${configManager.config.modelList.map((m) => m.modelName).join(", ")}',
+    );
 
     final modelEntry = configManager.config.getModel(modelName);
     if (modelEntry == null) {
@@ -216,11 +226,13 @@ class AgentLoop {
     String chatId = 'default',
     List<Map<String, dynamic>>? contentBlocks,
     String? userLanguage,
+    Map<String, dynamic>? channelContext,
   }) async* {
     await sessionManager.getOrCreate(sessionKey, channelType, chatId);
     final session = sessionManager.getSession(sessionKey);
     // Use the agent that owns this session so its identity/workspace is loaded
-    final sessionAgent = _resolveSessionAgent(sessionKey) ?? configManager.config.activeAgent;
+    final sessionAgent =
+        _resolveSessionAgent(sessionKey) ?? configManager.config.activeAgent;
     final systemPrompt = await _buildSystemPrompt(
       userLanguage: userLanguage,
       agentId: sessionAgent?.id,
@@ -242,6 +254,10 @@ class AgentLoop {
     if (systemPrompt.isNotEmpty) {
       messages.add(LlmMessage(role: 'system', content: systemPrompt));
     }
+    final ephemeralContext = _buildChannelContextPrompt(channelContext);
+    if (ephemeralContext != null) {
+      messages.add(LlmMessage(role: 'system', content: ephemeralContext));
+    }
     messages.addAll(context);
 
     // Most APIs require at least one user message. When the hatch fires with an
@@ -254,12 +270,12 @@ class AgentLoop {
 
     // Use the session's agent settings, fall back to defaults
     final defaults = configManager.config.agents.defaults;
-    final modelName = session?.modelOverride ??
-                      sessionAgent?.modelName ??
-                      defaults.modelName;
+    final modelName =
+        session?.modelOverride ?? sessionAgent?.modelName ?? defaults.modelName;
     final temperature = sessionAgent?.temperature ?? defaults.temperature;
     final maxTokens = sessionAgent?.maxTokens ?? defaults.maxTokens;
-    final maxToolIterations = sessionAgent?.maxToolIterations ?? defaults.maxToolIterations;
+    final maxToolIterations =
+        sessionAgent?.maxToolIterations ?? defaults.maxToolIterations;
 
     final modelEntry = configManager.config.getModel(modelName);
     if (modelEntry == null) {
@@ -296,8 +312,9 @@ class AgentLoop {
       final toolCallsBuffer = <ToolCall>[];
 
       try {
-        await for (final event
-            in providerRouter.chatCompletionStream(request)) {
+        await for (final event in providerRouter.chatCompletionStream(
+          request,
+        )) {
           if (event.contentDelta != null) {
             contentBuffer += event.contentDelta!;
             yield AgentStreamEvent(textDelta: event.contentDelta);
@@ -386,6 +403,46 @@ class AgentLoop {
     );
   }
 
+  String? _buildChannelContextPrompt(Map<String, dynamic>? channelContext) {
+    if (channelContext == null || channelContext.isEmpty) return null;
+
+    final lines = <String>['# Ephemeral Channel Context'];
+    final channel = channelContext['channel']?.toString();
+    final chatId = channelContext['chat_id']?.toString();
+    final messageId = channelContext['message_id']?.toString();
+    final participantId = channelContext['participant_id']?.toString();
+
+    if (channel != null && channel.isNotEmpty) {
+      lines.add('- channel: $channel');
+    }
+    if (chatId != null && chatId.isNotEmpty) {
+      lines.add('- chat_id: $chatId');
+    }
+    if (messageId != null && messageId.isNotEmpty) {
+      lines.add('- message_id: $messageId');
+    }
+    if (participantId != null && participantId.isNotEmpty) {
+      lines.add('- participant_id: $participantId');
+    }
+
+    for (final entry in channelContext.entries) {
+      if (entry.key == 'channel' ||
+          entry.key == 'chat_id' ||
+          entry.key == 'message_id' ||
+          entry.key == 'participant_id') {
+        continue;
+      }
+      final value = entry.value?.toString();
+      if (value == null || value.isEmpty) continue;
+      lines.add('- ${entry.key}: $value');
+    }
+
+    lines.add(
+      '- This metadata is for the current turn only. Use it when a tool needs channel-specific IDs such as WhatsApp reactions.',
+    );
+    return lines.join('\n');
+  }
+
   /// Summarize old messages and compact the session.
   Future<String?> compactSession(String sessionKey) async {
     final session = sessionManager.getSession(sessionKey);
@@ -439,10 +496,12 @@ class AgentLoop {
 
       // Find the entry ID of the first kept message from the transcript
       final transcript = await sessionManager.loadTranscript(sessionKey);
-      final messageEntries =
-          transcript.where((e) => e.type == 'message').toList();
+      final messageEntries = transcript
+          .where((e) => e.type == 'message')
+          .toList();
       final keptStartIndex = messageEntries.length - keepRecent;
-      final firstKeptId = keptStartIndex >= 0 && keptStartIndex < messageEntries.length
+      final firstKeptId =
+          keptStartIndex >= 0 && keptStartIndex < messageEntries.length
           ? messageEntries[keptStartIndex].id
           : messageEntries.last.id;
 
@@ -459,7 +518,9 @@ class AgentLoop {
         tokensBefore: tokensBefore,
       );
 
-      _log.info('Compacted session $sessionKey: summarized ${toSummarize.length} messages');
+      _log.info(
+        'Compacted session $sessionKey: summarized ${toSummarize.length} messages',
+      );
       return summary;
     } catch (e) {
       _log.warning('Compaction failed for $sessionKey: $e');
@@ -498,7 +559,10 @@ class AgentLoop {
 
   // -- System prompt --------------------------------------------------------
 
-  Future<String> _buildSystemPrompt({String? userLanguage, String? agentId}) async {
+  Future<String> _buildSystemPrompt({
+    String? userLanguage,
+    String? agentId,
+  }) async {
     String workspace;
     if (agentId != null) {
       try {
@@ -515,22 +579,38 @@ class AgentLoop {
     final tz = now.timeZoneName;
 
     final runtimeSection = StringBuffer('# Runtime\n');
-    runtimeSection.writeln('- Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}');
-    runtimeSection.writeln('- Current date/time: ${now.toIso8601String()} ($tz)');
+    runtimeSection.writeln(
+      '- Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+    );
+    runtimeSection.writeln(
+      '- Current date/time: ${now.toIso8601String()} ($tz)',
+    );
     runtimeSection.writeln('- Workspace: $workspace');
-    runtimeSection.writeln('- Engine: FlutterClaw (OpenClaw-compatible mobile port)');
+    runtimeSection.writeln(
+      '- Engine: FlutterClaw (OpenClaw-compatible mobile port)',
+    );
 
     if (userLanguage != null && userLanguage.isNotEmpty) {
       runtimeSection.writeln('- User language: $userLanguage');
-      runtimeSection.writeln('  IMPORTANT: Respond in ${_getLanguageName(userLanguage)} unless the user explicitly requests another language.');
+      runtimeSection.writeln(
+        '  IMPORTANT: Respond in ${_getLanguageName(userLanguage)} unless the user explicitly requests another language.',
+      );
     }
 
     runtimeSection.writeln();
     runtimeSection.writeln('# Media Output');
-    runtimeSection.writeln('You can display images and GIFs inline in your messages using standard markdown image syntax:');
-    runtimeSection.writeln('- URL: ![description](https://example.com/image.png)');
-    runtimeSection.writeln('- Base64: ![description](data:image/png;base64,iVBOR...)');
-    runtimeSection.writeln('Use this whenever sharing visual content (diagrams, photos, GIFs, memes, illustrations) would enhance your response.');
+    runtimeSection.writeln(
+      'You can display images and GIFs inline in your messages using standard markdown image syntax:',
+    );
+    runtimeSection.writeln(
+      '- URL: ![description](https://example.com/image.png)',
+    );
+    runtimeSection.writeln(
+      '- Base64: ![description](data:image/png;base64,iVBOR...)',
+    );
+    runtimeSection.writeln(
+      'Use this whenever sharing visual content (diagrams, photos, GIFs, memes, illustrations) would enhance your response.',
+    );
 
     sections.add(runtimeSection.toString().trim());
 

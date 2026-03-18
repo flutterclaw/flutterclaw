@@ -22,9 +22,9 @@ class ProviderCredential {
       );
 
   Map<String, dynamic> toJson() => {
-        'api_key': apiKey,
-        if (apiBase != null) 'api_base': apiBase,
-      };
+    'api_key': apiKey,
+    if (apiBase != null) 'api_base': apiBase,
+  };
 }
 
 class ModelEntry {
@@ -35,6 +35,7 @@ class ModelEntry {
   final int? requestTimeout;
   final String provider;
   final bool isFree;
+
   /// Input modalities supported by this model.
   /// Common values: 'text', 'image', 'audio'.
   /// null means unknown — treated as text-only.
@@ -55,29 +56,30 @@ class ModelEntry {
   bool get supportsAudio => input?.contains('audio') ?? false;
 
   String get vendor => model.contains('/') ? model.split('/').first : 'openai';
-  String get modelId => model.contains('/') ? model.split('/').skip(1).join('/') : model;
+  String get modelId =>
+      model.contains('/') ? model.split('/').skip(1).join('/') : model;
 
   factory ModelEntry.fromJson(Map<String, dynamic> json) => ModelEntry(
-        modelName: json['model_name'] as String,
-        model: json['model'] as String,
-        apiKey: json['api_key'] as String?,
-        apiBase: json['api_base'] as String?,
-        requestTimeout: json['request_timeout'] as int?,
-        provider: json['provider'] as String? ?? 'openai',
-        isFree: json['is_free'] as bool? ?? false,
-        input: (json['input'] as List<dynamic>?)?.cast<String>(),
-      );
+    modelName: json['model_name'] as String,
+    model: json['model'] as String,
+    apiKey: json['api_key'] as String?,
+    apiBase: json['api_base'] as String?,
+    requestTimeout: json['request_timeout'] as int?,
+    provider: json['provider'] as String? ?? 'openai',
+    isFree: json['is_free'] as bool? ?? false,
+    input: (json['input'] as List<dynamic>?)?.cast<String>(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'model_name': modelName,
-        'model': model,
-        if (apiKey != null) 'api_key': apiKey,
-        if (apiBase != null) 'api_base': apiBase,
-        if (requestTimeout != null) 'request_timeout': requestTimeout,
-        'provider': provider,
-        'is_free': isFree,
-        if (input != null) 'input': input,
-      };
+    'model_name': modelName,
+    'model': model,
+    if (apiKey != null) 'api_key': apiKey,
+    if (apiBase != null) 'api_base': apiBase,
+    if (requestTimeout != null) 'request_timeout': requestTimeout,
+    'provider': provider,
+    'is_free': isFree,
+    if (input != null) 'input': input,
+  };
 }
 
 class AgentsDefaults {
@@ -98,22 +100,23 @@ class AgentsDefaults {
   });
 
   factory AgentsDefaults.fromJson(Map<String, dynamic> json) => AgentsDefaults(
-        workspace: json['workspace'] as String? ?? '~/.flutterclaw/workspace',
-        modelName: json['model_name'] as String? ?? json['model'] as String? ?? 'gpt-4o',
-        maxTokens: json['max_tokens'] as int? ?? 8192,
-        temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
-        maxToolIterations: json['max_tool_iterations'] as int? ?? 20,
-        restrictToWorkspace: json['restrict_to_workspace'] as bool? ?? true,
-      );
+    workspace: json['workspace'] as String? ?? '~/.flutterclaw/workspace',
+    modelName:
+        json['model_name'] as String? ?? json['model'] as String? ?? 'gpt-4o',
+    maxTokens: json['max_tokens'] as int? ?? 8192,
+    temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
+    maxToolIterations: json['max_tool_iterations'] as int? ?? 20,
+    restrictToWorkspace: json['restrict_to_workspace'] as bool? ?? true,
+  );
 
   Map<String, dynamic> toJson() => {
-        'workspace': workspace,
-        'model_name': modelName,
-        'max_tokens': maxTokens,
-        'temperature': temperature,
-        'max_tool_iterations': maxToolIterations,
-        'restrict_to_workspace': restrictToWorkspace,
-      };
+    'workspace': workspace,
+    'model_name': modelName,
+    'max_tokens': maxTokens,
+    'temperature': temperature,
+    'max_tool_iterations': maxToolIterations,
+    'restrict_to_workspace': restrictToWorkspace,
+  };
 }
 
 class AgentsConfig {
@@ -122,10 +125,10 @@ class AgentsConfig {
   const AgentsConfig({this.defaults = const AgentsDefaults()});
 
   factory AgentsConfig.fromJson(Map<String, dynamic> json) => AgentsConfig(
-        defaults: json['defaults'] != null
-            ? AgentsDefaults.fromJson(json['defaults'] as Map<String, dynamic>)
-            : const AgentsDefaults(),
-      );
+    defaults: json['defaults'] != null
+        ? AgentsDefaults.fromJson(json['defaults'] as Map<String, dynamic>)
+        : const AgentsDefaults(),
+  );
 
   Map<String, dynamic> toJson() => {'defaults': defaults.toJson()};
 }
@@ -144,18 +147,18 @@ class TelegramConfig {
   });
 
   factory TelegramConfig.fromJson(Map<String, dynamic> json) => TelegramConfig(
-        enabled: json['enabled'] as bool? ?? false,
-        token: json['token'] as String?,
-        allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
-        dmPolicy: json['dm_policy'] as String? ?? 'pairing',
-      );
+    enabled: json['enabled'] as bool? ?? false,
+    token: json['token'] as String?,
+    allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
+    dmPolicy: json['dm_policy'] as String? ?? 'pairing',
+  );
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        if (token != null) 'token': token,
-        'allow_from': allowFrom,
-        'dm_policy': dmPolicy,
-      };
+    'enabled': enabled,
+    if (token != null) 'token': token,
+    'allow_from': allowFrom,
+    'dm_policy': dmPolicy,
+  };
 }
 
 class DiscordConfig {
@@ -172,18 +175,18 @@ class DiscordConfig {
   });
 
   factory DiscordConfig.fromJson(Map<String, dynamic> json) => DiscordConfig(
-        enabled: json['enabled'] as bool? ?? false,
-        token: json['token'] as String?,
-        allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
-        dmPolicy: json['dm_policy'] as String? ?? 'pairing',
-      );
+    enabled: json['enabled'] as bool? ?? false,
+    token: json['token'] as String?,
+    allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
+    dmPolicy: json['dm_policy'] as String? ?? 'pairing',
+  );
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        if (token != null) 'token': token,
-        'allow_from': allowFrom,
-        'dm_policy': dmPolicy,
-      };
+    'enabled': enabled,
+    if (token != null) 'token': token,
+    'allow_from': allowFrom,
+    'dm_policy': dmPolicy,
+  };
 }
 
 class WhatsAppConfig {
@@ -191,27 +194,31 @@ class WhatsAppConfig {
   final String? authDir;
   final List<String> allowFrom;
   final String dmPolicy;
+  final bool? selfChatMode;
 
   const WhatsAppConfig({
     this.enabled = false,
     this.authDir,
     this.allowFrom = const [],
     this.dmPolicy = 'pairing',
+    this.selfChatMode,
   });
 
   factory WhatsAppConfig.fromJson(Map<String, dynamic> json) => WhatsAppConfig(
-        enabled: json['enabled'] as bool? ?? false,
-        authDir: json['auth_dir'] as String?,
-        allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
-        dmPolicy: json['dm_policy'] as String? ?? 'pairing',
-      );
+    enabled: json['enabled'] as bool? ?? false,
+    authDir: json['auth_dir'] as String?,
+    allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
+    dmPolicy: json['dm_policy'] as String? ?? 'pairing',
+    selfChatMode: json['self_chat_mode'] as bool?,
+  );
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        if (authDir != null) 'auth_dir': authDir,
-        'allow_from': allowFrom,
-        'dm_policy': dmPolicy,
-      };
+    'enabled': enabled,
+    if (authDir != null) 'auth_dir': authDir,
+    'allow_from': allowFrom,
+    'dm_policy': dmPolicy,
+    if (selfChatMode != null) 'self_chat_mode': selfChatMode,
+  };
 }
 
 class ChannelsConfig {
@@ -226,22 +233,22 @@ class ChannelsConfig {
   });
 
   factory ChannelsConfig.fromJson(Map<String, dynamic> json) => ChannelsConfig(
-        telegram: json['telegram'] != null
-            ? TelegramConfig.fromJson(json['telegram'] as Map<String, dynamic>)
-            : const TelegramConfig(),
-        discord: json['discord'] != null
-            ? DiscordConfig.fromJson(json['discord'] as Map<String, dynamic>)
-            : const DiscordConfig(),
-        whatsapp: json['whatsapp'] != null
-            ? WhatsAppConfig.fromJson(json['whatsapp'] as Map<String, dynamic>)
-            : const WhatsAppConfig(),
-      );
+    telegram: json['telegram'] != null
+        ? TelegramConfig.fromJson(json['telegram'] as Map<String, dynamic>)
+        : const TelegramConfig(),
+    discord: json['discord'] != null
+        ? DiscordConfig.fromJson(json['discord'] as Map<String, dynamic>)
+        : const DiscordConfig(),
+    whatsapp: json['whatsapp'] != null
+        ? WhatsAppConfig.fromJson(json['whatsapp'] as Map<String, dynamic>)
+        : const WhatsAppConfig(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'telegram': telegram.toJson(),
-        'discord': discord.toJson(),
-        'whatsapp': whatsapp.toJson(),
-      };
+    'telegram': telegram.toJson(),
+    'discord': discord.toJson(),
+    'whatsapp': whatsapp.toJson(),
+  };
 }
 
 class WebSearchProviderConfig {
@@ -263,10 +270,10 @@ class WebSearchProviderConfig {
       );
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        if (apiKey != null) 'api_key': apiKey,
-        'max_results': maxResults,
-      };
+    'enabled': enabled,
+    if (apiKey != null) 'api_key': apiKey,
+    'max_results': maxResults,
+  };
 }
 
 class WebToolsConfig {
@@ -283,26 +290,34 @@ class WebToolsConfig {
   });
 
   factory WebToolsConfig.fromJson(Map<String, dynamic> json) => WebToolsConfig(
-        brave: json['brave'] != null
-            ? WebSearchProviderConfig.fromJson(json['brave'] as Map<String, dynamic>)
-            : const WebSearchProviderConfig(),
-        tavily: json['tavily'] != null
-            ? WebSearchProviderConfig.fromJson(json['tavily'] as Map<String, dynamic>)
-            : const WebSearchProviderConfig(),
-        duckduckgo: json['duckduckgo'] != null
-            ? WebSearchProviderConfig.fromJson(json['duckduckgo'] as Map<String, dynamic>)
-            : const WebSearchProviderConfig(enabled: true),
-        perplexity: json['perplexity'] != null
-            ? WebSearchProviderConfig.fromJson(json['perplexity'] as Map<String, dynamic>)
-            : const WebSearchProviderConfig(),
-      );
+    brave: json['brave'] != null
+        ? WebSearchProviderConfig.fromJson(
+            json['brave'] as Map<String, dynamic>,
+          )
+        : const WebSearchProviderConfig(),
+    tavily: json['tavily'] != null
+        ? WebSearchProviderConfig.fromJson(
+            json['tavily'] as Map<String, dynamic>,
+          )
+        : const WebSearchProviderConfig(),
+    duckduckgo: json['duckduckgo'] != null
+        ? WebSearchProviderConfig.fromJson(
+            json['duckduckgo'] as Map<String, dynamic>,
+          )
+        : const WebSearchProviderConfig(enabled: true),
+    perplexity: json['perplexity'] != null
+        ? WebSearchProviderConfig.fromJson(
+            json['perplexity'] as Map<String, dynamic>,
+          )
+        : const WebSearchProviderConfig(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'brave': brave.toJson(),
-        'tavily': tavily.toJson(),
-        'duckduckgo': duckduckgo.toJson(),
-        'perplexity': perplexity.toJson(),
-      };
+    'brave': brave.toJson(),
+    'tavily': tavily.toJson(),
+    'duckduckgo': duckduckgo.toJson(),
+    'perplexity': perplexity.toJson(),
+  };
 }
 
 class ToolsConfig {
@@ -311,10 +326,10 @@ class ToolsConfig {
   const ToolsConfig({this.web = const WebToolsConfig()});
 
   factory ToolsConfig.fromJson(Map<String, dynamic> json) => ToolsConfig(
-        web: json['web'] != null
-            ? WebToolsConfig.fromJson(json['web'] as Map<String, dynamic>)
-            : const WebToolsConfig(),
-      );
+    web: json['web'] != null
+        ? WebToolsConfig.fromJson(json['web'] as Map<String, dynamic>)
+        : const WebToolsConfig(),
+  );
 
   Map<String, dynamic> toJson() => {'web': web.toJson()};
 }
@@ -325,7 +340,8 @@ class HeartbeatConfig {
 
   const HeartbeatConfig({this.enabled = true, this.interval = 30});
 
-  factory HeartbeatConfig.fromJson(Map<String, dynamic> json) => HeartbeatConfig(
+  factory HeartbeatConfig.fromJson(Map<String, dynamic> json) =>
+      HeartbeatConfig(
         enabled: json['enabled'] as bool? ?? true,
         interval: json['interval'] as int? ?? 30,
       );
@@ -345,16 +361,16 @@ class GatewayConfig {
   });
 
   factory GatewayConfig.fromJson(Map<String, dynamic> json) => GatewayConfig(
-        host: json['host'] as String? ?? '127.0.0.1',
-        port: json['port'] as int? ?? 18789,
-        autoStart: json['auto_start'] as bool? ?? true,
-      );
+    host: json['host'] as String? ?? '127.0.0.1',
+    port: json['port'] as int? ?? 18789,
+    autoStart: json['auto_start'] as bool? ?? true,
+  );
 
   Map<String, dynamic> toJson() => {
-        'host': host,
-        'port': port,
-        'auto_start': autoStart,
-      };
+    'host': host,
+    'port': port,
+    'auto_start': autoStart,
+  };
 }
 
 class FlutterClawConfig {
@@ -406,10 +422,13 @@ class FlutterClawConfig {
   /// Resolves the effective API base URL for a model entry.
   /// Checks (in order): per-model override → provider credential → catalog default.
   String resolveApiBase(ModelEntry entry) {
-    if (entry.apiBase != null && entry.apiBase!.isNotEmpty) return entry.apiBase!;
+    if (entry.apiBase != null && entry.apiBase!.isNotEmpty) {
+      return entry.apiBase!;
+    }
     final credBase = providerCredentials[entry.provider]?.apiBase;
     if (credBase != null && credBase.isNotEmpty) return credBase;
-    return ModelCatalog.getProvider(entry.provider)?.apiBase ?? 'https://api.openai.com/v1';
+    return ModelCatalog.getProvider(entry.provider)?.apiBase ??
+        'https://api.openai.com/v1';
   }
 
   /// Returns true if the given provider has a non-empty API key stored.
@@ -419,7 +438,10 @@ class FlutterClawConfig {
   }
 
   /// Returns a new config with the given provider credential saved (or replaced).
-  FlutterClawConfig withProviderCredential(String providerId, ProviderCredential credential) {
+  FlutterClawConfig withProviderCredential(
+    String providerId,
+    ProviderCredential credential,
+  ) {
     return copyWith(
       providerCredentials: {...providerCredentials, providerId: credential},
     );
@@ -443,11 +465,13 @@ class FlutterClawConfig {
     }
   }
 
-  factory FlutterClawConfig.fromJson(Map<String, dynamic> json) => FlutterClawConfig(
+  factory FlutterClawConfig.fromJson(Map<String, dynamic> json) =>
+      FlutterClawConfig(
         agents: json['agents'] != null
             ? AgentsConfig.fromJson(json['agents'] as Map<String, dynamic>)
             : const AgentsConfig(),
-        modelList: (json['model_list'] as List<dynamic>?)
+        modelList:
+            (json['model_list'] as List<dynamic>?)
                 ?.map((e) => ModelEntry.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [],
@@ -458,39 +482,45 @@ class FlutterClawConfig {
             ? ToolsConfig.fromJson(json['tools'] as Map<String, dynamic>)
             : const ToolsConfig(),
         heartbeat: json['heartbeat'] != null
-            ? HeartbeatConfig.fromJson(json['heartbeat'] as Map<String, dynamic>)
+            ? HeartbeatConfig.fromJson(
+                json['heartbeat'] as Map<String, dynamic>,
+              )
             : const HeartbeatConfig(),
         gateway: json['gateway'] != null
             ? GatewayConfig.fromJson(json['gateway'] as Map<String, dynamic>)
             : const GatewayConfig(),
         onboardingCompleted: json['onboarding_completed'] as bool? ?? false,
-        agentProfiles: (json['agent_profiles'] as List<dynamic>?)
+        agentProfiles:
+            (json['agent_profiles'] as List<dynamic>?)
                 ?.map((e) => AgentProfile.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [],
         activeAgentId: json['active_agent_id'] as String?,
-        providerCredentials: (json['provider_credentials'] as Map<String, dynamic>?)
-                ?.map((k, v) => MapEntry(
-                      k,
-                      ProviderCredential.fromJson(v as Map<String, dynamic>),
-                    )) ??
+        providerCredentials:
+            (json['provider_credentials'] as Map<String, dynamic>?)?.map(
+              (k, v) => MapEntry(
+                k,
+                ProviderCredential.fromJson(v as Map<String, dynamic>),
+              ),
+            ) ??
             {},
       );
 
   Map<String, dynamic> toJson() => {
-        'agents': agents.toJson(),
-        'model_list': modelList.map((e) => e.toJson()).toList(),
-        'channels': channels.toJson(),
-        'tools': tools.toJson(),
-        'heartbeat': heartbeat.toJson(),
-        'gateway': gateway.toJson(),
-        'onboarding_completed': onboardingCompleted,
-        'agent_profiles': agentProfiles.map((e) => e.toJson()).toList(),
-        if (activeAgentId != null) 'active_agent_id': activeAgentId,
-        if (providerCredentials.isNotEmpty)
-          'provider_credentials':
-              providerCredentials.map((k, v) => MapEntry(k, v.toJson())),
-      };
+    'agents': agents.toJson(),
+    'model_list': modelList.map((e) => e.toJson()).toList(),
+    'channels': channels.toJson(),
+    'tools': tools.toJson(),
+    'heartbeat': heartbeat.toJson(),
+    'gateway': gateway.toJson(),
+    'onboarding_completed': onboardingCompleted,
+    'agent_profiles': agentProfiles.map((e) => e.toJson()).toList(),
+    if (activeAgentId != null) 'active_agent_id': activeAgentId,
+    if (providerCredentials.isNotEmpty)
+      'provider_credentials': providerCredentials.map(
+        (k, v) => MapEntry(k, v.toJson()),
+      ),
+  };
 
   FlutterClawConfig copyWith({
     AgentsConfig? agents,
@@ -503,19 +533,18 @@ class FlutterClawConfig {
     List<AgentProfile>? agentProfiles,
     String? activeAgentId,
     Map<String, ProviderCredential>? providerCredentials,
-  }) =>
-      FlutterClawConfig(
-        agents: agents ?? this.agents,
-        modelList: modelList ?? this.modelList,
-        channels: channels ?? this.channels,
-        tools: tools ?? this.tools,
-        heartbeat: heartbeat ?? this.heartbeat,
-        gateway: gateway ?? this.gateway,
-        onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
-        agentProfiles: agentProfiles ?? this.agentProfiles,
-        activeAgentId: activeAgentId ?? this.activeAgentId,
-        providerCredentials: providerCredentials ?? this.providerCredentials,
-      );
+  }) => FlutterClawConfig(
+    agents: agents ?? this.agents,
+    modelList: modelList ?? this.modelList,
+    channels: channels ?? this.channels,
+    tools: tools ?? this.tools,
+    heartbeat: heartbeat ?? this.heartbeat,
+    gateway: gateway ?? this.gateway,
+    onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+    agentProfiles: agentProfiles ?? this.agentProfiles,
+    activeAgentId: activeAgentId ?? this.activeAgentId,
+    providerCredentials: providerCredentials ?? this.providerCredentials,
+  );
 }
 
 class ConfigManager {
@@ -550,7 +579,9 @@ class ConfigManager {
 
   /// Get workspace path for a specific agent
   Future<String> getAgentWorkspace(String agentId) async {
-    final agent = _config.agentProfiles.where((a) => a.id == agentId).firstOrNull;
+    final agent = _config.agentProfiles
+        .where((a) => a.id == agentId)
+        .firstOrNull;
     if (agent == null) {
       throw Exception('Agent $agentId not found');
     }
@@ -576,9 +607,12 @@ class ConfigManager {
 
     final defaultFiles = {
       '$ws/AGENTS.md': _defaultAgentsMd,
-      '$ws/IDENTITY.md': '# Identity\n\n*(Not yet defined — BOOTSTRAP will guide setup)*\n',
-      '$ws/SOUL.md': '# Soul\n\n*(Not yet defined — BOOTSTRAP will guide setup)*\n',
-      '$ws/USER.md': '# User\n\n*(Not yet defined — BOOTSTRAP will guide setup)*\n',
+      '$ws/IDENTITY.md':
+          '# Identity\n\n*(Not yet defined — BOOTSTRAP will guide setup)*\n',
+      '$ws/SOUL.md':
+          '# Soul\n\n*(Not yet defined — BOOTSTRAP will guide setup)*\n',
+      '$ws/USER.md':
+          '# User\n\n*(Not yet defined — BOOTSTRAP will guide setup)*\n',
       '$ws/TOOLS.md': _defaultToolsMd,
       '$ws/HEARTBEAT.md': '# Periodic Tasks\n\n- Check connectivity status\n',
       '$ws/BOOTSTRAP.md': _defaultBootstrapMd,
@@ -611,7 +645,8 @@ class ConfigManager {
     }
 
     // Generate IDENTITY.md with agent-specific content
-    final identityMd = '''# Identity
+    final identityMd =
+        '''# Identity
 
 Name: ${agent.name}
 Emoji: ${agent.emoji}
@@ -622,7 +657,8 @@ Model: ${agent.modelName}
 
     // Generate SOUL.md with agent-specific personality
     final vibe = agent.vibe ?? 'helpful and friendly';
-    final soulMd = '''# Soul
+    final soulMd =
+        '''# Soul
 
 I am ${agent.name}, a $vibe personal AI assistant.
 I value: helpfulness, honesty, and being proactive.
@@ -631,7 +667,8 @@ I use ${agent.emoji} as my signature.
 ''';
 
     // Bootstrap message for first interaction
-    final bootstrapMd = '''# Bootstrap
+    final bootstrapMd =
+        '''# Bootstrap
 
 Welcome! This is your first interaction with ${agent.name}.
 
@@ -662,7 +699,9 @@ After this introduction, this file will be automatically deleted.
 
   /// Switch to a different agent
   Future<void> switchAgent(String agentId) async {
-    final agent = _config.agentProfiles.where((a) => a.id == agentId).firstOrNull;
+    final agent = _config.agentProfiles
+        .where((a) => a.id == agentId)
+        .firstOrNull;
     if (agent == null) {
       throw Exception('Agent $agentId not found');
     }
@@ -687,13 +726,17 @@ After this introduction, this file will be automatically deleted.
   Future<void> _migrateToMultiAgent() async {
     // Check if migration is needed
     if (_config.agentProfiles.isNotEmpty) {
-      debugPrint('[ConfigManager] Migration not needed - already have ${_config.agentProfiles.length} agents');
+      debugPrint(
+        '[ConfigManager] Migration not needed - already have ${_config.agentProfiles.length} agents',
+      );
       return; // Already migrated
     }
 
     // Create default agent from old defaults
     final defaults = _config.agents.defaults;
-    debugPrint('[ConfigManager] Migrating to multi-agent: model=${defaults.modelName}, modelList has ${_config.modelList.length} models');
+    debugPrint(
+      '[ConfigManager] Migrating to multi-agent: model=${defaults.modelName}, modelList has ${_config.modelList.length} models',
+    );
     final defaultAgent = AgentProfile.create(
       name: 'Assistant',
       emoji: '🤖',
@@ -742,14 +785,18 @@ After this introduction, this file will be automatically deleted.
       final content = await file.readAsString();
       final json = jsonDecode(content) as Map<String, dynamic>;
       _config = FlutterClawConfig.fromJson(json);
-      debugPrint('[ConfigManager] Loaded config: ${_config.modelList.length} models, ${_config.agentProfiles.length} agents');
+      debugPrint(
+        '[ConfigManager] Loaded config: ${_config.modelList.length} models, ${_config.agentProfiles.length} agents',
+      );
     }
     // Run migrations after loading
     await _migrateToMultiAgent();
     _migrateApiKeysToProviderCredentials();
     // IDENTITY.md is the authoritative source — sync name/emoji into AgentProfile
     await syncAgentIdentitiesFromWorkspace();
-    debugPrint('[ConfigManager] After migration: ${_config.agentProfiles.length} agents, activeAgent=${_config.activeAgent?.name}');
+    debugPrint(
+      '[ConfigManager] After migration: ${_config.agentProfiles.length} agents, activeAgent=${_config.activeAgent?.name}',
+    );
   }
 
   /// Reads each agent's IDENTITY.md and updates AgentProfile.name/emoji to match.
@@ -768,8 +815,10 @@ After this introduction, this file will be automatically deleted.
         final identity = await identityFile.readAsString();
         final parsedName = _parseIdentityField(identity, 'Name');
         final rawEmoji = _parseIdentityField(identity, 'Emoji');
-        final parsedEmoji =
-            rawEmoji?.replaceAll('*', '').replaceAll('_', '').trim();
+        final parsedEmoji = rawEmoji
+            ?.replaceAll('*', '')
+            .replaceAll('_', '')
+            .trim();
 
         AgentProfile updated = agent;
         if (parsedName != null &&
@@ -797,15 +846,22 @@ After this introduction, this file will be automatically deleted.
   }
 
   static String? _parseIdentityField(String identity, String field) {
-    final match =
-        RegExp('(?:$field|${field.toLowerCase()})[:\\s]+(.+)').firstMatch(identity);
+    final match = RegExp(
+      '(?:$field|${field.toLowerCase()})[:\\s]+(.+)',
+    ).firstMatch(identity);
     return match?.group(1)?.trim();
   }
 
   /// Updates a specific field in IDENTITY.md content, preserving the rest.
-  static String updateIdentityField(String content, String field, String value) {
-    final pattern =
-        RegExp('(?:$field|${field.toLowerCase()})[:\\s]+.+', multiLine: true);
+  static String updateIdentityField(
+    String content,
+    String field,
+    String value,
+  ) {
+    final pattern = RegExp(
+      '(?:$field|${field.toLowerCase()})[:\\s]+.+',
+      multiLine: true,
+    );
     if (pattern.hasMatch(content)) {
       return content.replaceFirst(pattern, '$field: $value');
     }
@@ -830,7 +886,9 @@ After this introduction, this file will be automatically deleted.
 
     if (migrated.isNotEmpty) {
       _config = _config.copyWith(providerCredentials: migrated);
-      debugPrint('[ConfigManager] Migrated ${migrated.length} provider credentials from per-model keys');
+      debugPrint(
+        '[ConfigManager] Migrated ${migrated.length} provider credentials from per-model keys',
+      );
     }
   }
 
@@ -840,7 +898,9 @@ After this introduction, this file will be automatically deleted.
     await file.parent.create(recursive: true);
     final encoder = const JsonEncoder.withIndent('  ');
     final json = _config.toJson();
-    debugPrint('[ConfigManager] Saving config: modelList=${_config.modelList.length}, agents.defaults.modelName=${_config.agents.defaults.modelName}');
+    debugPrint(
+      '[ConfigManager] Saving config: modelList=${_config.modelList.length}, agents.defaults.modelName=${_config.agents.defaults.modelName}',
+    );
     await file.writeAsString(encoder.convert(json));
   }
 
