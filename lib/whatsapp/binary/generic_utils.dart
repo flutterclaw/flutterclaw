@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math';
 
 import 'types.dart';
 
@@ -77,4 +78,28 @@ int _bufferToUInt(Uint8List e, int t) {
     a = 256 * a + e[i];
   }
   return a;
+}
+
+Uint8List writeRandomPadMax16(Uint8List message) {
+  final rng = Random.secure();
+  final padLength = (rng.nextInt(256) & 0x0f) + 1;
+  final padded = Uint8List(message.length + padLength);
+  padded.setAll(0, message);
+  padded.fillRange(message.length, padded.length, padLength);
+  return padded;
+}
+
+Uint8List unpadRandomMax16(Uint8List bytes) {
+  if (bytes.isEmpty) {
+    throw StateError('unpadRandomMax16 given empty bytes');
+  }
+
+  final padLength = bytes.last;
+  if (padLength == 0 || padLength > bytes.length) {
+    throw StateError(
+      'unpadRandomMax16 given ${bytes.length} bytes, but pad is $padLength',
+    );
+  }
+
+  return Uint8List.sublistView(bytes, 0, bytes.length - padLength);
 }

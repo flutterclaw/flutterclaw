@@ -22,8 +22,11 @@ class WASocketConfig {
   /// Maximum reconnect attempts before giving up (0 = unlimited).
   final int maxRetries;
 
-  /// Browser description sent in the client payload [name, platform, version].
+  /// Browser description sent in the client payload [os/app, browser/platform, version].
   final List<String> browser;
+
+  /// Human-friendly device name shown during companion pairing.
+  final String deviceName;
 
   /// Whether to request full history sync when pairing.
   final bool syncFullHistory;
@@ -47,7 +50,8 @@ class WASocketConfig {
     this.keepaliveTimeout = const Duration(seconds: 10),
     this.maxRetries = 0,
     this.browser = const ['Mac OS', 'Chrome', '14.4.1'],
-    this.syncFullHistory = true,
+    this.deviceName = 'FlutterClaw',
+    this.syncFullHistory = false,
     this.countryCode = 'US',
     this.qrTimeout,
     Logger? logger,

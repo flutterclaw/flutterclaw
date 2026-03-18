@@ -7,6 +7,7 @@ import 'double_ratchet.dart';
 import 'signal_keys.dart' show PreKeyBundle, keyPairToJson, keyPairFromJson;
 import 'signal_store.dart';
 import 'x3dh.dart';
+import 'package:logging/logging.dart';
 
 // ---------------------------------------------------------------------------
 // Ciphertext message types
@@ -25,6 +26,7 @@ class CiphertextMessage {
 
 const _currentSignalVersion = 3;
 const _macLength = 8;
+final _log = Logger('WASignal');
 
 int _signalVersionByte() =>
     ((_currentSignalVersion & 0x0f) << 4) | (_currentSignalVersion & 0x0f);
@@ -176,11 +178,29 @@ class SessionCipher {
     final parsed = _parsePreKeySignalMessage(serialized);
     final inner = _parseSignalMessage(parsed.signalMessageBytes);
 
+    final existingSession = await store.loadSession(recipientAddress);
+
     // Load our keys.
     final identityKP = await store.getIdentityKeyPair();
     final spk = await _loadSpkOrThrow(parsed.signedPreKeyId);
     final otpk =
         parsed.preKeyId != 0 ? await store.loadPreKey(parsed.preKeyId) : null;
+
+    _log.info(
+      'Decrypting pkmsg recipientAddress=$recipientAddress '
+      'signedPreKeyId=${parsed.signedPreKeyId} preKeyId=${parsed.preKeyId} '
+      'hasOneTimePreKey=${otpk != null} msgIndex=${inner.header.messageIndex} '
+      'prevChainLength=${inner.header.prevChainLength}',
+    );
+
+    if (existingSession != null && otpk == null) {
+      _log.info(
+        'Using existing session fallback for pkmsg '
+        'recipientAddress=$recipientAddress signedPreKeyId=${parsed.signedPreKeyId} '
+        'preKeyId=${parsed.preKeyId}',
+      );
+      return _decryptWhisper(parsed.signalMessageBytes);
+    }
 
     // X3DH recipient-side.
     final sharedSecret = await x3dhRespond(
@@ -220,6 +240,11 @@ class SessionCipher {
     await store.storeSession(
       recipientAddress,
       SessionRecord(serialized: await _serialiseState(state)),
+    );
+
+    _log.info(
+      'pkmsg decrypted recipientAddress=$recipientAddress '
+      'signedPreKeyId=${parsed.signedPreKeyId} preKeyId=${parsed.preKeyId}',
     );
 
     // Remove consumed one-time pre-key.

@@ -16,6 +16,7 @@ import '../binary/jid_utils.dart';
 import '../binary/types.dart';
 import '../noise/noise_handler.dart';
 import '../proto/wa_proto.pb.dart';
+import '../types.dart';
 import 'keepalive.dart';
 import 'wa_socket_config.dart';
 
@@ -27,8 +28,18 @@ class ConnectionUpdate {
   final WAConnectionState state;
   final String? qr;
   final Object? lastDisconnect;
+  final WADisconnectReason? disconnectReason;
+  final int? disconnectStatusCode;
+  final bool? receivedPendingNotifications;
 
-  const ConnectionUpdate({required this.state, this.qr, this.lastDisconnect});
+  const ConnectionUpdate({
+    required this.state,
+    this.qr,
+    this.lastDisconnect,
+    this.disconnectReason,
+    this.disconnectStatusCode,
+    this.receivedPendingNotifications,
+  });
 }
 
 class _StreamErrorInfo {
@@ -36,6 +47,25 @@ class _StreamErrorInfo {
   final int statusCode;
 
   const _StreamErrorInfo({required this.reason, required this.statusCode});
+}
+
+WADisconnectReason _mapDisconnectReason(_StreamErrorInfo info) {
+  switch (info.statusCode) {
+    case 401:
+      return WADisconnectReason.loggedOut;
+    case 405:
+      return WADisconnectReason.badSession;
+    case 408:
+      return WADisconnectReason.timedOut;
+    case 440:
+      return WADisconnectReason.connectionReplaced;
+    case 500:
+      return WADisconnectReason.badSession;
+    case 515:
+      return WADisconnectReason.restartRequired;
+    default:
+      return WADisconnectReason.connectionClosed;
+  }
 }
 
 typedef NodeHandler = Future<void> Function(BinaryNode node);
@@ -54,7 +84,7 @@ class WASocket {
   final WASocketConfig config;
 
   /// Long-term noise key pair (persisted in auth state).
-  /// Mutable so it can be refreshed when the server rejects with 405/401.
+  /// Mutable so it can be refreshed when the server rejects with 405.
   SimpleKeyPair noiseKey;
 
   WAConnectionState _state = WAConnectionState.disconnected;
@@ -96,7 +126,8 @@ class WASocket {
   /// Guards against double-scheduling a reconnect when both a `<failure>` node
   /// and the subsequent WebSocket close both call _scheduleReconnect.
   bool _reconnectPending = false;
-
+  bool _disposed = false;
+  bool _terminalDisconnect = false;
 
   WASocket({
     required this.config,
@@ -115,26 +146,44 @@ class WASocket {
 
   /// Connect (or reconnect) to WhatsApp.
   Future<void> connect() async {
+    if (_disposed) {
+      config.logger.info('Ignoring connect because socket is disposed');
+      return;
+    }
     if (_state == WAConnectionState.connecting ||
         _state == WAConnectionState.connected) {
       return;
     }
+    _terminalDisconnect = false;
     _setState(WAConnectionState.connecting);
+    final isPassive = creds?.me != null;
     config.logger.info(
-        'Using WA version ${_waVersion.join('.')} (passive=$passive)');
+      'Using WA version ${_waVersion.join('.')} (passive=$isPassive) '
+      'browser=${config.browser.join('/')} deviceName=${config.deviceName} '
+      'syncFullHistory=${config.syncFullHistory} countryCode=${config.countryCode} '
+      'hasCredsMe=${creds?.me != null} routingInfoBytes=${(creds?.routingInfo ?? config.routingInfo)?.length ?? 0}',
+    );
 
     try {
       // Build Noise handler for this connection attempt.
       final routingInfo = creds?.routingInfo ?? config.routingInfo;
       final noise = await NoiseHandler.create(routingInfo: routingInfo);
+      if (_disposed) {
+        config.logger.info(
+          'Aborting connect because socket was disposed during Noise init',
+        );
+        return;
+      }
       _noiseHandler = noise;
+      config.logger.info(
+        'Created Noise handler for connect attempt '
+        '(routingInfoBytes=${routingInfo?.length ?? 0})',
+      );
 
       // Open WebSocket with headers that WhatsApp requires.
       // web_socket_channel.connect() doesn't support headers; use dart:io directly.
-      final wsUrl = _buildWebSocketUrl(
-        config.url,
-        routingInfo,
-      );
+      final wsUrl = _buildWebSocketUrl(config.url, routingInfo);
+      config.logger.info('Opening WA WebSocket url=$wsUrl');
       final ws = await WebSocket.connect(
         wsUrl,
         headers: {
@@ -143,9 +192,16 @@ class WASocket {
           'User-Agent':
               'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
               'AppleWebKit/537.36 (KHTML, like Gecko) '
-              'Chrome/127.0.0.0 Safari/537.36',
+          'Chrome/127.0.0.0 Safari/537.36',
         },
       );
+      if (_disposed) {
+        config.logger.info(
+          'Socket disposed while WebSocket.connect was in flight; closing socket',
+        );
+        await ws.close();
+        return;
+      }
       _channel = IOWebSocketChannel(ws);
 
       // Send client hello (intro frame with our ephemeral public key).
@@ -168,6 +224,9 @@ class WASocket {
 
   /// Cleanly close the connection.
   Future<void> close() async {
+    if (_disposed) return;
+    _terminalDisconnect = false;
+    _reconnectPending = false;
     _setState(WAConnectionState.closing);
     _keepalive?.stop();
     await _wsSub?.cancel();
@@ -188,8 +247,7 @@ class WASocket {
     final clientHello = HandshakeMessage(
       clientHello: HandshakeMessage_ClientHello(ephemeral: ephPub),
     );
-    final helloBytes =
-        Uint8List.fromList(clientHello.writeToBuffer());
+    final helloBytes = Uint8List.fromList(clientHello.writeToBuffer());
 
     final frame = await noise.encodeFrame(helloBytes);
     _channel!.sink.add(frame);
@@ -197,14 +255,19 @@ class WASocket {
   }
 
   Future<void> _processServerHello(
-      NoiseHandler noise, Uint8List frameBytes) async {
+    NoiseHandler noise,
+    Uint8List frameBytes,
+  ) async {
     final msg = HandshakeMessage.fromBuffer(frameBytes);
     if (!msg.hasServerHello()) {
       throw StateError('Expected serverHello, got: $msg');
     }
     final sh = msg.serverHello;
 
-    config.logger.fine('Processing server hello');
+    config.logger.info(
+      'Processing server hello '
+      '(ephemeralBytes=${sh.ephemeral.length}, staticBytes=${sh.static.length}, payloadBytes=${sh.payload.length})',
+    );
 
     // Run Noise handshake — get back our encrypted noise public key.
     final keyEnc = await noise.processHandshake(
@@ -218,6 +281,10 @@ class WASocket {
     // Build client finish: encrypt the ClientPayload as the payload.
     final clientPayload = await _buildClientPayload();
     final encPayload = await noise.encrypt(clientPayload);
+    config.logger.info(
+      'Prepared client finish payload '
+      '(clientPayloadBytes=${clientPayload.length}, encryptedPayloadBytes=${encPayload.length}, staticBytes=${keyEnc.length})',
+    );
 
     final clientFinish = HandshakeMessage(
       clientFinish: HandshakeMessage_ClientFinish(
@@ -226,8 +293,7 @@ class WASocket {
         payload: encPayload,
       ),
     );
-    final finishBytes =
-        Uint8List.fromList(clientFinish.writeToBuffer());
+    final finishBytes = Uint8List.fromList(clientFinish.writeToBuffer());
 
     final frame = await noise.encodeFrame(finishBytes);
     _channel!.sink.add(frame);
@@ -236,7 +302,6 @@ class WASocket {
     await noise.finishInit();
 
     config.logger.info('Noise handshake complete — transport mode active');
-    _setState(WAConnectionState.connected);
 
     // Start keepalive.
     _keepalive = KeepAlive(
@@ -277,12 +342,17 @@ class WASocket {
       // buildHash = MD5("primary.secondary.tertiary") — matches Baileys createHash('md5')
       final versionStr = '${v[0]}.${v[1]}.${v[2]}';
       final buildHash = Uint8List.fromList(
-          crypto.md5.convert(utf8.encode(versionStr)).bytes);
+        crypto.md5.convert(utf8.encode(versionStr)).bytes,
+      );
 
       // DeviceProps: companion-app version is fixed {10,15,7}, NOT the WA version.
       final devicePropsBytes = DeviceProps(
         os: config.browser[0],
-        version: DeviceProps_AppVersion(primary: 10, secondary: 15, tertiary: 7),
+        version: DeviceProps_AppVersion(
+          primary: 10,
+          secondary: 15,
+          tertiary: 7,
+        ),
         platformType: _getPlatformType(config.browser[1]),
         requireFullSync: config.syncFullHistory,
         historySyncConfig: DeviceProps_HistorySyncConfig(
@@ -308,10 +378,13 @@ class WASocket {
       regData = ClientPayload_DevicePairingRegistrationData(
         buildHash: buildHash,
         deviceProps: devicePropsBytes,
-        eRegid: _encodeBigEndian(c.registrationId),      // 4 bytes
+        eRegid: _encodeBigEndian(c.registrationId), // 4 bytes
         eKeytype: Uint8List.fromList([0x05]),
         eIdent: identBytes,
-        eSkeyId: _encodeBigEndian(c.signedPreKey.id, size: 3),  // 3 bytes — Baileys
+        eSkeyId: _encodeBigEndian(
+          c.signedPreKey.id,
+          size: 3,
+        ), // 3 bytes — Baileys
         eSkeyVal: spkBytes,
         eSkeySig: c.signedPreKey.signature,
       );
@@ -330,7 +403,10 @@ class WASocket {
       lidDbMigrated: isPassive ? false : null,
       userAgent: ClientPayload_UserAgent(
         appVersion: ClientPayload_UserAgent_AppVersion(
-            primary: v[0], secondary: v[1], tertiary: v[2]),
+          primary: v[0],
+          secondary: v[1],
+          tertiary: v[2],
+        ),
         platform: ClientPayload_UserAgent_Platform.WEB,
         releaseChannel: ClientPayload_UserAgent_ReleaseChannel.RELEASE,
         mcc: '000',
@@ -341,10 +417,19 @@ class WASocket {
         localeLanguageIso6391: 'en',
         localeCountryIso31661Alpha2: config.countryCode,
       ),
-      webInfo: ClientPayload_WebInfo(
-        webSubPlatform: webSubPlatform,
-      ),
+      webInfo: ClientPayload_WebInfo(webSubPlatform: webSubPlatform),
       devicePairingData: regData,
+    );
+    config.logger.info(
+      'Built WA client payload '
+      'mode=${isPassive ? 'login' : 'registration'} '
+      'username=${username?.toString() ?? '-'} '
+      'device=${device?.toString() ?? '-'} '
+      'browser=${config.browser.join('/')} '
+      'webSubPlatform=$webSubPlatform '
+      'hasRegData=${regData != null} '
+      'registrationId=${creds?.registrationId ?? '-'} '
+      'signedPreKeyId=${creds?.signedPreKey.id ?? '-'}',
     );
     return Uint8List.fromList(payload.writeToBuffer());
   }
@@ -352,18 +437,27 @@ class WASocket {
   /// Maps browser name to DeviceProps platform type — mirrors Baileys getPlatformType().
   static DeviceProps_PlatformType _getPlatformType(String browser) {
     switch (browser.toUpperCase()) {
-      case 'CHROME':  return DeviceProps_PlatformType.CHROME;
-      case 'FIREFOX': return DeviceProps_PlatformType.FIREFOX;
-      case 'SAFARI':  return DeviceProps_PlatformType.SAFARI;
-      case 'EDGE':    return DeviceProps_PlatformType.EDGE;
-      case 'OPERA':   return DeviceProps_PlatformType.OPERA;
-      default:        return DeviceProps_PlatformType.CHROME;
+      case 'CHROME':
+        return DeviceProps_PlatformType.CHROME;
+      case 'FIREFOX':
+        return DeviceProps_PlatformType.FIREFOX;
+      case 'SAFARI':
+        return DeviceProps_PlatformType.SAFARI;
+      case 'EDGE':
+        return DeviceProps_PlatformType.EDGE;
+      case 'OPERA':
+        return DeviceProps_PlatformType.OPERA;
+      case 'DESKTOP':
+        return DeviceProps_PlatformType.DESKTOP;
+      default:
+        return DeviceProps_PlatformType.CHROME;
     }
   }
 
   /// Mirrors Baileys getWebInfo logic for subplatform selection.
   static ClientPayload_WebInfo_WebSubPlatform _getWebSubPlatform(
-      WASocketConfig config) {
+    WASocketConfig config,
+  ) {
     var sub = ClientPayload_WebInfo_WebSubPlatform.WEB_BROWSER;
     if (!config.syncFullHistory) return sub;
 
@@ -409,12 +503,17 @@ class WASocket {
     } else if (data is List<int>) {
       bytes = Uint8List.fromList(data);
     } else {
-      config.logger.warning('Unexpected WebSocket data type: ${data.runtimeType}');
+      config.logger.warning(
+        'Unexpected WebSocket data type: ${data.runtimeType}',
+      );
       return;
     }
 
     final noise = _noiseHandler;
     if (noise == null) return;
+    config.logger.fine(
+      'recv raw frame bytes=${bytes.length} handshakePhase=$_handshakePhase',
+    );
 
     if (_handshakePhase == 0) {
       // First frame is the server hello.
@@ -424,6 +523,10 @@ class WASocket {
         return;
       }
       final payloadLen = (bytes[0] << 16) | (bytes[1] << 8) | bytes[2];
+      config.logger.info(
+        'Server hello frame header parsed '
+        '(frameBytes=${bytes.length}, payloadLen=$payloadLen)',
+      );
       if (bytes.length < payloadLen + 3) {
         config.logger.severe('Server hello frame incomplete');
         return;
@@ -433,20 +536,28 @@ class WASocket {
       // Queue any trailing bytes for after transport is active.
       if (bytes.length > payloadLen + 3) {
         _pendingFrames.add(bytes.sublist(payloadLen + 3));
+        config.logger.info(
+          'Buffered trailing handshake frame bytes=${bytes.length - payloadLen - 3}',
+        );
       }
 
-      _processServerHello(noise, payload).then((_) {
-        // Flush any frames that arrived during handshake.
-        _handshakePhase = 2;
-        for (final pending in _pendingFrames) {
-          _dispatchFrames(pending);
-        }
-        _pendingFrames.clear();
-      }).catchError((e, st) {
-        config.logger.severe('Server hello processing failed', e, st);
-        _pendingFrames.clear();
-        _scheduleReconnect();
-      });
+      _processServerHello(noise, payload)
+          .then((_) {
+            // Flush any frames that arrived during handshake.
+            _handshakePhase = 2;
+            config.logger.info(
+              'Handshake phase complete; flushing ${_pendingFrames.length} pending frame chunk(s)',
+            );
+            for (final pending in _pendingFrames) {
+              _dispatchFrames(pending);
+            }
+            _pendingFrames.clear();
+          })
+          .catchError((e, st) {
+            config.logger.severe('Server hello processing failed', e, st);
+            _pendingFrames.clear();
+            _scheduleReconnect();
+          });
     } else if (_handshakePhase == 1) {
       // Handshake in progress — buffer until transport is ready.
       _pendingFrames.add(bytes);
@@ -456,23 +567,33 @@ class WASocket {
   }
 
   void _dispatchFrames(Uint8List bytes) {
-    _noiseHandler
-        ?.decodeFrame(bytes, _onDecodedFrame)
-        .catchError((e, st) {
+    config.logger.fine('dispatch encrypted frame bytes=${bytes.length}');
+    _noiseHandler?.decodeFrame(bytes, _onDecodedFrame).catchError((e, st) {
       config.logger.severe('Frame decode error', e, st);
     });
   }
 
   void _onDecodedFrame(Object frame) {
     if (frame is BinaryNode) {
-      _routeNode(frame).catchError((e, st) =>
-          config.logger.warning('Route error for node: $e'));
+      _routeNode(frame).catchError(
+        (e, st) => config.logger.warning('Route error for node: $e'),
+      );
     }
     // Pre-transport raw frames are handled in _processServerHello path.
   }
 
   Future<void> _routeNode(BinaryNode node) async {
-    config.logger.info('recv <${node.tag}> attrs=${node.attrs}');
+    config.logger.info('recv ${_summarizeNode(node)}');
+
+    if (node.tag == 'success') {
+      _retryCount = 0;
+      config.logger.info(
+        'WA success received attrs=${node.attrs} '
+        'pendingQueries=${_queries.length} '
+        'me=${creds?.me?.id ?? '-'}',
+      );
+      _setState(WAConnectionState.connected);
+    }
 
     // Stream-level errors — log fully and reconnect.
     if (node.tag == 'stream:error' || node.tag == 'failure') {
@@ -482,23 +603,62 @@ class WASocket {
       final reason = errInfo.reason;
       final code = errInfo.statusCode;
       config.logger.warning(
-          'Server stream error: tag=${node.tag} attrs=${node.attrs} '
-          'content=${node.contentString}');
+        'Server stream error: tag=${node.tag} attrs=${node.attrs} '
+        'content=${node.contentString}',
+      );
 
-      // Auth failures (405 = noise key rejected, 401 = logged out) or
-      // bad-session (500) on an unpaired connection: regenerate the noise key
-      // before reconnecting so the next attempt uses a fresh identity.
-      // 500 = DisconnectReason.badSession in Baileys — NOT a rate-limit.
-      if ((code == 405 || code == 401 ||
-               (code == 500 && creds?.me == null)) &&
+      final disconnectReason = _mapDisconnectReason(errInfo);
+      final hasLinkedSession = creds?.me != null;
+
+      // Mirror Baileys/OpenClaw:
+      // - 405 => refresh the noise key and retry
+      // - 500 while unpaired => rebuild fresh creds and retry
+      // - 401 / badSession on an existing linked session => surface relink
+      if ((code == 405 || (code == 500 && !hasLinkedSession)) &&
           onKeyRefreshNeeded != null) {
         config.logger.info(
-            'Session rejected ($reason/$code) — refreshing noise key before reconnect');
+          'Session rejected ($reason/$code) — refreshing noise key before reconnect',
+        );
         final newKey = await onKeyRefreshNeeded!(code);
         if (newKey != null) noiseKey = newKey;
       }
 
-      _scheduleReconnect();
+      if (_isTerminalDisconnect(disconnectReason, hasLinkedSession)) {
+        _terminalDisconnect = true;
+        config.logger.info(
+          'Treating auth failure as terminal '
+          'reason=$disconnectReason statusCode=$code hasLinkedSession=$hasLinkedSession',
+        );
+        _transitionToDisconnected(
+          reason: disconnectReason,
+          statusCode: code,
+          lastDisconnect: StateError('$reason ($code)'),
+          immediate: false,
+        );
+        return;
+      }
+
+      if (disconnectReason == WADisconnectReason.restartRequired) {
+        _terminalDisconnect = true;
+        config.logger.info(
+          'Surfacing restartRequired for external client restart '
+          'statusCode=$code hasLinkedSession=$hasLinkedSession',
+        );
+        _transitionToDisconnected(
+          reason: disconnectReason,
+          statusCode: code,
+          lastDisconnect: StateError('$reason ($code)'),
+          immediate: false,
+        );
+        return;
+      }
+
+      await _scheduleReconnect(
+        reason: disconnectReason,
+        statusCode: code,
+        lastDisconnect: StateError('$reason ($code)'),
+        immediate: code == 515,
+      );
       return;
     }
 
@@ -506,6 +666,9 @@ class WASocket {
     if (node.tag == 'iq' && node.attrs['type'] == 'result') {
       final id = node.attrs['id'];
       if (id != null && _queries.containsKey(id)) {
+        config.logger.info(
+          'Matched IQ result for id=$id childTags=${node.children.map((c) => c.tag).toList()}',
+        );
         _queries.remove(id)!.complete(node);
         return;
       }
@@ -520,12 +683,22 @@ class WASocket {
       final bytes = routingNode?.contentBytes;
       if (bytes != null && bytes.isNotEmpty) {
         final info = Uint8List.fromList(bytes);
+        config.logger.info('Received edge routing info bytes=${info.length}');
         if (creds != null) {
           creds!.routingInfo = info;
         }
         if (onRoutingInfo != null) {
           await onRoutingInfo!(info);
         }
+      }
+
+      if (getBinaryNodeChild(node, 'offline') != null) {
+        _emitConnectionUpdate(
+          ConnectionUpdate(
+            state: _state,
+            receivedPendingNotifications: true,
+          ),
+        );
       }
     }
 
@@ -535,8 +708,9 @@ class WASocket {
       ...(_handlers['*'] ?? []),
     ];
     for (final h in handlers) {
-      h(node).catchError((e, st) =>
-          config.logger.warning('Handler error for <${node.tag}>: $e'));
+      h(node).catchError(
+        (e, st) => config.logger.warning('Handler error for <${node.tag}>: $e'),
+      );
     }
   }
 
@@ -563,8 +737,7 @@ class WASocket {
     );
   }
 
-  static String _buildWebSocketUrl(
-      String baseUrl, Uint8List? routingInfo) {
+  static String _buildWebSocketUrl(String baseUrl, Uint8List? routingInfo) {
     if (routingInfo == null || routingInfo.isEmpty) return baseUrl;
     final uri = Uri.parse(baseUrl);
     if (uri.scheme != 'wss') return baseUrl;
@@ -591,7 +764,12 @@ class WASocket {
     final encoded = encodeBinaryNode(node);
     final frame = await noise.encodeFrame(encoded);
     _channel!.sink.add(frame);
-    config.logger.fine('sent ${node.tag} id=${node.attrs['id'] ?? ''}');
+    final summary = _summarizeNode(node);
+    if (_shouldLogNodeAtInfo(node)) {
+      config.logger.info('send $summary');
+    } else {
+      config.logger.fine('send $summary');
+    }
   }
 
   /// Send a node and wait for the matching response by [id].
@@ -599,13 +777,20 @@ class WASocket {
     final id = node.attrs['id'] ?? _nextTag();
     final completer = Completer<BinaryNode>();
     _queries[id] = completer;
+    config.logger.info(
+      'Starting query id=$id tag=${node.tag} timeoutMs=${(timeout ?? config.connectTimeout).inMilliseconds}',
+    );
 
     final deadline = timeout ?? config.connectTimeout;
     Timer(deadline, () {
       if (!completer.isCompleted) {
         _queries.remove(id);
+        config.logger.warning(
+          'Query timed out id=$id after ${deadline.inMilliseconds}ms',
+        );
         completer.completeError(
-            TimeoutException('Query $id timed out', deadline));
+          TimeoutException('Query $id timed out', deadline),
+        );
       }
     });
 
@@ -617,20 +802,76 @@ class WASocket {
             content: node.content,
           );
     await sendNode(nodeToSend);
-    return completer.future;
+    final result = await completer.future;
+    config.logger.info(
+      'Query resolved id=$id result=${_summarizeNode(result)}',
+    );
+    return result;
   }
 
   /// Send a passive/active IQ (used after login).
   Future<BinaryNode> sendPassiveIq(String tag) async {
+    config.logger.info('Sending passive IQ tag=$tag');
     return query(
       BinaryNode(
         tag: 'iq',
-        attrs: {
-          'to': '@s.whatsapp.net',
-          'xmlns': 'passive',
-          'type': 'set',
-        },
+        attrs: {'to': '@s.whatsapp.net', 'xmlns': 'passive', 'type': 'set'},
         content: [BinaryNode(tag: tag, attrs: {})],
+      ),
+    );
+  }
+
+  Future<void> sendPresenceUpdate(String type, {String? toJid}) async {
+    final me = creds?.me;
+    if (me == null) {
+      config.logger.info(
+        'Skipping presence update type=$type because creds.me is null',
+      );
+      return;
+    }
+
+    if (type == 'available' || type == 'unavailable') {
+      final name = me.name.replaceAll('@', '');
+      if (name.isEmpty) {
+        config.logger.info(
+          'Skipping presence update type=$type because display name is empty',
+        );
+        return;
+      }
+      config.logger.info(
+        'Sending global presence type=$type nameLength=${name.length}',
+      );
+      await sendNode(
+        BinaryNode(tag: 'presence', attrs: {'name': name, 'type': type}),
+      );
+      return;
+    }
+
+    if (toJid == null || toJid.isEmpty) {
+      config.logger.info(
+        'Skipping chatstate presence type=$type because toJid is empty',
+      );
+      return;
+    }
+    final decoded = jidDecode(toJid);
+    final fromJid = decoded?.server == 'lid'
+        ? (me.lid?.isNotEmpty == true ? me.lid! : me.id)
+        : me.id;
+    config.logger.info(
+      'Sending chatstate presence type=$type from=$fromJid to=$toJid '
+      'addressingServer=${decoded?.server ?? '-'}',
+    );
+
+    await sendNode(
+      BinaryNode(
+        tag: 'chatstate',
+        attrs: {'from': fromJid, 'to': toJid},
+        content: [
+          BinaryNode(
+            tag: type == 'recording' ? 'composing' : type,
+            attrs: type == 'recording' ? {'media': 'audio'} : const {},
+          ),
+        ],
       ),
     );
   }
@@ -643,6 +884,7 @@ class WASocket {
 
   Future<void> _sendPing() async {
     final tag = _nextTag();
+    config.logger.fine('Sending keepalive ping id=$tag');
     final pingNode = BinaryNode(
       tag: 'iq',
       attrs: {
@@ -683,58 +925,100 @@ class WASocket {
   // ---------------------------------------------------------------------------
 
   void _onWsError(Object error) {
-    config.logger.warning('WebSocket error: $error');
+    if (_disposed || _terminalDisconnect) {
+      return;
+    }
+    config.logger.warning(
+      'WebSocket error: $error '
+      '(state=$_state pendingQueries=${_queries.length} handshakePhase=$_handshakePhase)',
+    );
     _scheduleReconnect();
   }
 
   void _onWsDone() {
+    if (_disposed || _terminalDisconnect) {
+      return;
+    }
     if (_state != WAConnectionState.closing) {
       final ch = _channel;
       final code = ch?.closeCode;
       final reason = ch?.closeReason;
       config.logger.warning(
-          'WebSocket closed unexpectedly — code=$code reason=$reason');
+        'WebSocket closed unexpectedly — code=$code reason=$reason '
+        '(pendingQueries=${_queries.length} handshakePhase=$_handshakePhase)',
+      );
       _scheduleReconnect();
     }
   }
 
-  Future<void> _scheduleReconnect() async {
-    if (_state == WAConnectionState.closing) return;
+  Future<void> _scheduleReconnect({
+    WADisconnectReason? reason,
+    int? statusCode,
+    Object? lastDisconnect,
+    bool immediate = false,
+  }) async {
+    if (_disposed || _terminalDisconnect || _state == WAConnectionState.closing) {
+      return;
+    }
     // Prevent double-scheduling: both a <failure> node and the subsequent
     // WebSocket close would otherwise call this independently.
     if (_reconnectPending) return;
     _reconnectPending = true;
 
-    _reset();
-    _setState(WAConnectionState.disconnected);
+    _transitionToDisconnected(
+      reason: reason,
+      statusCode: statusCode,
+      lastDisconnect: lastDisconnect,
+      immediate: immediate,
+      resetReconnectPending: false,
+    );
 
     if (config.maxRetries > 0 && _retryCount >= config.maxRetries) {
       config.logger.severe('Max retries reached, giving up');
-      _connectionUpdates.add(ConnectionUpdate(
-        state: WAConnectionState.disconnected,
-        lastDisconnect: StateError('Max retries reached'),
-      ));
+      _emitConnectionUpdate(
+        ConnectionUpdate(
+          state: WAConnectionState.disconnected,
+          lastDisconnect: lastDisconnect ?? StateError('Max retries reached'),
+          disconnectReason: reason,
+          disconnectStatusCode: statusCode,
+        ),
+      );
       _reconnectPending = false;
       return;
     }
 
-    // Normal backoff: 2s→4s→8s→16s→32s, cap 60s.
-    final int delaySecs = (2 * (1 << _retryCount.clamp(0, 4))).clamp(2, 60);
-    final delay = Duration(seconds: delaySecs);
+    final delay = immediate
+        ? const Duration(milliseconds: 750)
+        : Duration(seconds: (2 * (1 << _retryCount.clamp(0, 4))).clamp(2, 60));
     _retryCount++;
     config.logger.info(
-        'Reconnecting in ${delay.inSeconds}s (attempt $_retryCount)');
+      'Reconnecting in ${delay.inSeconds}s (attempt $_retryCount) '
+      'reason=${reason ?? '-'} statusCode=${statusCode ?? '-'}',
+    );
 
     await Future.delayed(delay);
+    if (_disposed || _terminalDisconnect || _state == WAConnectionState.closing) {
+      _reconnectPending = false;
+      return;
+    }
     _reconnectPending = false;
     await connect();
   }
 
   void _reset() {
+    config.logger.info(
+      'Resetting WA socket state '
+      '(pendingQueries=${_queries.length}, handlers=${_handlers.length}, handshakePhase=$_handshakePhase)',
+    );
     _keepalive?.stop();
     _keepalive = null;
     _wsSub?.cancel();
     _wsSub = null;
+    final channel = _channel;
+    _channel = null;
+    if (channel != null) {
+      unawaited(channel.sink.close());
+    }
     _noiseHandler = null;
     _handshakePhase = 0;
     _pendingFrames.clear();
@@ -750,15 +1034,121 @@ class WASocket {
 
   void _setState(WAConnectionState s) {
     if (_state == s) return;
+    final previous = _state;
     _state = s;
-    config.logger.info('Connection state: $s');
-    _connectionUpdates.add(ConnectionUpdate(state: s));
+    config.logger.info('Connection state: $previous -> $s');
+    _emitConnectionUpdate(
+      ConnectionUpdate(
+        state: s,
+        receivedPendingNotifications: s == WAConnectionState.connecting
+            ? false
+            : null,
+      ),
+    );
   }
 
   /// Release all resources permanently (no reconnect).
   void dispose() {
+    if (_disposed) return;
+    config.logger.info('Disposing WA socket');
+    _disposed = true;
+    _terminalDisconnect = true;
+    _reconnectPending = false;
     _setState(WAConnectionState.closing);
     _reset();
-    _connectionUpdates.close();
+    unawaited(_connectionUpdates.close());
+  }
+
+  bool _isTerminalDisconnect(
+    WADisconnectReason reason,
+    bool hasLinkedSession,
+  ) {
+    return reason == WADisconnectReason.loggedOut ||
+        (reason == WADisconnectReason.badSession && hasLinkedSession);
+  }
+
+  void _transitionToDisconnected({
+    required WADisconnectReason? reason,
+    required int? statusCode,
+    required Object? lastDisconnect,
+    required bool immediate,
+    bool resetReconnectPending = true,
+  }) {
+    if (resetReconnectPending) {
+      _reconnectPending = false;
+    }
+    _reset();
+    _state = WAConnectionState.disconnected;
+    _emitConnectionUpdate(
+      ConnectionUpdate(
+        state: WAConnectionState.disconnected,
+        lastDisconnect: lastDisconnect,
+        disconnectReason: reason,
+        disconnectStatusCode: statusCode,
+      ),
+    );
+    config.logger.info(
+      'Connection state: ${WAConnectionState.disconnected} '
+      'reason=${reason ?? '-'} statusCode=${statusCode ?? '-'} immediate=$immediate '
+      'pendingQueries=${_queries.length}',
+    );
+  }
+
+  void _emitConnectionUpdate(ConnectionUpdate update) {
+    if (_connectionUpdates.isClosed) {
+      config.logger.fine(
+        'Skipping connection update because stream is closed '
+        'state=${update.state} reason=${update.disconnectReason ?? '-'}',
+      );
+      return;
+    }
+    _connectionUpdates.add(update);
+  }
+
+  static bool _shouldLogNodeAtInfo(BinaryNode node) {
+    if (node.tag == 'iq') {
+      final xmlns = node.attrs['xmlns']?.toString();
+      final hasPairDeviceSign = node.children.any(
+        (child) => child.tag == 'pair-device-sign',
+      );
+      return xmlns == 'md' ||
+          xmlns == 'passive' ||
+          xmlns == 'encrypt' ||
+          xmlns == 'w:p' ||
+          hasPairDeviceSign;
+    }
+    if (node.tag == 'receipt') {
+      return true;
+    }
+    if (node.tag == 'ack') {
+      return true;
+    }
+    return node.tag == 'ib' ||
+        node.tag == 'presence' ||
+        node.tag == 'chatstate';
+  }
+
+  static String _summarizeNode(BinaryNode node) {
+    final interestingAttrs = <String, Object?>{};
+    for (final key in [
+      'id',
+      'type',
+      'to',
+      'from',
+      'participant',
+      'recipient',
+      'xmlns',
+      'jid',
+      'code',
+      'category',
+      'name',
+      't',
+    ]) {
+      if (node.attrs.containsKey(key)) {
+        interestingAttrs[key] = node.attrs[key];
+      }
+    }
+    final childTags = node.children.map((c) => c.tag).take(6).toList();
+    return '<${node.tag}> attrs=$interestingAttrs childTags=$childTags';
   }
 }

@@ -36,10 +36,7 @@ Future<PreKeyBundle> fetchPreKeyBundle({
         content: [
           BinaryNode(
             tag: 'user',
-            attrs: {
-              'jid': jid,
-              if (forceIdentity) 'reason': 'identity',
-            },
+            attrs: {'jid': jid, if (forceIdentity) 'reason': 'identity'},
           ),
         ],
       ),
@@ -53,8 +50,10 @@ Future<PreKeyBundle> fetchPreKeyBundle({
     throw StateError('No pre-key bundle returned for $jid');
   }
 
-  final userNode =
-      users.firstWhere((u) => u.attrs['jid'] == jid, orElse: () => users.first);
+  final userNode = users.firstWhere(
+    (u) => u.attrs['jid'] == jid,
+    orElse: () => users.first,
+  );
   assertNodeErrorFree(userNode);
 
   final identity = getBinaryNodeChildBuffer(userNode, 'identity');
@@ -78,9 +77,12 @@ Future<PreKeyBundle> fetchPreKeyBundle({
     throw StateError('Incomplete signed pre-key for $jid');
   }
 
-  final preKeyId = key != null ? (getBinaryNodeChildUInt(key, 'id', 3) ?? 0) : 0;
-  final preKeyValue =
-      key != null ? (getBinaryNodeChildBuffer(key, 'value') ?? Uint8List(0)) : Uint8List(0);
+  final preKeyId = key != null
+      ? (getBinaryNodeChildUInt(key, 'id', 3) ?? 0)
+      : 0;
+  final preKeyValue = key != null
+      ? (getBinaryNodeChildBuffer(key, 'value') ?? Uint8List(0))
+      : Uint8List(0);
 
   return PreKeyBundle(
     registrationId: registration,
@@ -114,14 +116,8 @@ Future<void> uploadPreKeys({
         tag: 'key',
         attrs: {},
         content: [
-          BinaryNode(
-              tag: 'id',
-              attrs: {},
-              content: _encodePreKeyId(pk.id)),
-          BinaryNode(
-              tag: 'value',
-              attrs: {},
-              content: pub),
+          BinaryNode(tag: 'id', attrs: {}, content: _encodePreKeyId(pk.id)),
+          BinaryNode(tag: 'value', attrs: {}, content: pub),
         ],
       );
     }),
@@ -148,32 +144,23 @@ Future<void> uploadPreKeys({
         attrs: {},
         content: Uint8List.fromList([0x05]), // Curve25519
       ),
-      BinaryNode(
-        tag: 'identity',
-        attrs: {},
-        content: identityPublicKey,
-      ),
-      BinaryNode(
-        tag: 'list',
-        attrs: {},
-        content: preKeyNodes,
-      ),
+      BinaryNode(tag: 'identity', attrs: {}, content: identityPublicKey),
+      BinaryNode(tag: 'list', attrs: {}, content: preKeyNodes),
       BinaryNode(
         tag: 'skey',
         attrs: {},
         content: [
           BinaryNode(
-              tag: 'id',
-              attrs: {},
-              content: _encodePreKeyId(signedPreKey.id)),
+            tag: 'id',
+            attrs: {},
+            content: _encodePreKeyId(signedPreKey.id),
+          ),
+          BinaryNode(tag: 'value', attrs: {}, content: spkPub),
           BinaryNode(
-              tag: 'value',
-              attrs: {},
-              content: spkPub),
-          BinaryNode(
-              tag: 'signature',
-              attrs: {},
-              content: signedPreKeySignature),
+            tag: 'signature',
+            attrs: {},
+            content: signedPreKeySignature,
+          ),
         ],
       ),
     ],
@@ -193,9 +180,7 @@ Future<int> getAvailablePreKeyCount(WASocket socket) async {
       'type': 'get',
       'to': '@s.whatsapp.net',
     },
-    content: [
-      BinaryNode(tag: 'count', attrs: {}),
-    ],
+    content: [BinaryNode(tag: 'count', attrs: {})],
   );
 
   try {
@@ -218,6 +203,8 @@ Future<int> maybeRefillPreKeys({
   required int nextPreKeyId,
   required int registrationId,
 }) async {
+  await store.storePreKey(_signedPreKeyStoreId(signedPreKey.id), signedPreKey);
+
   final count = await getAvailablePreKeyCount(socket);
   if (count >= _preKeyLowWatermark) return nextPreKeyId;
 
@@ -249,6 +236,8 @@ Uint8List _encodePreKeyId(int id) {
   b[2] = id & 0xff;
   return b;
 }
+
+int _signedPreKeyStoreId(int id) => 0x80000000 | id;
 
 Uint8List _encodeUint32(int value) {
   final b = Uint8List(4);

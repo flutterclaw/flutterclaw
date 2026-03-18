@@ -27,20 +27,33 @@ class QRAuth {
 
   /// Start listening for pair-device / pair-success nodes.
   void start() {
+    socket.config.logger.info(
+      'QRAuth started (hasMe=${authState.creds.me != null})',
+    );
     // pair-device arrives as <iq type=set xmlns=md> (not <ib>) in the
     // multi-device protocol.  pair-success also arrives as an <iq>.
     socket.on('iq', _onIq);
   }
 
   void stop() {
+    socket.config.logger.info('QRAuth stopped');
     _qrRefreshTimer?.cancel();
     _qrRefreshTimer = null;
     socket.off('iq', _onIq);
-    _qrController.close();
+    if (!_qrController.isClosed) {
+      _qrController.close();
+    }
   }
 
   Future<void> _onIq(BinaryNode node) async {
     final success = getBinaryNodeChild(node, 'pair-success');
+    socket.config.logger.info(
+      'QRAuth observed iq id=${node.attrs['id'] ?? '-'} '
+      'type=${node.attrs['type'] ?? '-'} '
+      'xmlns=${node.attrs['xmlns'] ?? '-'} '
+      'childTags=${node.children.map((c) => c.tag).toList()} '
+      'hasPairSuccess=${success != null}',
+    );
 
     if (node.attrs['type'] == 'set') {
       final contentType = node.content == null
@@ -48,7 +61,8 @@ class QRAuth {
           : node.content.runtimeType.toString();
       final childTags = node.children.map((c) => c.tag).toList();
       socket.config.logger.info(
-          'iq:set md contentType=$contentType children=$childTags');
+        'iq:set md contentType=$contentType children=$childTags',
+      );
       if (success != null) {
         await _processPairSuccess(
           stanza: node,
@@ -81,10 +95,13 @@ class QRAuth {
   }
 
   Future<void> _ackIq(String id) async {
-    await socket.sendNode(BinaryNode(
-      tag: 'iq',
-      attrs: {'to': '@s.whatsapp.net', 'type': 'result', 'id': id},
-    ));
+    socket.config.logger.info('Acknowledging WhatsApp iq id=$id');
+    await socket.sendNode(
+      BinaryNode(
+        tag: 'iq',
+        attrs: {'to': '@s.whatsapp.net', 'type': 'result', 'id': id},
+      ),
+    );
   }
 
   Future<void> _handlePairDevice(BinaryNode node) async {
@@ -93,12 +110,17 @@ class QRAuth {
     _qrRefreshTimer = null;
 
     // Baileys sends multiple <ref> children — rotate through them every 20s.
-    final refs = getBinaryNodeChildren(node, 'ref')
-        .map((r) => r.contentString)
-        .whereType<String>()
-        .toList();
+    final refs = getBinaryNodeChildren(
+      node,
+      'ref',
+    ).map((r) => r.contentString).whereType<String>().toList();
 
-    if (refs.isEmpty) return;
+    if (refs.isEmpty) {
+      socket.config.logger.warning(
+        'pair-device received without refs attrs=${node.attrs} childTags=${node.children.map((c) => c.tag).toList()}',
+      );
+      return;
+    }
 
     final noisePub = await authState.creds.noiseKey.extractPublicKey();
     final identPub = await authState.creds.signedIdentityKey.extractPublicKey();
@@ -112,6 +134,11 @@ class QRAuth {
     var index = 0;
     final overrideMs = socket.config.qrTimeout?.inMilliseconds;
     var qrMs = overrideMs ?? 60000;
+    socket.config.logger.info(
+      'Handling pair-device refs=${refs.length} '
+      'noiseKeyBytes=${noisePub.bytes.length} identityKeyBytes=${identPub.bytes.length} '
+      'advKeyBytes=${advKey.length} firstQrMs=$qrMs nextQrMs=${overrideMs ?? 20000}',
+    );
 
     void emitNext() {
       if (_qrController.isClosed) return;
@@ -121,6 +148,10 @@ class QRAuth {
         return;
       }
 
+      socket.config.logger.info(
+        'Emitting WhatsApp QR refIndex=${index + 1}/${refs.length} '
+        'refLength=${refs[index].length} timeoutMs=$qrMs',
+      );
       _qrController.add('${refs[index]},$noiseB64,$identB64,$advB64');
       index++;
       if (index < refs.length) {
@@ -139,7 +170,9 @@ class QRAuth {
     _qrRefreshTimer?.cancel();
     _qrRefreshTimer = null;
     socket.config.logger.info(
-        'pair-success received — processing (iqId=$iqId)');
+      'pair-success received — processing (iqId=$iqId) '
+      'attrs=${stanza.attrs} childTags=${stanza.children.map((c) => c.tag).toList()}',
+    );
 
     try {
       final result = await configureSuccessfulPairingDart(
@@ -147,9 +180,27 @@ class QRAuth {
         authState.creds,
         msgIdOverride: iqId.isNotEmpty ? iqId : null,
       );
+      socket.config.logger.info(
+        'pair-success verified jid=${result.jid} lid=${result.lid ?? '-'} '
+        'platform=${result.platform ?? '-'} bizName=${result.bizName ?? '-'} '
+        'hasAccount=${result.account != null} hasSignalIdentity=${result.signalIdentity != null}',
+      );
 
       // Send reply IQ constructed by the helper.
+      final pairDeviceSign = getBinaryNodeChild(
+        result.replyNode,
+        'pair-device-sign',
+      );
+      final replyIdentity = getBinaryNodeChild(
+        pairDeviceSign,
+        'device-identity',
+      );
+      socket.config.logger.info(
+        'Sending pair-device-sign reply iqId=$iqId '
+        'keyIndex=${replyIdentity?.attrs['key-index'] ?? '-'}',
+      );
       await socket.sendNode(result.replyNode);
+      unawaited(_sendUnifiedSessionBestEffort());
 
       // Update credentials with authenticated user info.
       authState.creds.platform = result.platform ?? 'smba';
@@ -164,6 +215,11 @@ class QRAuth {
         authState.creds.signalIdentities = [...current, result.signalIdentity!];
       }
       await authState.saveCreds();
+      socket.config.logger.info(
+        'Saved paired creds me=${authState.creds.me?.id ?? '-'} '
+        'lid=${authState.creds.me?.lid ?? '-'} '
+        'signalIdentityCount=${authState.creds.signalIdentities?.length ?? 0}',
+      );
 
       socket.config.logger.info(
         'Pairing successful — me=${authState.creds.me?.id}, '
@@ -171,6 +227,35 @@ class QRAuth {
       );
     } catch (e, st) {
       socket.config.logger.warning('pair-success processing failed: $e\n$st');
+    }
+  }
+
+  String _getUnifiedSessionId() {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const weekMs = 7 * dayMs;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return ((now + 3 * dayMs) % weekMs).toString();
+  }
+
+  Future<void> _sendUnifiedSessionBestEffort() async {
+    final sessionId = _getUnifiedSessionId();
+    socket.config.logger.info(
+      'Sending unified_session during pair-success id=$sessionId',
+    );
+    try {
+      await socket.sendNode(
+        BinaryNode(
+          tag: 'ib',
+          attrs: const {},
+          content: [
+            BinaryNode(tag: 'unified_session', attrs: {'id': sessionId}),
+          ],
+        ),
+      );
+    } catch (e) {
+      socket.config.logger.fine(
+        'failed to send unified_session during pair-success: $e',
+      );
     }
   }
 }
