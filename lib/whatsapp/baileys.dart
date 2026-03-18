@@ -168,6 +168,7 @@ class _ClientImpl {
   StreamSubscription<low.ConnectionUpdate>? _socketConnSub;
   bool _disposed = false;
   bool _didStartConnectBuffer = false;
+  bool _didSendAvailablePresence = false;
   final _sendAgainCounts = <String, int>{};
   final _callOfferCache = <String, WACallEvent>{};
 
@@ -182,6 +183,7 @@ class _ClientImpl {
   });
 
   Future<void> connect() async {
+    _didSendAvailablePresence = false;
     _transitionInitialSyncState(
       _InitialSyncState.connecting,
       reason: 'connect',
@@ -1804,6 +1806,26 @@ class _ClientImpl {
     config.logger.info(
       'Initial sync flush reason=$reason flushed=$flushed',
     );
+    if (!_didSendAvailablePresence) {
+      _didSendAvailablePresence = true;
+      unawaited(_sendAvailablePresenceAfterInitialSync(reason: reason));
+    }
+  }
+
+  Future<void> _sendAvailablePresenceAfterInitialSync({
+    required String reason,
+  }) async {
+    try {
+      config.logger.info(
+        'Sending available presence after initial sync reason=$reason',
+      );
+      await socket.sendPresenceUpdate('available');
+    } catch (e) {
+      _didSendAvailablePresence = false;
+      config.logger.warning(
+        'failed to send available presence after initial sync: $e',
+      );
+    }
   }
 
   Future<void> dispose() async {

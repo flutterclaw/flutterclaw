@@ -24,6 +24,7 @@ class IncomingMessage {
   final String? targetMessageId;
   final bool? fromMe;
   final Map<String, dynamic>? channelContext;
+  final List<Map<String, dynamic>>? contentBlocks;
 
   const IncomingMessage({
     required this.channelType,
@@ -42,6 +43,7 @@ class IncomingMessage {
     this.targetMessageId,
     this.fromMe,
     this.channelContext,
+    this.contentBlocks,
   });
 
   /// Session key for per-channel isolation (channel + chatId).

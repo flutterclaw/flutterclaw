@@ -72,6 +72,7 @@ class AgentLoop {
     String message, {
     String channelType = 'webchat',
     String chatId = 'default',
+    List<Map<String, dynamic>>? contentBlocks,
     Map<String, dynamic>? channelContext,
   }) async {
     await sessionManager.getOrCreate(sessionKey, channelType, chatId);
@@ -81,11 +82,14 @@ class AgentLoop {
         _resolveSessionAgent(sessionKey) ?? configManager.config.activeAgent;
     final systemPrompt = await _buildSystemPrompt(agentId: sessionAgent?.id);
 
-    // Persist user message to JSONL (only if not empty)
-    if (message.trim().isNotEmpty) {
+    final userContent = contentBlocks ?? message;
+    final shouldPersist = contentBlocks != null || message.trim().isNotEmpty;
+
+    // Persist user message to JSONL (only if not empty or has content blocks)
+    if (shouldPersist) {
       await sessionManager.addMessage(
         sessionKey,
-        LlmMessage(role: 'user', content: message),
+        LlmMessage(role: 'user', content: userContent),
       );
     }
 
@@ -99,6 +103,10 @@ class AgentLoop {
       messages.add(LlmMessage(role: 'system', content: ephemeralContext));
     }
     messages.addAll(context);
+
+    if (!messages.any((m) => m.role == 'user' || m.role == 'assistant')) {
+      messages.add(const LlmMessage(role: 'user', content: '.'));
+    }
 
     // Use the session's agent settings, fall back to defaults
     final defaults = configManager.config.agents.defaults;

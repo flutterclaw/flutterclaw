@@ -489,6 +489,7 @@ final channelRouterProvider = Provider<ChannelRouter>((ref) {
         msg.text,
         channelType: msg.channelType,
         chatId: msg.chatId,
+        contentBlocks: msg.contentBlocks,
         channelContext: msg.channelContext,
       );
 
