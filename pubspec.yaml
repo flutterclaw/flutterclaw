@@ -68,7 +68,7 @@ dependencies:
   audio_session: ^0.1.22
   just_audio: ^0.9.42
   audio_service: ^0.18.18
-  record: ^5.2.0
+  record: ^4.4.4
   share_plus: ^10.0.0
   geolocator: ^14.0.2
   device_calendar: ^4.3.3

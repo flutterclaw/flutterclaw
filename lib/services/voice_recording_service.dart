@@ -14,8 +14,10 @@ import 'package:logging/logging.dart';
 final _log = Logger('VoiceRecordingService');
 
 class VoiceRecordingService {
-  final AudioRecorder _recorder = AudioRecorder();
+  // record v4 uses the `Record` class (v5 renamed it to `AudioRecorder`)
+  final Record _recorder = Record();
   bool _recording = false;
+  String? _currentPath;
 
   bool get isRecording => _recording;
 
@@ -30,14 +32,13 @@ class VoiceRecordingService {
 
       final dir = await getTemporaryDirectory();
       final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      _currentPath = path;
 
       await _recorder.start(
-        const RecordConfig(
-          encoder: AudioEncoder.aacLc,
-          bitRate: 64000,
-          sampleRate: 16000, // Whisper prefers 16 kHz
-        ),
         path: path,
+        encoder: AudioEncoder.aacLc,
+        bitRate: 64000,
+        samplingRate: 16000, // Whisper prefers 16 kHz
       );
       _recording = true;
       _log.info('Recording started: $path');
@@ -52,8 +53,10 @@ class VoiceRecordingService {
   Future<String?> stop() async {
     if (!_recording) return null;
     try {
-      final path = await _recorder.stop();
+      await _recorder.stop();
       _recording = false;
+      final path = _currentPath;
+      _currentPath = null;
       _log.info('Recording stopped: $path');
       return path;
     } catch (e) {
@@ -67,9 +70,11 @@ class VoiceRecordingService {
   Future<void> cancel() async {
     if (!_recording) return;
     try {
-      await _recorder.cancel();
+      await _recorder.stop();
+      if (_currentPath != null) await VoiceRecordingService.deleteFile(_currentPath!);
     } catch (_) {}
     _recording = false;
+    _currentPath = null;
   }
 
   Future<void> dispose() async {
