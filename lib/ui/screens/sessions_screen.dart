@@ -46,23 +46,82 @@ class SessionsScreen extends ConsumerWidget {
                 return Card(
                   child: ListTile(
                     leading: Icon(_channelIcon(session.channelType)),
-                    title: Text(session.key),
-                    subtitle: Text(
-                      '${context.l10n.messagesCount(session.messageCount)} | '
-                      '${context.l10n.tokensCount(session.totalTokens)} | '
-                      '${_timeAgo(session.lastActivity, context)}',
+                    title: Text(
+                      session.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (session.lastPreview != null)
+                          Text(
+                            session.lastPreview!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        Text(
+                          '${context.l10n.messagesCount(session.messageCount)} · '
+                          '${context.l10n.tokensCount(session.totalTokens)} · '
+                          '${_timeAgo(session.lastActivity, context)}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    isThreeLine: session.lastPreview != null,
                     trailing: PopupMenuButton<String>(
                       onSelected: (action) async {
-                        if (action == 'reset') {
+                        if (action == 'rename') {
+                          final controller = TextEditingController(
+                              text: session.displayName ?? '');
+                          final name = await showDialog<String>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Rename session'),
+                              content: TextField(
+                                controller: controller,
+                                autofocus: true,
+                                decoration: const InputDecoration(
+                                  hintText: 'My conversation name',
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Cancel'),
+                                ),
+                                FilledButton(
+                                  onPressed: () =>
+                                      Navigator.pop(ctx, controller.text),
+                                  child: const Text('Save'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (name != null) {
+                            await sessionManager.renameSession(
+                                session.key, name);
+                          }
+                        } else if (action == 'reset') {
                           await sessionManager.reset(session.key);
-                          ref.invalidate(sessionManagerProvider);
                         } else if (action == 'compact') {
                           await sessionManager.compact(session.key);
-                          ref.invalidate(sessionManagerProvider);
                         }
                       },
                       itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'rename',
+                          child: ListTile(
+                            leading: Icon(Icons.edit_outlined),
+                            title: Text('Rename'),
+                            dense: true,
+                          ),
+                        ),
                         PopupMenuItem(
                           value: 'compact',
                           child: ListTile(

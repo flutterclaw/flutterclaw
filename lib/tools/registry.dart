@@ -58,6 +58,17 @@ class ToolEntry {
 class ToolRegistry {
   final Map<String, ToolEntry> _tools = {};
 
+  /// Tool names blocked by user policy. Blocked tools are hidden from the LLM
+  /// and return an error if somehow invoked.
+  final Set<String> _disabled = {};
+
+  /// Replace the set of disabled tools (call when config changes).
+  void setDisabledTools(Iterable<String> names) {
+    _disabled
+      ..clear()
+      ..addAll(names);
+  }
+
   /// Registers a core tool (always visible, never expires).
   void register(Tool tool) {
     _sync(() {
@@ -105,8 +116,13 @@ class ToolRegistry {
     });
   }
 
-  /// Executes a tool by name. Returns error result if tool not found or expired.
+  /// Executes a tool by name. Returns error result if tool not found, expired,
+  /// or disabled by user policy.
   Future<ToolResult> execute(String name, Map<String, dynamic> args) async {
+    if (_disabled.contains(name)) {
+      return ToolResult.error(
+          'Tool "$name" is disabled by policy. The user has restricted this tool.');
+    }
     final tool = get(name);
     if (tool == null) {
       return ToolResult.error('Tool "$name" not found or expired');
@@ -148,8 +164,7 @@ class ToolRegistry {
 
   List<ToolEntry> get _visibleEntries {
     final list = _tools.values
-        .where((e) => e.isCore || e.ttl > 0)
-        .map((e) => e)
+        .where((e) => (e.isCore || e.ttl > 0) && !_disabled.contains(e.tool.name))
         .toList();
     list.sort((a, b) => a.tool.name.compareTo(b.tool.name));
     return list;

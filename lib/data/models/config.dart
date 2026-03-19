@@ -221,15 +221,52 @@ class WhatsAppConfig {
   };
 }
 
+/// Slack channel configuration.
+/// Uses Socket Mode (WSS) so no public inbound URL is required.
+/// Requires a Slack App with Socket Mode enabled:
+///  - Bot token (xoxb-…): Settings > OAuth & Permissions → Bot Token Scopes
+///  - App-level token (xapp-…): Settings > Basic Information → App-Level Tokens
+class SlackConfig {
+  final bool enabled;
+  /// Bot OAuth token (xoxb-…)
+  final String? botToken;
+  /// App-level token for Socket Mode (xapp-…)
+  final String? appToken;
+  final List<String> allowFrom;
+
+  const SlackConfig({
+    this.enabled = false,
+    this.botToken,
+    this.appToken,
+    this.allowFrom = const [],
+  });
+
+  factory SlackConfig.fromJson(Map<String, dynamic> json) => SlackConfig(
+    enabled: json['enabled'] as bool? ?? false,
+    botToken: json['bot_token'] as String?,
+    appToken: json['app_token'] as String?,
+    allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
+  );
+
+  Map<String, dynamic> toJson() => {
+    'enabled': enabled,
+    if (botToken != null) 'bot_token': botToken,
+    if (appToken != null) 'app_token': appToken,
+    'allow_from': allowFrom,
+  };
+}
+
 class ChannelsConfig {
   final TelegramConfig telegram;
   final DiscordConfig discord;
   final WhatsAppConfig whatsapp;
+  final SlackConfig slack;
 
   const ChannelsConfig({
     this.telegram = const TelegramConfig(),
     this.discord = const DiscordConfig(),
     this.whatsapp = const WhatsAppConfig(),
+    this.slack = const SlackConfig(),
   });
 
   factory ChannelsConfig.fromJson(Map<String, dynamic> json) => ChannelsConfig(
@@ -242,12 +279,16 @@ class ChannelsConfig {
     whatsapp: json['whatsapp'] != null
         ? WhatsAppConfig.fromJson(json['whatsapp'] as Map<String, dynamic>)
         : const WhatsAppConfig(),
+    slack: json['slack'] != null
+        ? SlackConfig.fromJson(json['slack'] as Map<String, dynamic>)
+        : const SlackConfig(),
   );
 
   Map<String, dynamic> toJson() => {
     'telegram': telegram.toJson(),
     'discord': discord.toJson(),
     'whatsapp': whatsapp.toJson(),
+    'slack': slack.toJson(),
   };
 }
 
@@ -322,16 +363,32 @@ class WebToolsConfig {
 
 class ToolsConfig {
   final WebToolsConfig web;
+  /// Tool names explicitly disabled by the user (e.g. ['sandbox_exec', 'camera_take_photo']).
+  /// Disabled tools are removed from the tool catalog sent to the LLM and
+  /// blocked at execution time.
+  final List<String> disabled;
 
-  const ToolsConfig({this.web = const WebToolsConfig()});
+  const ToolsConfig({
+    this.web = const WebToolsConfig(),
+    this.disabled = const [],
+  });
+
+  bool isDisabled(String toolName) => disabled.contains(toolName);
 
   factory ToolsConfig.fromJson(Map<String, dynamic> json) => ToolsConfig(
     web: json['web'] != null
         ? WebToolsConfig.fromJson(json['web'] as Map<String, dynamic>)
         : const WebToolsConfig(),
+    disabled: (json['disabled'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
+        const [],
   );
 
-  Map<String, dynamic> toJson() => {'web': web.toJson()};
+  Map<String, dynamic> toJson() => {
+    'web': web.toJson(),
+    if (disabled.isNotEmpty) 'disabled': disabled,
+  };
 }
 
 class HeartbeatConfig {

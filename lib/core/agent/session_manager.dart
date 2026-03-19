@@ -90,6 +90,10 @@ class SessionMeta {
   DateTime lastActivity;
   String? modelOverride;
   int messageCount;
+  /// User-defined display name for this session (e.g. "Trip planning").
+  String? displayName;
+  /// Short snippet from the last user or assistant message for list preview.
+  String? lastPreview;
 
   SessionMeta({
     required this.key,
@@ -102,12 +106,17 @@ class SessionMeta {
     DateTime? lastActivity,
     this.modelOverride,
     this.messageCount = 0,
+    this.displayName,
+    this.lastPreview,
   })  : sessionId = sessionId ?? _uuid.v4(),
         lastActivity = lastActivity ?? DateTime.now();
 
   /// Whether this session had activity within [_kSessionActiveTtl].
   bool get isActive =>
       DateTime.now().difference(lastActivity) < _kSessionActiveTtl;
+
+  /// Human-readable label: displayName if set, otherwise channel:chatId.
+  String get label => displayName?.isNotEmpty == true ? displayName! : key;
 
   Map<String, dynamic> toJson() => {
         'key': key,
@@ -120,6 +129,8 @@ class SessionMeta {
         'lastActivity': lastActivity.toIso8601String(),
         if (modelOverride != null) 'modelOverride': modelOverride,
         'messageCount': messageCount,
+        if (displayName != null) 'displayName': displayName,
+        if (lastPreview != null) 'lastPreview': lastPreview,
       };
 
   factory SessionMeta.fromJson(Map<String, dynamic> json) => SessionMeta(
@@ -135,6 +146,8 @@ class SessionMeta {
             : DateTime.now(),
         modelOverride: json['modelOverride'] as String?,
         messageCount: json['messageCount'] as int? ?? 0,
+        displayName: json['displayName'] as String?,
+        lastPreview: json['lastPreview'] as String?,
       );
 }
 
@@ -303,6 +316,17 @@ class SessionManager {
     meta.messageCount++;
     meta.lastActivity = DateTime.now();
 
+    // Update preview snippet for session list display (user + assistant only).
+    if (message.role == 'user' || message.role == 'assistant') {
+      final text = message.content is String
+          ? message.content as String
+          : _extractPreviewText(message.content);
+      if (text.isNotEmpty) {
+        final snippet = text.length > 100 ? '${text.substring(0, 100)}…' : text;
+        meta.lastPreview = snippet;
+      }
+    }
+
     // Update context cache
     _contextCache[key] ??= [];
     _contextCache[key]!.add(message);
@@ -310,6 +334,28 @@ class SessionManager {
     _messageController.add((key, message));
     _sessionsChangedController.add(null);
     await _saveStore(dir);
+  }
+
+  /// Update the display name for a session and persist immediately.
+  Future<void> renameSession(String key, String name) async {
+    final meta = _meta[key];
+    if (meta == null) return;
+    meta.displayName = name.trim().isEmpty ? null : name.trim();
+    final dir = await _getSessionsDir();
+    await _saveStore(dir);
+    _sessionsChangedController.add(null);
+  }
+
+  static String _extractPreviewText(dynamic content) {
+    if (content is List) {
+      for (final block in content) {
+        if (block is Map && block['type'] == 'text') {
+          final t = block['text'] as String? ?? '';
+          if (t.isNotEmpty) return t;
+        }
+      }
+    }
+    return '';
   }
 
   /// Append a compaction entry to the transcript.

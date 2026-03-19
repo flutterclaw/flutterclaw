@@ -35,6 +35,10 @@ class ProviderRouter {
         provider: _anthropicProvider,
         defaultApiBase: 'https://api.anthropic.com',
       ),
+      'google': VendorConfig(
+        provider: _openAiProvider,
+        defaultApiBase: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      ),
       'groq': VendorConfig(
         provider: _openAiProvider,
         defaultApiBase: 'https://api.groq.com/openai/v1',

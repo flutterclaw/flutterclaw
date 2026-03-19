@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 
@@ -334,47 +335,73 @@ class OpenAiProvider implements LlmProvider {
     }).toList();
   }
 
-  /// Naive PDF text extraction without external libraries.
-  /// Decodes PDF binary and pulls readable text from BT…ET content streams
-  /// using the standard Tj / TJ operators. Works for most generated PDFs;
-  /// returns empty string for scanned/encrypted files.
+  /// PDF text extraction without external libraries.
+  ///
+  /// Pass 1: decompress any FlateDecode content streams (modern PDFs).
+  /// Pass 2: extract text from BT…ET blocks using Tj/TJ operators.
+  /// Works for most generated/digital PDFs; returns empty for scanned/encrypted.
   String _extractPdfText(String base64Data) {
     try {
       final bytes = base64Decode(base64Data);
-      // Use latin1 to avoid UTF-8 decode errors on binary content
       final raw = latin1.decode(bytes, allowInvalid: true);
 
-      final buffer = StringBuffer();
+      // Collect all content to search: start with the raw file, then append
+      // any successfully decompressed FlateDecode streams.
+      final sources = <String>[raw];
 
-      // Match BT…ET blocks (text objects)
-      final btEt = RegExp(r'BT\b(.*?)\bET', dotAll: true);
-      // Match (string) Tj  or  [(string)] TJ
-      final tjSingle = RegExp(r'\(([^)]{1,400})\)\s*Tj');
-      final tjArray  = RegExp(r'\[([^\]]*)\]\s*TJ');
-      final tjItem   = RegExp(r'\(([^)]{1,400})\)');
+      // FlateDecode stream pattern: find stream…endstream regions preceded by
+      // a /FlateDecode (or /Fl ) filter in the same object dictionary.
+      final streamRe = RegExp(r'stream\r?\n([\s\S]*?)\r?\nendstream',
+          dotAll: true);
+      final flatRe = RegExp(r'/FlateDecode|/Fl\b');
 
-      for (final block in btEt.allMatches(raw)) {
-        final blockText = block.group(1)!;
-        for (final m in tjSingle.allMatches(blockText)) {
-          final t = _decodePdfString(m.group(1)!);
-          if (t.isNotEmpty) buffer..write(t)..write(' ');
+      for (final m in streamRe.allMatches(raw)) {
+        // Only attempt decompress when the preceding ~200 chars hint FlateDecode
+        final before = raw.substring(
+            (m.start - 200).clamp(0, m.start), m.start);
+        if (!flatRe.hasMatch(before)) continue;
+        try {
+          final compressed = m.group(1)!
+              .codeUnits
+              .map((c) => c & 0xFF)
+              .toList();
+          final inflated = ZLibDecoder().convert(compressed);
+          final decoded = latin1.decode(inflated, allowInvalid: true);
+          if (decoded.length > 20) sources.add(decoded);
+        } catch (_) {
+          // Skip non-decompressible streams silently
         }
-        for (final m in tjArray.allMatches(blockText)) {
-          for (final item in tjItem.allMatches(m.group(1)!)) {
-            final t = _decodePdfString(item.group(1)!);
+      }
+
+      // Extract text from all sources
+      final buffer = StringBuffer();
+      final btEt = RegExp(r'BT\b(.*?)\bET', dotAll: true);
+      final tjSingle = RegExp(r'\(([^)]{1,500})\)\s*Tj');
+      final tjArray = RegExp(r'\[([^\]]*)\]\s*TJ');
+      final tjItem = RegExp(r'\(([^)]{1,500})\)');
+
+      for (final source in sources) {
+        for (final block in btEt.allMatches(source)) {
+          final blockText = block.group(1)!;
+          for (final m in tjSingle.allMatches(blockText)) {
+            final t = _decodePdfString(m.group(1)!);
             if (t.isNotEmpty) buffer..write(t)..write(' ');
+          }
+          for (final m in tjArray.allMatches(blockText)) {
+            for (final item in tjItem.allMatches(m.group(1)!)) {
+              final t = _decodePdfString(item.group(1)!);
+              if (t.isNotEmpty) buffer..write(t)..write(' ');
+            }
           }
         }
       }
 
-      // Remove non-printable characters and collapse whitespace
       final result = buffer
           .toString()
           .replaceAll(RegExp(r'[^\x20-\x7E\n]'), '')
           .replaceAll(RegExp(r' {2,}'), ' ')
           .trim();
 
-      // Only return if there is a meaningful amount of text
       return result.length > 20 ? result : '';
     } catch (_) {
       return '';

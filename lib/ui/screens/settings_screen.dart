@@ -11,6 +11,22 @@ import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/ui/screens/onboarding/onboarding_screen.dart';
 import 'package:flutterclaw/services/analytics_service.dart';
 
+/// Tools exposed as user-togglable switches in the Tool policies section.
+/// Ordered from most to least sensitive.
+const _kToggleableTools = [
+  'sandbox_exec',
+  'camera_take_photo',
+  'camera_record_video',
+  'get_location',
+  'get_health_data',
+  'contacts_search',
+  'ui_screenshot',
+  'web_fetch',
+  'web_search',
+  'http_request',
+  'image_generate',
+];
+
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -407,6 +423,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: Text(context.l10n.interval),
                   trailing: Text(context.l10n.intervalMinutes(config.heartbeat.interval)),
                 ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // -- Tool policies section --
+          _SectionHeader(title: 'Tool policies'),
+          Card(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(
+                    'Disable tools to restrict what the agent can access. '
+                    'Disabled tools are hidden from the LLM and blocked at runtime.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+                ..._kToggleableTools.map((toolName) {
+                  final disabled = config.tools.disabled.contains(toolName);
+                  return SwitchListTile(
+                    secondary: const Icon(Icons.build_outlined),
+                    title: Text(toolName),
+                    value: !disabled,
+                    onChanged: (enabled) async {
+                      final updated = List<String>.from(config.tools.disabled);
+                      if (enabled) {
+                        updated.remove(toolName);
+                      } else {
+                        if (!updated.contains(toolName)) updated.add(toolName);
+                      }
+                      configManager.update(config.copyWith(
+                        tools: ToolsConfig(
+                          web: config.tools.web,
+                          disabled: updated,
+                        ),
+                      ));
+                      await configManager.save();
+                      ref.invalidate(toolRegistryProvider);
+                      if (mounted) setState(() {});
+                    },
+                  );
+                }),
               ],
             ),
           ),

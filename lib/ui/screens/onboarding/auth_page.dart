@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
 import 'package:flutterclaw/data/models/model_catalog.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
+import 'package:flutterclaw/services/model_discovery_service.dart';
 
 class AuthPage extends StatefulWidget {
   final String providerId;
@@ -55,6 +56,8 @@ class _AuthPageState extends State<AuthPage> {
   bool _isValidating = false;
   _ValidationResult? _validationResult;
   Timer? _debounce;
+  List<DiscoveredModel> _discoveredModels = [];
+  bool _isDiscovering = false;
 
   @override
   void initState() {
@@ -382,6 +385,47 @@ class _AuthPageState extends State<AuthPage> {
           ),
         ],
 
+        // Discover models button — shown for Ollama/custom or when no
+        // static models exist for the provider.
+        if (models.isEmpty || widget.providerId == 'ollama' || widget.providerId == 'custom') ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _isDiscovering ? null : _discoverModels,
+            icon: _isDiscovering
+                ? const SizedBox(
+                    width: 14, height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.search, size: 16),
+            label: Text(_isDiscovering ? 'Discovering...' : 'Discover available models'),
+          ),
+          if (_discoveredModels.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('${_discoveredModels.length} models found',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 4),
+            ...(_discoveredModels.take(20).map((m) => _ModelTile(
+                  model: m.toCatalogModel(),
+                  isSelected: !_useCustomModel && _selectedModelId == m.id,
+                  onTap: () {
+                    setState(() {
+                      _useCustomModel = false;
+                      _selectedModelId = m.id;
+                      _customModelController.clear();
+                    });
+                    _emitChange();
+                  },
+                ))),
+            if (_discoveredModels.length > 20)
+              TextButton(
+                onPressed: () {
+                  setState(() => _useCustomModel = true);
+                },
+                child: Text('+ ${_discoveredModels.length - 20} more — enter ID manually'),
+              ),
+          ],
+        ],
+
         const SizedBox(height: 24),
 
         // Validate button
@@ -416,6 +460,37 @@ class _AuthPageState extends State<AuthPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _discoverModels() async {
+    if (_isDiscovering) return;
+    setState(() {
+      _isDiscovering = true;
+      _discoveredModels = [];
+    });
+    try {
+      final provider = ModelCatalog.getProvider(widget.providerId);
+      final apiBase = _apiBaseController.text.trim().isNotEmpty
+          ? _apiBaseController.text.trim()
+          : provider?.apiBase;
+      final svc = ModelDiscoveryService();
+      final found = await svc.discoverModels(
+        providerId: widget.providerId,
+        apiKey: _apiKeyController.text.trim(),
+        apiBase: apiBase,
+      );
+      if (!mounted) return;
+      setState(() => _discoveredModels = found);
+      // Auto-select the first discovered model if nothing is selected yet.
+      if (found.isNotEmpty && _selectedModelId == null) {
+        setState(() => _selectedModelId = found.first.id);
+        _emitChange();
+      }
+    } catch (_) {
+      // Ignore — discovery is best-effort
+    } finally {
+      if (mounted) setState(() => _isDiscovering = false);
+    }
   }
 
   Future<void> _openSignup(String url) async {

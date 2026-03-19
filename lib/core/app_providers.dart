@@ -13,6 +13,7 @@ import 'package:flutterclaw/channels/router.dart';
 import 'package:flutterclaw/channels/telegram.dart';
 import 'package:flutterclaw/channels/webchat.dart';
 import 'package:flutterclaw/channels/whatsapp.dart';
+import 'package:flutterclaw/channels/slack.dart';
 import 'package:flutterclaw/core/agent/chat_commands.dart';
 import 'package:flutterclaw/core/agent/message_queue.dart';
 import 'package:flutterclaw/core/providers/provider_interface.dart';
@@ -173,6 +174,9 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
   final sessionManager = ref.read(sessionManagerProvider);
 
   final registry = ToolRegistry();
+
+  // Apply tool policies from config
+  registry.setDisabledTools(configManager.config.tools.disabled);
 
   Future<String> wsPath() => configManager.workspacePath;
 
@@ -671,6 +675,24 @@ final channelStartupProvider = FutureProvider<void>((ref) async {
     Logger('ChannelRouter').info(
       'Skipping WhatsApp startup: channel enabled but no linked auth found yet',
     );
+  }
+
+  // Wire Slack adapter if configured (Socket Mode — no public URL needed)
+  if (config.channels.slack.enabled &&
+      config.channels.slack.botToken != null &&
+      config.channels.slack.botToken!.isNotEmpty &&
+      config.channels.slack.appToken != null &&
+      config.channels.slack.appToken!.isNotEmpty) {
+    final slack = SlackChannelAdapter(
+      botToken: config.channels.slack.botToken!,
+      appToken: config.channels.slack.appToken!,
+      allowedUserIds: config.channels.slack.allowFrom,
+      chatCommandHandler: (sessionKey, command) async {
+        final result = await commandHandler.handle(sessionKey, command);
+        return result.handled ? result.response : null;
+      },
+    );
+    router.registerAdapter(slack);
   }
 
   // Start all registered adapters
