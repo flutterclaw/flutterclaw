@@ -16,6 +16,7 @@ import 'package:flutterclaw/core/agent/session_manager.dart';
 import 'package:flutterclaw/core/gateway/gateway_server.dart';
 import 'package:flutterclaw/core/providers/openai_provider.dart';
 import 'package:flutterclaw/data/models/config.dart';
+import 'package:flutterclaw/services/cron_service.dart';
 import 'package:flutterclaw/services/ios_background_audio_service.dart';
 import 'package:flutterclaw/services/live_activity_service.dart';
 import 'package:flutterclaw/tools/registry.dart';
@@ -179,11 +180,15 @@ class FlutterClawTaskHandler extends TaskHandler {
           sessionManager: sessionManager,
         );
 
+        final cronSvc = CronService(configManager: configManager);
+        await cronSvc.start();
+
         final gateway = GatewayServer(
           configManager: configManager,
           agentLoop: agentLoop,
           sessionManager: sessionManager,
           toolRegistry: toolRegistry,
+          cronService: cronSvc,
         );
 
         await gateway.start();

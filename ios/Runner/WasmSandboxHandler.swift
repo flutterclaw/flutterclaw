@@ -24,6 +24,65 @@ import Darwin  // pipe, read, write, close
 //   sharing, and communicates with TinyEMU via the virtio serial console (stdin/stdout
 //   of the Wasm instance).
 
+// MARK: - Persistent VM session (keeps TinyEMU alive between exec calls)
+//
+// Architecture:
+//   First sandbox_exec boots TinyEMU (15-60s cold start).
+//   Subsequent calls write commands directly to stdin and read stdout —
+//   the kernel boot penalty is paid only once per app lifecycle.
+//
+// Protocol:
+//   Boot marker: we write `echo "__WAMR_READY__"\n` to stdin before the VM
+//   is even running; it gets buffered in the pipe and executed once ash starts.
+//   We wait for `__WAMR_READY__` in stdout to confirm the VM is ready.
+//
+//   Per command: write `cd <dir>; <cmd>; echo "__WAMR_EXIT__$?"\n`,
+//   then read stdout until the exit sentinel is found.
+//   The tty echo and prompt lines are stripped by the existing noise filter.
+//
+// Thread safety: only one command at a time (enforced by sessionLock).
+private final class WasmVMSession {
+    // Pipe write-end for feeding commands into the VM
+    let stdinWrite:    Int32
+    // Pipe read-ends for consuming VM output
+    let stdoutRead:    Int32
+    let stderrRead:    Int32
+    // Internal write-ends kept open so the drain threads don't see EOF prematurely
+    let stdoutWriteInternal: Int32
+    let stderrWriteInternal: Int32
+    // Internal read-end of stdin (owned by WAMR)
+    let stdinReadInternal: Int32
+
+    // Rolling stdout accumulator: may contain data from previous reads
+    var stdoutBuf = ""
+
+    // Flag set when `__WAMR_READY__` has been seen in stdout
+    var isReady = false
+
+    // Set to true by the background VM thread when wasm_application_execute_main returns
+    var vmExited = false
+
+    init(stdinFds: (Int32, Int32),
+         stdoutFds: (Int32, Int32),
+         stderrFds: (Int32, Int32)) {
+        stdinReadInternal  = stdinFds.0
+        stdinWrite         = stdinFds.1
+        stdoutRead         = stdoutFds.0
+        stdoutWriteInternal = stdoutFds.1
+        stderrRead         = stderrFds.0
+        stderrWriteInternal = stderrFds.1
+    }
+
+    // Tear down all resources. Call from the session lock.
+    func teardown() {
+        for fd in [stdinReadInternal, stdinWrite,
+                   stdoutRead, stdoutWriteInternal,
+                   stderrRead, stderrWriteInternal] {
+            if fd >= 0 { close(fd) }
+        }
+    }
+}
+
 class WasmSandboxHandler {
 
     // URL and SHA256 of the pre-built Wasm artefact.
@@ -35,6 +94,10 @@ class WasmSandboxHandler {
 
     // wasm_runtime_init must be called exactly once per process lifetime.
     private static var runtimeInitialised = false
+
+    // Persistent VM session — nil until first sandbox_exec.
+    private var vmSession: WasmVMSession?
+    private let sessionLock = NSLock()
 
     private let channel: FlutterMethodChannel
 
@@ -67,6 +130,7 @@ class WasmSandboxHandler {
         let wasmURL = wasmFileURL()
         let wasmReady = FileManager.default.fileExists(atPath: wasmURL.path)
         let sharedPath = sharedDirectoryURL().path
+        let sessionActive = sessionLock.withLock { vmSession?.isReady == true }
 
         result([
             "ready": wasmReady,
@@ -78,15 +142,24 @@ class WasmSandboxHandler {
             "root_path": rootPersistenceDirectoryURL().path,
             "proot_available": false,
             "rootfs_available": wasmReady,
-            "note": wasmReady
-                ? "Alpine 3.21 (riscv64 emulated). No internet in VM. Pre-installed: python3, pip, git, curl, wget, jq, bash, file."
-                : "Call sandbox_setup to download the Alpine Wasm image (~100-120 MB).",
+            "vm_session_active": sessionActive,
+            "note": sessionActive
+                ? "Alpine 3.21 (riscv64). VM running — next exec is instant."
+                : wasmReady
+                    ? "Alpine 3.21 (riscv64 emulated). No internet in VM. Pre-installed: python3, pip, git, curl, wget, jq, bash, file."
+                    : "Call sandbox_setup to download the Alpine Wasm image (~100-120 MB).",
         ] as [String: Any])
     }
 
     // MARK: - sandbox_setup
 
     private func handleSetup(result: @escaping FlutterResult) {
+        // Kill any live VM session before re-provisioning so the new Wasm file
+        // is loaded on the next sandbox_exec call.
+        sessionLock.withLock {
+            vmSession?.teardown()
+            vmSession = nil
+        }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
             do {
@@ -205,82 +278,169 @@ class WasmSandboxHandler {
     // Runs a shell command inside TinyEMU via WAMR.
     //
     // Persistence:
-    //   The guest's /root/ is mapped to <documents>/sandbox/root/ via WAMR --dir
-    //   + container2wasm's virtio-9p bind-mount mechanism. Files written to /root/
-    //   inside the VM are visible on the next exec call (same as Android PRoot).
-    //   The shared_path directory is also pre-opened for host <-> VM file exchange.
-    //
-    // Output capture:
-    //   We create POSIX pipes for stdin/stdout/stderr and pass the pipe fd numbers
-    //   DIRECTLY to wasm_runtime_set_wasi_args_ex.  WAMR stores (or dups) these
-    //   fds into its internal WASI fd table, so when TinyEMU calls fd_write(1,…)
-    //   the bytes land in our pipe.  After deinstantiate we close the write-ends to
-    //   signal EOF to the drain threads.
+    //   A WasmVMSession keeps the WAMR instance + pipes alive between calls.
+    //   The first call boots the VM (15-60s cold start). Subsequent calls write
+    //   commands to the existing stdin pipe — no reboot penalty.
     //
     // Exit code:
-    //   The command is wrapped with a sentinel echo: `echo "__EXIT_$?__"`.
+    //   The command is wrapped with a sentinel: `echo "__WAMR_EXIT__$?"`.
     //   The sentinel is stripped from stdout and the code is extracted.
-    //
-    // Timeout:
-    //   The Wasm call runs on a background thread. A semaphore wait with the
-    //   deadline is used; on timeout, wasm_runtime_terminate() signals the VM.
     private func runInVM(command: String, workingDir: String, timeoutMs: Int) -> [String: Any] {
-        let maxOutputBytes = 65_536  // matches Android SandboxHandler cap
-
-        let sentinel = "__FLUTTERCLAW_EXIT__"
-        let wrappedCommand =
-            "cd \(shellEscape(workingDir)) 2>/dev/null || cd /root\n" +
-            command + "\n" +
-            "echo \"\(sentinel)$?\"\n" +
-            "exit 0\n"  // causes the shell (and thus the VM) to exit cleanly
+        let maxOutputBytes = 65_536
 
         #if WAMR_AVAILABLE
-        return wamrExec(wrappedCommand: wrappedCommand,
-                        sentinel: sentinel,
-                        timeoutMs: timeoutMs,
-                        maxOutputBytes: maxOutputBytes)
+        return wamrExecPersistent(command: command,
+                                  workingDir: workingDir,
+                                  timeoutMs: timeoutMs,
+                                  maxOutputBytes: maxOutputBytes)
         #else
         return [
             "error": true,
-            "message": "WAMR xcframework not yet integrated. Run scripts/build-wamr-ios.sh then pod install. sandbox_setup and sandbox_status are functional.",
+            "message": "WAMR xcframework not yet integrated. Run scripts/build-wamr-ios.sh then pod install.",
         ]
         #endif
     }
 
     #if WAMR_AVAILABLE
-    private func wamrExec(wrappedCommand: String,
-                          sentinel: String,
-                          timeoutMs: Int,
-                          maxOutputBytes: Int) -> [String: Any] {
 
-        guard let wasmBytes = try? Data(contentsOf: wasmFileURL()) else {
-            return ["error": true, "message": "Failed to read Wasm file."]
+    // MARK: - Persistent VM execution
+
+    /// Main entry point for persistent execution. Creates a session on first
+    /// call (cold boot), then reuses it for subsequent commands.
+    private func wamrExecPersistent(command: String,
+                                    workingDir: String,
+                                    timeoutMs: Int,
+                                    maxOutputBytes: Int) -> [String: Any] {
+        sessionLock.lock()
+        // Teardown dead sessions (VM exited unexpectedly).
+        if let s = vmSession, s.vmExited {
+            s.teardown()
+            vmSession = nil
         }
 
-        // WASI pre-opened directories.
-        // container2wasm's init binary reads preopens from the WASI fd list,
-        // serialises them to /mnt/wasi1/info, and bind-mounts each one inside
-        // the Alpine guest at the same absolute path.
-        //   <documents>/sandbox/root/   → /root   inside Alpine (persistent /root)
-        //   <documents>/sandbox/shared/ → shared  inside Alpine (file exchange)
+        if vmSession == nil {
+            // Cold boot: create pipes, load module, start VM background thread.
+            let bootResult = createSession()
+            if let err = bootResult.error {
+                sessionLock.unlock()
+                return ["error": true, "message": err]
+            }
+        }
+        let session = vmSession!
+        sessionLock.unlock()
+
+        // Wait for ready (blocks until kernel boot on first call, instant after).
+        let bootDeadline = DispatchTime.now() + .seconds(120)
+        if !session.isReady {
+            if !waitForSentinel(session: session,
+                                sentinel: "__WAMR_READY__",
+                                deadline: bootDeadline) {
+                sessionLock.withLock { vmSession?.teardown(); vmSession = nil }
+                return ["error": true, "message": "VM boot timed out (>120s)."]
+            }
+            session.isReady = true
+        }
+
+        // Run the command.
+        let sentinel = "__WAMR_EXIT__"
+        let wrappedCmd =
+            "cd \(shellEscape(workingDir)) 2>/dev/null || cd /root\n" +
+            command + "\n" +
+            "echo \"\(sentinel)$?\"\n"
+        let cmdData = (wrappedCmd + "\n").data(using: .utf8)!
+        cmdData.withUnsafeBytes { ptr in
+            _ = write(session.stdinWrite, ptr.baseAddress!, cmdData.count)
+        }
+
+        let deadline = DispatchTime.now() + .milliseconds(timeoutMs)
+        if !waitForSentinel(session: session, sentinel: sentinel, deadline: deadline) {
+            // Timed out — kill session so next call gets a fresh VM.
+            sessionLock.withLock { vmSession?.teardown(); vmSession = nil }
+            return ["exit_code": -1, "stdout": "", "stderr": "Command timed out.", "timed_out": true]
+        }
+
+        // Extract output up to and including the sentinel from the buffer.
+        let raw = session.stdoutBuf
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        // Find sentinel position and split buffer: keep output before sentinel,
+        // leave any trailing data in the buffer for the next command.
+        guard let range = raw.range(of: sentinel) else {
+            return ["exit_code": 0, "stdout": stripTinyEMUNoise(raw), "timed_out": false]
+        }
+
+        var outputPart = String(raw[..<range.lowerBound])
+        let afterSentinel = String(raw[range.upperBound...])
+
+        // Extract exit code from the line immediately following the sentinel.
+        let firstLine = afterSentinel.components(separatedBy: "\n").first ?? ""
+        let exitCodeStr = firstLine.trimmingCharacters(in: .whitespacesAndNewlines)
+        let exitCode = Int(exitCodeStr) ?? 0
+
+        // Retain anything after the exit code digit(s) + newline for next command.
+        let remaining: String
+        if let nl = afterSentinel.firstIndex(of: "\n") {
+            remaining = String(afterSentinel[afterSentinel.index(after: nl)...])
+        } else {
+            remaining = ""
+        }
+        session.stdoutBuf = remaining
+
+        outputPart = stripTinyEMUNoise(outputPart)
+        return [
+            "exit_code": exitCode,
+            "stdout": outputPart,
+            "stderr": "",
+            "timed_out": false,
+        ]
+    }
+
+    // -----------------------------------------------------------------------
+    // Session creation
+    // -----------------------------------------------------------------------
+
+    private struct CreateSessionResult {
+        let error: String?
+    }
+
+    private func createSession() -> CreateSessionResult {
+        guard let wasmBytes = try? Data(contentsOf: wasmFileURL()) else {
+            return CreateSessionResult(error: "Failed to read Wasm file.")
+        }
+
         let rootPath   = rootPersistenceDirectoryURL().path
         let sharedPath = sharedDirectoryURL().path
-
-        // container2wasm's init (running inside TinyEMU) reads WASM argv[0] as the
-        // container command to exec.  Pass "/bin/sh" so it runs an Alpine shell.
-        // Without this, c2w tries to exec the embedded CMD from the Docker image
-        // metadata, which may be missing or wrong → "exec: ... not found" error.
         let argv: [String] = ["/bin/sh"]
         let dirs: [String] = [rootPath, sharedPath]
         let envs: [String] = ["TERM=xterm-256color", "HOME=/root",
                                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]
 
-        var stdoutData = Data()
-        var stderrData = Data()
-        var timedOut   = false
-        var loadError  = ""
+        var inPipe  = [Int32](repeating: 0, count: 2)
+        var outPipe = [Int32](repeating: 0, count: 2)
+        var errPipe = [Int32](repeating: 0, count: 2)
+        pipe(&inPipe); pipe(&outPipe); pipe(&errPipe)
 
-        // wasm_runtime_load takes a mutable uint8_t* (it may patch the buffer).
+        // Set stdout read-end non-blocking so waitForSentinel can poll.
+        let flags = fcntl(outPipe[0], F_GETFL, 0)
+        fcntl(outPipe[0], F_SETFL, flags | O_NONBLOCK)
+
+        // Write ready probe immediately — buffered in pipe until shell starts.
+        let probe = "echo \"__WAMR_READY__\"\n"
+        let probeData = probe.data(using: .utf8)!
+        probeData.withUnsafeBytes { ptr in
+            _ = write(inPipe[1], ptr.baseAddress!, probeData.count)
+        }
+
+        let session = WasmVMSession(
+            stdinFds:  (inPipe[0],  inPipe[1]),
+            stdoutFds: (outPipe[0], outPipe[1]),
+            stderrFds: (errPipe[0], errPipe[1])
+        )
+        vmSession = session
+
+        // Load + instantiate WAMR (done once per session).
+        var loadError = ""
         var mutableWasm = wasmBytes
         mutableWasm.withUnsafeMutableBytes { (rawPtr: UnsafeMutableRawBufferPointer) in
             guard let base = rawPtr.baseAddress else { loadError = "Nil Wasm buffer"; return }
@@ -299,7 +459,6 @@ class WasmSandboxHandler {
                 loadError = String(cString: errBuf)
                 return
             }
-            defer { wasm_runtime_unload(module) }
 
             var cArgv = argv.map { strdup($0) }
             var cDirs = dirs.map { strdup($0) }
@@ -310,34 +469,6 @@ class WasmSandboxHandler {
                 cEnvs.forEach { free($0) }
             }
 
-            // --- I/O pipes ---
-            // stdin:  write command then close write-end → EOF after command.
-            // stdout/stderr: drain threads read concurrently to prevent pipe-full deadlock.
-            //
-            // We pass the pipe fd numbers DIRECTLY to wasm_runtime_set_wasi_args_ex
-            // so WAMR stores them (and internally dups them) in its WASI fd table.
-            // TinyEMU's fd_write(1, …) calls then land in our outPipe.
-            // We do NOT dup2 process fd 0/1/2 — no global fd redirect needed.
-            var inPipe  = [Int32](repeating: 0, count: 2)
-            var outPipe = [Int32](repeating: 0, count: 2)
-            var errPipe = [Int32](repeating: 0, count: 2)
-            pipe(&inPipe)
-            pipe(&outPipe)
-            pipe(&errPipe)
-
-            let commandInput = (wrappedCommand + "\n").data(using: .utf8)!
-            commandInput.withUnsafeBytes { ptr in
-                _ = write(inPipe[1], ptr.baseAddress!, commandInput.count)
-            }
-            // Do NOT close inPipe[1] here.
-            // The Linux serial console inside TinyEMU is a real tty device.
-            // If the write-end of stdin closes before the VM's /bin/sh has
-            // started (i.e., during the ~15-60s kernel boot), the VM exits
-            // immediately with no output.  Instead we rely on "exit 0" at the
-            // end of the command script to shut the shell down cleanly, which
-            // in turn shuts the VM down.  We close inPipe[1] after deinstantiate.
-
-            // Pass explicit pipe fds so WAMR maps WASI stdin/stdout/stderr to them.
             var constDirs = cDirs.map { UnsafePointer($0) }
             var constEnvs = cEnvs.map { UnsafePointer($0) }
             cArgv.withUnsafeMutableBufferPointer { ab in
@@ -349,134 +480,74 @@ class WasmSandboxHandler {
                     nil, 0,
                     eb.baseAddress, UInt32(envs.count),
                     ab.baseAddress, Int32(argv.count),
-                    Int64(inPipe[0]),   // stdin  = pipe read-end
-                    Int64(outPipe[1]),  // stdout = pipe write-end
-                    Int64(errPipe[1])   // stderr = pipe write-end
+                    Int64(inPipe[0]),   // stdin  read-end
+                    Int64(outPipe[1]),  // stdout write-end
+                    Int64(errPipe[1])   // stderr write-end
                 )
             }}}
 
             guard let instance = wasm_runtime_instantiate(
                 module,
-                1024 * 1024,       // stack: 1MB (c2w TinyEMU needs deep call stacks)
-                16 * 1024 * 1024,  // heap: 16MB (WAMR internal allocator)
+                1024 * 1024,
+                16 * 1024 * 1024,
                 &errBuf, UInt32(errBuf.count)
             ) else {
-                close(inPipe[0])
-                close(outPipe[0]); close(outPipe[1])
-                close(errPipe[0]); close(errPipe[1])
+                wasm_runtime_unload(module)
                 loadError = String(cString: errBuf)
                 return
             }
 
-            // Start drainer threads BEFORE the VM runs so they consume data in
-            // real time and prevent the pipe buffer from filling up (deadlock).
-            let drainGroup = DispatchGroup()
-            drainGroup.enter()
-            DispatchQueue.global(qos: .utility).async {
-                stdoutData = wasmDrainPipe(outPipe[0], max: maxOutputBytes)
-                drainGroup.leave()
-            }
-            drainGroup.enter()
-            DispatchQueue.global(qos: .utility).async {
-                stderrData = wasmDrainPipe(errPipe[0], max: maxOutputBytes)
-                drainGroup.leave()
-            }
-
-            // Run the Wasm module on its own thread so we can enforce timeout.
-            let runSema = DispatchSemaphore(value: 0)
-            let deadline = DispatchTime.now() + .milliseconds(timeoutMs)
-
-            DispatchQueue.global(qos: .userInitiated).async {
-                // Each host thread that calls into WAMR must have its signal
-                // environment initialised (trap handling for stack overflow,
-                // out-of-bounds memory, etc.).  The thread that called
-                // wasm_runtime_init() gets this automatically, but GCD worker
-                // threads do not.
+            // Run the VM on a permanent background thread.
+            // wasm_application_execute_main blocks until the Wasm module exits
+            // (i.e., the Linux VM shuts down). We signal session.vmExited so the
+            // next sandbox_exec creates a fresh session.
+            let capturedArgv = argv  // capture for thread safety
+            DispatchQueue.global(qos: .userInitiated).async { [weak session] in
                 _ = wasm_runtime_init_thread_env()
                 defer { wasm_runtime_destroy_thread_env() }
 
-                var execArgv = cArgv
-                execArgv.withUnsafeMutableBufferPointer { buf in
-                    _ = wasm_application_execute_main(instance, Int32(argv.count), buf.baseAddress)
+                var threadArgv = capturedArgv.map { strdup($0) }
+                defer { threadArgv.forEach { free($0) } }
+                threadArgv.withUnsafeMutableBufferPointer { buf in
+                    _ = wasm_application_execute_main(instance, Int32(capturedArgv.count), buf.baseAddress)
                 }
-                runSema.signal()
+                wasm_runtime_deinstantiate(instance)
+                wasm_runtime_unload(module)
+                session?.vmExited = true
             }
-
-            let waitResult = runSema.wait(timeout: deadline)
-            if waitResult == .timedOut {
-                timedOut = true
-                wasm_runtime_terminate(instance)
-                _ = runSema.wait(timeout: DispatchTime.now() + .seconds(5))
-            }
-
-            // EOF signalling to drain threads:
-            //   1. deinstantiate → WAMR closes its dup'd copies of the pipe fds
-            //   2. close our own write-end references → drain threads receive EOF
-            wasm_runtime_deinstantiate(instance)
-            close(inPipe[0])
-            close(inPipe[1])  // close AFTER deinstantiate (keep open during boot)
-            close(outPipe[1])
-            close(errPipe[1])
-
-            drainGroup.wait()
         }
 
         if !loadError.isEmpty {
-            return ["error": true, "message": "WAMR load error: \(loadError)"]
+            session.teardown()
+            vmSession = nil
+            return CreateSessionResult(error: "WAMR load error: \(loadError)")
         }
-        if timedOut {
-            return ["exit_code": -1, "stdout": "", "stderr": "Command timed out.", "timed_out": true]
+        return CreateSessionResult(error: nil)
+    }
+
+    // -----------------------------------------------------------------------
+    // Sentinel-based stdout polling (non-blocking reads with timeout)
+    // -----------------------------------------------------------------------
+
+    /// Reads from session.stdoutRead (non-blocking) until `sentinel` appears
+    /// in the accumulated buffer, or `deadline` is reached.
+    /// Returns true if sentinel was found.
+    private func waitForSentinel(session: WasmVMSession,
+                                  sentinel: String,
+                                  deadline: DispatchTime) -> Bool {
+        var chunk = [UInt8](repeating: 0, count: 8192)
+        while DispatchTime.now() < deadline {
+            let n = read(session.stdoutRead, &chunk, chunk.count)
+            if n > 0 {
+                session.stdoutBuf += String(bytes: chunk[..<n], encoding: .utf8) ?? ""
+                if session.stdoutBuf.contains(sentinel) { return true }
+            } else {
+                // EAGAIN — no data yet; sleep 20ms before next poll.
+                usleep(20_000)
+            }
+            if session.vmExited { return false }
         }
-
-        // TinyEMU's serial console uses \r\n line endings (standard tty).
-        // Strip \r before any further processing.
-        var stdoutStr = (String(data: stdoutData, encoding: .utf8) ?? "")
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-        let stderrStr = (String(data: stderrData, encoding: .utf8) ?? "")
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-
-        // Strip the TinyEMU noise from stdout:
-        //
-        //   The Linux serial console is a real tty device inside TinyEMU.
-        //   When /bin/sh reads stdin (our piped commands), the tty line
-        //   discipline echoes every character back to stdout (the UART).
-        //   ash also prints a shell prompt before each command.  So the raw
-        //   stdout contains:
-        //
-        //     [PREAMBLE]  raw echo of all stdin chars — before first prompt
-        //     ~ # cd /root         prompt line (working dir + " # " + cmd)
-        //     ~ # echo hello       prompt line
-        //     hello                ← actual command output  (KEEP)
-        //     /tmp # echo sentinel prompt line
-        //     __FLUTTERCLAW_EXIT__0 ← sentinel              (KEEP)
-        //     /tmp # exit 0        prompt line
-        //
-        //   We discard the PREAMBLE and all prompt lines, keeping only the
-        //   interleaved command outputs.
-        stdoutStr = stripTinyEMUNoise(stdoutStr)
-
-        // Extract sentinel exit code and strip it from stdout.
-        // After stripTinyEMUNoise the sentinel appears on its own line.
-        var exitCode = 0
-        var sentinelFound = false
-        if let range = stdoutStr.range(of: sentinel) {
-            sentinelFound = true
-            let rest = stdoutStr[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-            exitCode = Int(rest.components(separatedBy: .newlines).first ?? "0") ?? 0
-            stdoutStr = String(stdoutStr[..<range.lowerBound])
-        }
-
-        var out: [String: Any] = [
-            "exit_code": exitCode,
-            "stdout": stdoutStr,
-            "stderr": stderrStr,
-            "timed_out": false,
-        ]
-        if stdoutData.count >= maxOutputBytes { out["stdout_truncated"] = true }
-        if stderrData.count >= maxOutputBytes { out["stderr_truncated"] = true }
-        return out
+        return false
     }
 
     #endif
@@ -577,6 +648,17 @@ private func wasmDrainPipe(_ fd: Int32, max: Int) -> Data {
     }
     close(fd)
     return data
+}
+
+// MARK: - NSLock compatibility (withLock added in Swift 5.7 / iOS 16)
+
+private extension NSLock {
+    @discardableResult
+    func withLock<T>(_ body: () throws -> T) rethrows -> T {
+        lock()
+        defer { unlock() }
+        return try body()
+    }
 }
 
 // MARK: - Errors
