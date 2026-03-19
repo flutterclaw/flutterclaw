@@ -38,6 +38,14 @@ target 'Runner' do
     pod 'WAMR', :path => '.'
   end
 
+  # C2WNet — wazero WASM runtime + gvisor-tap-vsock network stack (replaces WAMR).
+  # Build with: scripts/build-c2wnet-ios.sh
+  # When both C2WNet and WAMR are present, C2WNet takes priority (has networking).
+  c2wnet_xcframework = File.expand_path('C2WNet/C2WNet.xcframework', __dir__)
+  if File.exist?(c2wnet_xcframework)
+    pod 'C2WNet', :path => '.'
+  end
+
   target 'RunnerTests' do
     inherit! :search_paths
   end
@@ -47,22 +55,32 @@ post_install do |installer|
   wamr_xcframework = File.expand_path('WAMR/wamr.xcframework', __dir__)
   wamr_available = File.exist?(wamr_xcframework)
 
+  c2wnet_xcframework = File.expand_path('C2WNet/C2WNet.xcframework', __dir__)
+  c2wnet_available = File.exist?(c2wnet_xcframework)
+
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end
 
-  # Set WAMR_AVAILABLE Swift flag on the Runner target when xcframework is present.
-  if wamr_available
+  # Set WAMR_AVAILABLE and C2WNET_AVAILABLE Swift flags when xcframeworks are present.
+  swift_flags = []
+  swift_flags << '-DWAMR_AVAILABLE' if wamr_available
+  swift_flags << '-DC2WNET_AVAILABLE' if c2wnet_available
+
+  unless swift_flags.empty?
     installer.pods_project.targets.each do |target|
       next unless target.name == 'Pods-Runner'
       target.build_configurations.each do |config|
         flags = config.build_settings['OTHER_SWIFT_FLAGS'] || '$(inherited)'
-        next if flags.to_s.include?('-DWAMR_AVAILABLE')
-        config.build_settings['OTHER_SWIFT_FLAGS'] = "#{flags} -DWAMR_AVAILABLE"
+        swift_flags.each do |f|
+          next if flags.to_s.include?(f)
+          flags = "#{flags} #{f}"
+        end
+        config.build_settings['OTHER_SWIFT_FLAGS'] = flags
       end
     end
     # Also apply to the main app target via xcconfig injection.
     runner_xcconfig = File.expand_path('Flutter/WAMR.xcconfig', __dir__)
-    File.write(runner_xcconfig, "OTHER_SWIFT_FLAGS = $(inherited) -DWAMR_AVAILABLE\n")
+    File.write(runner_xcconfig, "OTHER_SWIFT_FLAGS = $(inherited) #{swift_flags.join(' ')}\n")
   end
 end

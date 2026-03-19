@@ -4,6 +4,7 @@ PODS:
     - FlutterMacOS
   - audio_session (0.0.1):
     - Flutter
+  - C2WNet (0.2.0)
   - device_calendar (0.0.1):
     - Flutter
   - device_info_plus (0.0.1):
@@ -197,6 +198,7 @@ PODS:
 DEPENDENCIES:
   - audio_service (from `.symlinks/plugins/audio_service/darwin`)
   - audio_session (from `.symlinks/plugins/audio_session/ios`)
+  - C2WNet (from `.`)
   - device_calendar (from `.symlinks/plugins/device_calendar/ios`)
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
@@ -246,6 +248,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/audio_service/darwin"
   audio_session:
     :path: ".symlinks/plugins/audio_session/ios"
+  C2WNet:
+    :path: "."
   device_calendar:
     :path: ".symlinks/plugins/device_calendar/ios"
   device_info_plus:
@@ -300,6 +304,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   audio_service: aa99a6ba2ae7565996015322b0bb024e1d25c6fd
   audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
+  C2WNet: a8a9a089adcc3eecdd0e19657fa78df275efd4d1
   device_calendar: b55b2c5406cfba45c95a59f9059156daee1f74ed
   device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
@@ -341,6 +346,6 @@ SPEC CHECKSUMS:
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   WAMR: 615df97749185cc6ee24b57e0dc29ef7a0b9722b
 
-PODFILE CHECKSUM: 4baa014adef384ab442992f6167e1c522d07fc29
+PODFILE CHECKSUM: 2d545705209b4c95a83ff9ec5bc7b79a85792b37
 
 COCOAPODS: 1.16.2

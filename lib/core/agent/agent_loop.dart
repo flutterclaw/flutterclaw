@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:flutterclaw/core/agent/provider_router.dart';
 import 'package:flutterclaw/core/agent/session_manager.dart';
+import 'package:flutterclaw/core/providers/error_parser.dart';
 import 'package:flutterclaw/core/providers/provider_interface.dart';
 import 'package:flutterclaw/data/models/agent_profile.dart';
 import 'package:flutterclaw/data/models/config.dart';
@@ -24,13 +25,17 @@ class AgentResponse {
   final int toolCallsExecuted;
   final UsageInfo? usage;
   final String sessionKey;
+  final int? errorStatusCode;
 
   const AgentResponse({
     required this.content,
     this.toolCallsExecuted = 0,
     this.usage,
     required this.sessionKey,
+    this.errorStatusCode,
   });
+
+  bool get isError => errorStatusCode != null;
 }
 
 class AgentStreamEvent {
@@ -160,11 +165,21 @@ class AgentLoop {
         response = await providerRouter.chatCompletion(request);
       } catch (e, st) {
         _log.severe('LLM chatCompletion failed', e, st);
+        final parsed = parseLlmError(e);
+        await sessionManager.addMessage(
+          sessionKey,
+          LlmMessage(
+            role: 'assistant',
+            content: parsed.friendlyMessage,
+            metadata: {'error': true, if (parsed.statusCode != null) 'errorStatusCode': parsed.statusCode},
+          ),
+        );
         return AgentResponse(
-          content: 'Error: $e',
+          content: parsed.friendlyMessage,
           toolCallsExecuted: toolCallsExecuted,
           usage: totalUsage,
           sessionKey: sessionKey,
+          errorStatusCode: parsed.statusCode,
         );
       }
 
@@ -340,13 +355,23 @@ class AgentLoop {
         }
       } catch (e, st) {
         _log.severe('LLM stream failed', e, st);
+        final parsed = parseLlmError(e);
+        await sessionManager.addMessage(
+          sessionKey,
+          LlmMessage(
+            role: 'assistant',
+            content: parsed.friendlyMessage,
+            metadata: {'error': true, if (parsed.statusCode != null) 'errorStatusCode': parsed.statusCode},
+          ),
+        );
         yield AgentStreamEvent(
           isDone: true,
           finalResponse: AgentResponse(
-            content: 'Error: $e',
+            content: parsed.friendlyMessage,
             toolCallsExecuted: toolCallsExecuted,
             usage: totalUsage,
             sessionKey: sessionKey,
+            errorStatusCode: parsed.statusCode,
           ),
         );
         return;
@@ -631,9 +656,22 @@ class AgentLoop {
     }
 
     runtimeSection.writeln();
-    runtimeSection.writeln('# Media Output');
+    runtimeSection.writeln('# Message Formatting');
     runtimeSection.writeln(
-      'You can display images and GIFs inline in your messages using standard markdown image syntax:',
+      'Your messages are rendered with full markdown support. Use markdown to enhance readability and structure:',
+    );
+    runtimeSection.writeln('- **Bold text** for emphasis: `**bold**`');
+    runtimeSection.writeln('- *Italic text* for subtle emphasis: `*italic*`');
+    runtimeSection.writeln('- Code blocks with syntax highlighting: \\`\\`\\`language\\ncode\\n\\`\\`\\`');
+    runtimeSection.writeln('- Inline code: \\`code\\`');
+    runtimeSection.writeln('- Lists (ordered and unordered)');
+    runtimeSection.writeln('- Headers (# H1, ## H2, ### H3)');
+    runtimeSection.writeln('- Links: `[text](url)`');
+    runtimeSection.writeln('- Blockquotes: `> quote`');
+    runtimeSection.writeln();
+    runtimeSection.writeln('## Images and Media');
+    runtimeSection.writeln(
+      'Display images and GIFs inline using standard markdown image syntax:',
     );
     runtimeSection.writeln(
       '- URL: ![description](https://example.com/image.png)',
@@ -642,7 +680,7 @@ class AgentLoop {
       '- Base64: ![description](data:image/png;base64,iVBOR...)',
     );
     runtimeSection.writeln(
-      'Use this whenever sharing visual content (diagrams, photos, GIFs, memes, illustrations) would enhance your response.',
+      'Use visual content (diagrams, photos, GIFs, illustrations) whenever it would enhance your response.',
     );
 
     sections.add(runtimeSection.toString().trim());

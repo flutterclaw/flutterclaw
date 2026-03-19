@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutterclaw/core/providers/error_parser.dart';
 import 'package:flutterclaw/services/ios_background_audio_service.dart';
 import 'package:flutterclaw/services/ios_gateway_service.dart';
 import 'package:flutterclaw/services/live_activity_service.dart';
@@ -542,6 +543,7 @@ final chatCommandHandlerProvider = Provider<ChatCommandHandler>((ref) {
     sessionManager: ref.read(sessionManagerProvider),
     configManager: ref.read(configManagerProvider),
     agentLoop: ref.read(agentLoopProvider),
+    sandboxService: ref.read(sandboxServiceProvider),
   );
 });
 
@@ -765,6 +767,13 @@ class ChatMessage {
   final String? documentMimeType; // e.g. 'application/pdf' or 'text/plain'
   final String? documentFileName;
 
+  // Error message fields
+  final bool isError;
+  final int? errorStatusCode;
+
+  // Shell command message (for terminal-style rendering)
+  final bool isShellCommand;
+
   const ChatMessage({
     required this.text,
     required this.isUser,
@@ -778,6 +787,9 @@ class ChatMessage {
     this.documentData,
     this.documentMimeType,
     this.documentFileName,
+    this.isError = false,
+    this.errorStatusCode,
+    this.isShellCommand = false,
   });
 
   ChatMessage copyWith({
@@ -786,6 +798,8 @@ class ChatMessage {
     String? toolResultText,
     String? imageData,
     String? imageMimeType,
+    bool? isError,
+    int? errorStatusCode,
   }) => ChatMessage(
     text: text ?? this.text,
     isUser: isUser,
@@ -795,6 +809,20 @@ class ChatMessage {
     toolResultText: toolResultText ?? this.toolResultText,
     imageData: imageData ?? this.imageData,
     imageMimeType: imageMimeType ?? this.imageMimeType,
+    isError: isError ?? this.isError,
+    errorStatusCode: errorStatusCode ?? this.errorStatusCode,
+  );
+}
+
+/// Parses a caught exception into a user-friendly error [ChatMessage].
+ChatMessage _buildErrorMessage(Object e) {
+  final parsed = parseLlmError(e);
+  return ChatMessage(
+    text: parsed.friendlyMessage,
+    isUser: false,
+    timestamp: DateTime.now(),
+    isError: true,
+    errorStatusCode: parsed.statusCode,
   );
 }
 
@@ -973,6 +1001,14 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
     if (history.isEmpty) return;
 
+    // First pass: build a map of tool_call_id → tool result content
+    final toolResults = <String, String>{};
+    for (final msg in history) {
+      if (msg.role == 'tool' && msg.toolCallId != null) {
+        toolResults[msg.toolCallId!] = msg.content?.toString() ?? '';
+      }
+    }
+
     final messages = <ChatMessage>[];
     for (final msg in history) {
       if (msg.role == 'system') continue;
@@ -987,12 +1023,17 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           try {
             args = jsonDecode(tc.function.arguments) as Map<String, dynamic>?;
           } catch (_) {}
+
+          // Get the tool result if available
+          final toolResult = toolResults[tc.id];
+
           messages.add(
             ChatMessage(
               text: _formatToolStatus(tc.function.name, args),
               isUser: false,
               timestamp: DateTime.now(),
               isToolStatus: true,
+              toolResultText: toolResult,
             ),
           );
         }
@@ -1012,6 +1053,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
       if (text.trim().isEmpty && imageInfo == null && docInfo == null) continue;
 
+      final isError = msg.metadata?['error'] == true;
+      final errorStatusCode = msg.metadata?['errorStatusCode'] as int?;
+
       messages.add(
         ChatMessage(
           text: text,
@@ -1023,6 +1067,8 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           documentData: docInfo?.$1,
           documentMimeType: docInfo?.$2,
           documentFileName: docInfo?.$3,
+          isError: isError,
+          errorStatusCode: errorStatusCode,
         ),
       );
     }
@@ -1098,11 +1144,14 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
         }
 
         if (event.isDone) {
-          final finalText = event.finalResponse?.content ?? buffer.toString();
+          final resp = event.finalResponse;
+          final finalText = resp?.content ?? buffer.toString();
           final updated = List<ChatMessage>.from(state);
           updated[updated.length - 1] = updated.last.copyWith(
             text: finalText,
             isStreaming: false,
+            isError: resp?.isError ?? false,
+            errorStatusCode: resp?.errorStatusCode,
           );
           state = updated;
 
@@ -1114,9 +1163,12 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     } catch (e) {
       final updated = List<ChatMessage>.from(state);
       if (updated.isNotEmpty) {
+        final errorMsg = _buildErrorMessage(e);
         updated[updated.length - 1] = updated.last.copyWith(
-          text: 'Error: $e',
+          text: errorMsg.text,
           isStreaming: false,
+          isError: true,
+          errorStatusCode: errorMsg.errorStatusCode,
         );
       }
       state = updated;
@@ -1202,11 +1254,14 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           state = updated;
         }
         if (event.isDone) {
-          final finalText = event.finalResponse?.content ?? buffer.toString();
+          final resp = event.finalResponse;
+          final finalText = resp?.content ?? buffer.toString();
           final updated = List<ChatMessage>.from(state);
           updated[updated.length - 1] = updated.last.copyWith(
             text: finalText,
             isStreaming: false,
+            isError: resp?.isError ?? false,
+            errorStatusCode: resp?.errorStatusCode,
           );
           state = updated;
 
@@ -1216,10 +1271,13 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
         }
       }
     } catch (e) {
+      final errorMsg = _buildErrorMessage(e);
       final updated = List<ChatMessage>.from(state);
       updated[updated.length - 1] = updated.last.copyWith(
-        text: 'Error: $e',
+        text: errorMsg.text,
         isStreaming: false,
+        isError: true,
+        errorStatusCode: errorMsg.errorStatusCode,
       );
       state = updated;
     } finally {
@@ -1310,11 +1368,14 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           state = updated;
         }
         if (event.isDone) {
-          final finalText = event.finalResponse?.content ?? buffer.toString();
+          final resp = event.finalResponse;
+          final finalText = resp?.content ?? buffer.toString();
           final updated = List<ChatMessage>.from(state);
           updated[updated.length - 1] = updated.last.copyWith(
             text: finalText,
             isStreaming: false,
+            isError: resp?.isError ?? false,
+            errorStatusCode: resp?.errorStatusCode,
           );
           state = updated;
 
@@ -1324,10 +1385,13 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
         }
       }
     } catch (e) {
+      final errorMsg = _buildErrorMessage(e);
       final updated = List<ChatMessage>.from(state);
       updated[updated.length - 1] = updated.last.copyWith(
-        text: 'Error: $e',
+        text: errorMsg.text,
         isStreaming: false,
+        isError: true,
+        errorStatusCode: errorMsg.errorStatusCode,
       );
       state = updated;
     } finally {
@@ -1352,6 +1416,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       final handler = ref.read(chatCommandHandlerProvider);
       final result = await handler.handle(_getSessionKey(), text);
       if (result.handled && result.response != null) {
+        final isShellCmd = text.trim().startsWith('/sh ');
         state = [
           ...state,
           ChatMessage(text: text, isUser: true, timestamp: DateTime.now()),
@@ -1359,6 +1424,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             text: result.response!,
             isUser: false,
             timestamp: DateTime.now(),
+            isShellCommand: isShellCmd,
           ),
         ];
         return;
@@ -1487,11 +1553,14 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
         }
 
         if (event.isDone) {
-          final finalText = event.finalResponse?.content ?? buffer.toString();
+          final resp = event.finalResponse;
+          final finalText = resp?.content ?? buffer.toString();
           final updated = List<ChatMessage>.from(state);
           updated[updated.length - 1] = updated.last.copyWith(
             text: finalText,
             isStreaming: false,
+            isError: resp?.isError ?? false,
+            errorStatusCode: resp?.errorStatusCode,
           );
           state = updated;
 
@@ -1507,8 +1576,12 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     } catch (e) {
       final updated = List<ChatMessage>.from(state);
       updated[updated.length - 1] = updated.last.copyWith(
-        text: _cancelled ? (state.last.text.isEmpty ? '_(cancelled)_' : state.last.text) : 'Error: $e',
+        text: _cancelled
+            ? (state.last.text.isEmpty ? '_(cancelled)_' : state.last.text)
+            : _buildErrorMessage(e).text,
         isStreaming: false,
+        isError: !_cancelled,
+        errorStatusCode: !_cancelled && e is LlmProviderException ? e.statusCode : null,
       );
       state = updated;
     } finally {

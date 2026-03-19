@@ -2,8 +2,9 @@
 ///
 /// Android: full execution via PRoot + Alpine ARM64 rootfs (auto-provisioned
 /// on first use, full internet access, `apk add` works).
-/// iOS: TinyEMU RISC-V emulator + Alpine 3.21 userspace via WAMR. No internet
-/// in VM, packages pre-installed at image build time.
+/// iOS: TinyEMU RISC-V emulator + Alpine 3.21 userspace via wazero/WAMR.
+/// With C2WNet (wazero + gvisor-tap-vsock): full internet access.
+/// With WAMR fallback: no internet, packages pre-installed at image build time.
 library;
 
 import 'dart:convert';
@@ -28,14 +29,15 @@ class RunShellCommandTool extends Tool {
       'Installed packages and files in /root/ persist across calls.\n\n'
       '=== iOS ===\n'
       'Runs in a TinyEMU RISC-V emulator (Alpine 3.21 userspace, ~10-100x slower than Android).\n'
-      'IMPORTANT LIMITATIONS:\n'
-      '- NO internet access inside the VM: curl, wget, and apk CANNOT reach the internet. Do not attempt network operations.\n'
-      '- NO runtime package installation: `apk add <pkg>` will fail with a network error.\n'
-      '- Pre-installed packages (only these are available): python3, pip, git, curl (local only), wget (local only), jq, bash, file, standard Alpine busybox utilities.\n'
+      'NETWORKING:\n'
+      '- Internet access is available: curl, wget, apk add, pip install, git clone all work.\n'
+      '- DNS resolves via the virtual gateway (192.168.127.1).\n'
+      '- Network operations are slower due to emulation — use longer timeout_ms (60000-120000).\n'
+      'LIMITATIONS:\n'
       '- Architecture: riscv64 (not ARM64). `uname -m` returns riscv64.\n'
       '- Single-core CPU (no SMP). Parallel workloads do not benefit from multiple cores.\n'
       '- Performance: simple commands ~0.5-2s, python scripts ~2-10s, heavy operations minutes.\n'
-      '- Use longer timeout_ms for heavy operations (60000-120000 recommended).\n'
+      '- Pre-installed packages: python3, pip, git, curl, wget, jq, bash, file. Install more with `apk add`.\n'
       'FILE SHARING (host app <-> VM):\n'
       '- Call sandbox_status first to get shared_path.\n'
       '- Files written to shared_path by the host app are visible inside the VM at the same absolute path.\n'
@@ -70,7 +72,14 @@ class RunShellCommandTool extends Tool {
 
   @override
   Stream<String>? executeStream(Map<String, dynamic> args) async* {
-    // Yield a "running" notice immediately so the tool card shows activity,
+    // TODO: Implement real line-by-line streaming of stdout/stderr.
+    // Currently this is a pseudo-stream: shows "Running..." then waits for
+    // the entire command to complete. Real streaming would require:
+    // - Android: EventChannel in SandboxHandler.kt to emit stdout lines
+    // - iOS: EventChannel in WasmSandboxHandler.swift
+    // - Dart: SandboxService.exec() returning Stream<String> instead of Future
+    //
+    // For now, yield a "running" notice immediately so the tool card shows activity,
     // then yield the full output once the command completes.
     yield '⏳ Running…\n';
     final result = await execute(args);

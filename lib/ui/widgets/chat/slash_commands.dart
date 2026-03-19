@@ -15,4 +15,5 @@ const kSlashCommands = [
   SlashCommandDef('/think', 'Set thinking level  off | low | medium | high'),
   SlashCommandDef('/verbose', 'Toggle verbose mode  on | off'),
   SlashCommandDef('/usage', 'Usage footer mode  off | tokens | full'),
+  SlashCommandDef('/sh', 'Run command in Alpine sandbox  /sh <command>'),
 ];

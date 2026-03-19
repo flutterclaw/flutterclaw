@@ -298,10 +298,16 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          activeAgent.name,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+                        // Constrain the agent name so it cannot overflow the row
+                        // when the available width is tight.
+                        Flexible(
+                          child: Text(
+                            activeAgent.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         if (activeAgent.isDefault) ...[

@@ -91,12 +91,16 @@ class LlmMessage {
   final List<ToolCall>? toolCalls;
   final String? toolCallId;
 
+  /// Optional metadata (e.g. error info). Persisted in JSONL but ignored by LLM APIs.
+  final Map<String, dynamic>? metadata;
+
   const LlmMessage({
     required this.role,
     required this.content,
     this.name,
     this.toolCalls,
     this.toolCallId,
+    this.metadata,
   });
 
   Map<String, dynamic> toJson() => {
@@ -106,6 +110,7 @@ class LlmMessage {
     if (toolCalls != null)
       'tool_calls': toolCalls!.map((e) => e.toJson()).toList(),
     if (toolCallId != null) 'tool_call_id': toolCallId,
+    if (metadata != null) '_metadata': metadata,
   };
 
   factory LlmMessage.fromJson(Map<String, dynamic> json) => LlmMessage(
@@ -116,6 +121,7 @@ class LlmMessage {
         ?.map((e) => ToolCall.fromJson(e as Map<String, dynamic>))
         .toList(),
     toolCallId: json['tool_call_id'] as String?,
+    metadata: json['_metadata'] as Map<String, dynamic>?,
   );
 }
 
