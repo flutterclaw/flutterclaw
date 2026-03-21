@@ -14,6 +14,7 @@ final _log = Logger('flutterclaw.notification_service');
 /// Notification IDs for different purposes.
 class NotificationIds {
   static const int persistent = 1;
+  static const int toolStatus = 2;
   static const int messageBase = 100;
 }
 
@@ -203,6 +204,36 @@ class NotificationService {
           presentList: true,    // iOS 14+ — notification centre
           presentBadge: true,
           presentSound: true,
+        ),
+      ),
+    );
+  }
+
+  /// Show a transient tool-status notification while a tool is running in background.
+  /// Always uses the same ID so it is replaced (not stacked) for each tool call.
+  /// Silent — no sound or badge.
+  Future<void> showToolStatusNotification(String agentName, String toolLabel) async {
+    if (!_initialized) return;
+    await _plugin.show(
+      id: NotificationIds.toolStatus,
+      title: agentName,
+      body: toolLabel,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          NotificationChannels.messages,
+          'Messages',
+          channelDescription: 'Incoming messages from your AI agent',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          playSound: false,
+          enableVibration: false,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBanner: true,
+          presentList: false,
+          presentBadge: false,
+          presentSound: false,
         ),
       ),
     );

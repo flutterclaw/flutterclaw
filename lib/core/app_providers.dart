@@ -1009,6 +1009,20 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     }
   }
 
+  void _sendBackgroundToolNotification(String toolName, Map<String, dynamic>? toolArgs) {
+    try {
+      final notifService = ref.read(notificationServiceProvider);
+      final configManager = ref.read(configManagerProvider);
+      final agentName = configManager.config.activeAgent?.name ?? 'Agent';
+      notifService.showToolStatusNotification(
+        agentName,
+        _formatToolStatus(toolName, toolArgs),
+      );
+    } catch (_) {
+      // Non-fatal — notification failure must not break agent processing.
+    }
+  }
+
   void _sendBackgroundNotification(String responseText) {
     try {
       final notifService = ref.read(notificationServiceProvider);
@@ -1547,6 +1561,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             ),
           );
           state = updated;
+          if (_isAppInBackground) {
+            _sendBackgroundToolNotification(event.toolName!, event.toolArgs);
+          }
         }
 
         // Streaming tool output chunk — update the live result text on the pill.
