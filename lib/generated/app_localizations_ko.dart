@@ -1055,4 +1055,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get messagesAbbrev => '건';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

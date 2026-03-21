@@ -1083,4 +1083,7 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get messagesAbbrev => 'msgs';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

@@ -20,6 +20,9 @@ class LlmRequest {
   final int maxTokens;
   final double temperature;
   final int? timeoutSeconds;
+  /// Whether the active model supports image input.
+  /// When false the provider should strip any image content before sending.
+  final bool supportsVision;
 
   const LlmRequest({
     required this.model,
@@ -30,6 +33,7 @@ class LlmRequest {
     this.maxTokens = 4096,
     this.temperature = 0.7,
     this.timeoutSeconds,
+    this.supportsVision = true,
   });
 
   Map<String, dynamic> toJson() => {
@@ -67,6 +71,7 @@ class LlmRequest {
     int? maxTokens,
     double? temperature,
     int? timeoutSeconds,
+    bool? supportsVision,
   }) => LlmRequest(
     model: model ?? this.model,
     apiKey: apiKey ?? this.apiKey,
@@ -76,6 +81,7 @@ class LlmRequest {
     maxTokens: maxTokens ?? this.maxTokens,
     temperature: temperature ?? this.temperature,
     timeoutSeconds: timeoutSeconds ?? this.timeoutSeconds,
+    supportsVision: supportsVision ?? this.supportsVision,
   );
 }
 

@@ -1071,6 +1071,16 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
         .where((m) => m.id == _selectedModelId)
         .firstOrNull;
     final config = configManager.config;
+
+    if (config.modelList.any((m) => m.model == _selectedModelId)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.modelAlreadyAdded)),
+        );
+      }
+      return;
+    }
+
     final alreadyAuthenticated =
         config.isProviderAuthenticated(_selectedProviderId!);
 

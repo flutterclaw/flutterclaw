@@ -210,7 +210,11 @@ class OpenAiProvider implements LlmProvider {
     // Insert a placeholder assistant message between them to keep the alternation valid.
     final messages = <Map<String, dynamic>>[];
     for (final m in request.messages) {
-      final converted = _messageToJson(m, apiBase: request.apiBase);
+      final converted = _messageToJson(
+        m,
+        apiBase: request.apiBase,
+        stripImages: !request.supportsVision,
+      );
       if (messages.isNotEmpty && messages.last['role'] == converted['role']) {
         final placeholderRole = converted['role'] == 'user' ? 'assistant' : 'user';
         messages.add({'role': placeholderRole, 'content': '...'});
@@ -241,8 +245,15 @@ class OpenAiProvider implements LlmProvider {
     return body;
   }
 
-  Map<String, dynamic> _messageToJson(LlmMessage m, {String apiBase = ''}) {
-    final map = <String, dynamic>{'role': m.role, 'content': _convertContent(m.content, apiBase: apiBase)};
+  Map<String, dynamic> _messageToJson(
+    LlmMessage m, {
+    String apiBase = '',
+    bool stripImages = false,
+  }) {
+    final map = <String, dynamic>{
+      'role': m.role,
+      'content': _convertContent(m.content, apiBase: apiBase, stripImages: stripImages),
+    };
     if (m.name != null) map['name'] = m.name;
     if (m.toolCalls != null) {
       map['tool_calls'] = m.toolCalls!.map((e) => e.toJson()).toList();
@@ -257,9 +268,17 @@ class OpenAiProvider implements LlmProvider {
   /// Neutral document blocks: on OpenRouter, sent as `{type:"file", file:{…}}`
   /// for native PDF support; on other endpoints, extracted to text.
   /// Neutral audio blocks `{type:"audio", data, format}` become `input_audio` blocks.
-  dynamic _convertContent(dynamic content, {String apiBase = ''}) {
+  dynamic _convertContent(dynamic content, {String apiBase = '', bool stripImages = false}) {
     if (content is! List) return content;
-    return content.map((item) {
+    final items = stripImages
+        ? content.where((item) {
+            final map = item is Map ? item : null;
+            if (map == null) return true;
+            final type = map['type'] as String?;
+            return type != 'image' && type != 'image_url';
+          }).toList()
+        : content;
+    return items.map((item) {
       final map = item is Map<String, dynamic>
           ? item
           : item is Map

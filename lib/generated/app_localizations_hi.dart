@@ -1079,4 +1079,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get messagesAbbrev => 'संदेश';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

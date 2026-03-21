@@ -158,6 +158,7 @@ class AgentLoop {
         maxTokens: maxTokens,
         temperature: temperature,
         timeoutSeconds: modelEntry.requestTimeout,
+        supportsVision: modelEntry.supportsVision,
       );
 
       LlmResponse response;
@@ -334,6 +335,7 @@ class AgentLoop {
         maxTokens: maxTokens,
         temperature: temperature,
         timeoutSeconds: modelEntry.requestTimeout,
+        supportsVision: modelEntry.supportsVision,
       );
 
       final toolCallsBuffer = <ToolCall>[];
@@ -545,6 +547,7 @@ class AgentLoop {
         maxTokens: 1024,
         temperature: 0.3,
         timeoutSeconds: modelEntry.requestTimeout,
+        supportsVision: modelEntry.supportsVision,
       );
 
       final response = await providerRouter.chatCompletion(request);

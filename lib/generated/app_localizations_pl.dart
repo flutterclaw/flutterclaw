@@ -1081,4 +1081,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get messagesAbbrev => 'wiad.';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

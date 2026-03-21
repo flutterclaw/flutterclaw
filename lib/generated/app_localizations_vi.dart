@@ -1079,4 +1079,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get messagesAbbrev => 'tn';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

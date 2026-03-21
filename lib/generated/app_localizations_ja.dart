@@ -1053,4 +1053,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get messagesAbbrev => '件';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

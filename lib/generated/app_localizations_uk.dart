@@ -1081,4 +1081,7 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get messagesAbbrev => 'пов';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

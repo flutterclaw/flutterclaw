@@ -1083,4 +1083,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get messagesAbbrev => 'сообщ.';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

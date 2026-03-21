@@ -2053,6 +2053,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'msgs'**
   String get messagesAbbrev;
+
+  /// Error shown when the user tries to add a duplicate model
+  ///
+  /// In en, this message translates to:
+  /// **'This model is already in your list'**
+  String get modelAlreadyAdded;
 }
 
 class _AppLocalizationsDelegate

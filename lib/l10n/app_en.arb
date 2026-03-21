@@ -1805,5 +1805,9 @@
   "messagesAbbrev": "msgs",
   "@messagesAbbrev": {
     "description": "Messages abbreviation"
+  },
+  "modelAlreadyAdded": "This model is already in your list",
+  "@modelAlreadyAdded": {
+    "description": "Error shown when the user tries to add a duplicate model"
   }
 }

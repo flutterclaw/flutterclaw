@@ -1052,4 +1052,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get messagesAbbrev => '条消息';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

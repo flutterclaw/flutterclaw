@@ -1070,4 +1070,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get messagesAbbrev => 'رسائل';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

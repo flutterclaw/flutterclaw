@@ -1079,4 +1079,7 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get messagesAbbrev => 'zpr';
+
+  @override
+  String get modelAlreadyAdded => 'This model is already in your list';
 }

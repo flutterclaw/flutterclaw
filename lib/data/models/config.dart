@@ -1023,13 +1023,17 @@ After this introduction, this file will be automatically deleted.
     const targetId = 'openrouter/auto';
     const targetName = 'Free Models Router';
 
-    // Per-model migration overrides (model id → new model id/name)
+    // Per-model migration overrides (old model id → new model id)
     const modelIdOverrides = <String, String>{
+      'openrouter/xiaomi/mimo-v2-omni': 'xiaomi/mimo-v2-omni',
+      'openrouter/xiaomi/mimo-v2-pro': 'xiaomi/mimo-v2-pro',
       'grok-3': 'grok-4.20-0309-non-reasoning',
       'grok-4-fast': 'grok-4-1-fast-non-reasoning',
       'gemini-2.5-flash-lite-preview-06-17': 'gemini-2.5-flash-lite',
     };
     const modelNameOverrides = <String, String>{
+      'openrouter/xiaomi/mimo-v2-omni': 'MiMo-V2-Omni',
+      'openrouter/xiaomi/mimo-v2-pro': 'MiMo-V2-Pro',
       'grok-3': 'Grok 4',
       'grok-4-fast': 'Grok 4 Fast',
       'Grok-3': 'Grok 4',
@@ -1044,15 +1048,16 @@ After this introduction, this file will be automatically deleted.
     final updatedModels = _config.modelList.map((m) {
       if (!deprecatedIds.contains(m.model)) return m;
       final newId = modelIdOverrides[m.model] ?? targetId;
-      final newName = modelNameOverrides[m.modelName] ?? targetName;
+      final newName = modelNameOverrides[m.model] ?? modelNameOverrides[m.modelName] ?? targetName;
+      final isRedirectedToAuto = newId == targetId;
       return ModelEntry(
         modelName: newName,
         model: newId,
         apiKey: m.apiKey,
-        apiBase: newId == targetId ? m.apiBase : null, // clear stale base for provider migrations
+        apiBase: isRedirectedToAuto ? m.apiBase : null, // clear stale base for id-only fixes
         requestTimeout: m.requestTimeout,
         provider: m.provider,
-        isFree: newId == targetId,
+        isFree: isRedirectedToAuto ? true : m.isFree,
         input: m.input,
       );
     }).toList();
