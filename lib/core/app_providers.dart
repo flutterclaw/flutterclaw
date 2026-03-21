@@ -485,16 +485,25 @@ final agentLoopProvider = Provider<AgentLoop>((ref) {
     sessionManager: ref.watch(sessionManagerProvider),
     skillsPromptGetter: () => skillsService.getSkillsPrompt(),
     onToolStatus: (toolName, args, {bool isDone = false}) {
+      final log = Logger('flutterclaw.tool_status');
       try {
         if (isDone) {
+          log.info('Tool done: $toolName');
           overlayService.hide();
           return;
         }
         final label = _formatToolLabel(toolName, args);
         final agentName = configManager.config.activeAgent?.name ?? 'Agent';
-        overlayService.show(label);
-        notifService.showToolStatusNotification(agentName, label);
-      } catch (_) {}
+        log.info('Tool start: $toolName → overlay.show("$label")');
+        overlayService.show(label).catchError((e) {
+          log.warning('Overlay show failed: $e');
+        });
+        notifService.showToolStatusNotification(agentName, label).catchError((e) {
+          log.warning('Notification failed: $e');
+        });
+      } catch (e) {
+        log.severe('onToolStatus error: $e');
+      }
     },
   );
   // Bind the singleton proxy so sessions_spawn / subagents steer can call
@@ -804,15 +813,14 @@ final channelStartupProvider = FutureProvider<void>((ref) async {
   ref.read(deepLinkServiceProvider);
   ref.read(shortcutToolsServiceProvider);
 
+  // Initialize notification service eagerly so tool status notifications work
+  await ref.read(notificationServiceProvider).initialize();
+
   // Start cron service
   final cronService = ref.read(cronServiceProvider);
   await cronService.start();
 
-  // If there are cron jobs configured, request notification permissions now —
-  // cron jobs almost always need to send a push when they complete.
-  if (cronService.jobs.isNotEmpty) {
-    await ref.read(notificationServiceProvider).initialize();
-  }
+  // Notification service was already initialized above.
 
   // Start heartbeat runner (never blocks: first tick runs in background)
   final heartbeat = ref.read(heartbeatRunnerProvider);

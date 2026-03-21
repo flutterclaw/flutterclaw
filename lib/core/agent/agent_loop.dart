@@ -261,6 +261,7 @@ Do NOT chain multiple actions without screenshots in between. The correct patter
 
           for (final tc in response.toolCalls!) {
             final args = _parseToolArgs(tc.function.arguments);
+            _log.info('Tool start: ${tc.function.name} (onToolStatus=${onToolStatus != null})');
             onToolStatus?.call(tc.function.name, args, isDone: false);
             final result = await toolRegistry.execute(tc.function.name, args);
             onToolStatus?.call(tc.function.name, args, isDone: true);

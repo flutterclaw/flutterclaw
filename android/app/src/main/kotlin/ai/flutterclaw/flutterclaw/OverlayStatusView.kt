@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
@@ -15,16 +16,25 @@ import android.widget.TextView
 
 class OverlayStatusView(private val context: Context) {
 
+    companion object {
+        private const val TAG = "OverlayStatusView"
+    }
+
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val handler = Handler(Looper.getMainLooper())
     private var overlayView: LinearLayout? = null
     private var hideRunnable: Runnable? = null
 
     fun canShow(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(context)
+        val can = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(context)
+        Log.d(TAG, "canShow=$can (SDK=${Build.VERSION.SDK_INT}, canDrawOverlays=${
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(context) else "N/A"
+        })")
+        return can
     }
 
     fun show(text: String) {
+        Log.d(TAG, "show() called: $text")
         handler.post { showInternal(text) }
     }
 
@@ -33,16 +43,21 @@ class OverlayStatusView(private val context: Context) {
     }
 
     private fun showInternal(text: String) {
-        if (!canShow()) return
+        if (!canShow()) {
+            Log.w(TAG, "showInternal: canShow=false, skipping")
+            return
+        }
 
         // Cancel pending auto-hide
         hideRunnable?.let { handler.removeCallbacks(it) }
 
         if (overlayView != null) {
             // Update existing view
+            Log.d(TAG, "showInternal: updating existing view")
             val tv = overlayView!!.getChildAt(1) as? TextView
             tv?.text = text
         } else {
+            Log.d(TAG, "showInternal: creating new overlay")
             // Create new overlay
             val dp = { value: Float ->
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, context.resources.displayMetrics).toInt()
@@ -99,8 +114,9 @@ class OverlayStatusView(private val context: Context) {
             try {
                 windowManager.addView(pill, params)
                 overlayView = pill
-            } catch (_: Exception) {
-                // Permission revoked or window manager error
+                Log.d(TAG, "showInternal: overlay added successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "showInternal: addView failed", e)
             }
         }
 

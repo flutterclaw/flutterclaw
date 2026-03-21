@@ -84,6 +84,7 @@ class MainActivity : FlutterActivity() {
                     }
                     "overlay_show" -> {
                         val text = call.argument<String>("text") ?: ""
+                        android.util.Log.d("MainActivity", "overlay_show: '$text' (overlayView=${overlayView != null})")
                         overlayView?.show(text)
                         result.success(true)
                     }
