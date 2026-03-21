@@ -366,7 +366,7 @@ class _AuthPageState extends State<AuthPage> {
               decoration: InputDecoration(
                 labelText: context.l10n.modelId,
                 border: const OutlineInputBorder(),
-                hintText: 'e.g. openrouter/google/gemini-2.5-flash',
+                hintText: 'e.g. google/gemini-2.5-flash (OpenRouter upstream id)',
               ),
               onChanged: (_) => _emitChange(),
             ),

@@ -26,6 +26,9 @@ class AgentResponse {
   final UsageInfo? usage;
   final String sessionKey;
   final int? errorStatusCode;
+  final String? errorTitle;
+  final String? errorCtaUrl;
+  final String? errorCtaLabel;
 
   const AgentResponse({
     required this.content,
@@ -33,6 +36,9 @@ class AgentResponse {
     this.usage,
     required this.sessionKey,
     this.errorStatusCode,
+    this.errorTitle,
+    this.errorCtaUrl,
+    this.errorCtaLabel,
   });
 
   bool get isError => errorStatusCode != null;
@@ -232,7 +238,13 @@ Do NOT chain multiple actions without screenshots in between. The correct patter
             LlmMessage(
               role: 'assistant',
               content: parsed.friendlyMessage,
-              metadata: {'error': true, if (parsed.statusCode != null) 'errorStatusCode': parsed.statusCode},
+              metadata: {
+                'error': true,
+                if (parsed.statusCode != null) 'errorStatusCode': parsed.statusCode,
+                if (parsed.errorTitle != null) 'errorTitle': parsed.errorTitle,
+                if (parsed.ctaUrl != null) 'errorCtaUrl': parsed.ctaUrl,
+                if (parsed.ctaLabel != null) 'errorCtaLabel': parsed.ctaLabel,
+              },
             ),
           );
           return AgentResponse(
@@ -241,6 +253,9 @@ Do NOT chain multiple actions without screenshots in between. The correct patter
             usage: totalUsage,
             sessionKey: sessionKey,
             errorStatusCode: parsed.statusCode,
+            errorTitle: parsed.errorTitle,
+            errorCtaUrl: parsed.ctaUrl,
+            errorCtaLabel: parsed.ctaLabel,
           );
         }
 
@@ -485,14 +500,27 @@ Do NOT chain multiple actions without screenshots in between. The correct patter
             }
           }
         } catch (e, st) {
-          _log.severe('LLM stream failed', e, st);
+          _log.severe(
+            'LLM stream failed: sessionKey=$sessionKey modelName=$modelName '
+            'entry.model=${modelEntry.model} provider=${modelEntry.provider} '
+            'apiBase=${request.apiBase} messages=${request.messages.length} '
+            'tools=${request.tools?.length ?? 0}',
+            e,
+            st,
+          );
           final parsed = parseLlmError(e);
           await sessionManager.addMessage(
             sessionKey,
             LlmMessage(
               role: 'assistant',
               content: parsed.friendlyMessage,
-              metadata: {'error': true, if (parsed.statusCode != null) 'errorStatusCode': parsed.statusCode},
+              metadata: {
+                'error': true,
+                if (parsed.statusCode != null) 'errorStatusCode': parsed.statusCode,
+                if (parsed.errorTitle != null) 'errorTitle': parsed.errorTitle,
+                if (parsed.ctaUrl != null) 'errorCtaUrl': parsed.ctaUrl,
+                if (parsed.ctaLabel != null) 'errorCtaLabel': parsed.ctaLabel,
+              },
             ),
           );
           yield AgentStreamEvent(
@@ -503,6 +531,9 @@ Do NOT chain multiple actions without screenshots in between. The correct patter
               usage: totalUsage,
               sessionKey: sessionKey,
               errorStatusCode: parsed.statusCode,
+              errorTitle: parsed.errorTitle,
+              errorCtaUrl: parsed.ctaUrl,
+              errorCtaLabel: parsed.ctaLabel,
             ),
           );
           return;

@@ -941,7 +941,7 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Model ID',
                   border: OutlineInputBorder(),
-                  hintText: 'e.g. openrouter/google/gemini-2.5-flash',
+                  hintText: 'e.g. google/gemini-2.5-flash (OpenRouter upstream id)',
                 ),
                 onChanged: (val) => setState(() =>
                     _selectedModelId =

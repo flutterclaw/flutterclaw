@@ -139,8 +139,11 @@ class ModelDiscoveryService {
       // pricing: prompt price per token; 0 = free
       final pricing = m['pricing'] as Map?;
       final promptPrice = double.tryParse('${pricing?['prompt'] ?? '1'}') ?? 1.0;
+      // Use the API's model id as-is (e.g. `minimax/minimax-m2.5:free`).
+      // Do not prefix with `openrouter/` — that breaks chat (404) because the
+      // upstream expects `org/model`, not `openrouter/org/model`.
       return DiscoveredModel(
-        id: 'openrouter/$id',
+        id: id,
         displayName: name,
         providerId: 'openrouter',
         isFree: promptPrice == 0.0,

@@ -1032,28 +1032,36 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
     IconData icon;
     String title;
-    switch (statusCode) {
-      case 401:
-        icon = Icons.key_off;
-        title = 'Clave API inválida';
-      case 402:
-        icon = Icons.account_balance_wallet_outlined;
-        title = 'Sin saldo';
-      case 403:
-        icon = Icons.block;
-        title = 'Acceso denegado';
-      case 404:
-        icon = Icons.search_off;
-        title = 'Modelo no encontrado';
-      case 429:
-        icon = Icons.speed;
-        title = 'Límite de uso alcanzado';
-      case 500 || 502 || 503 || 529:
-        icon = Icons.cloud_off;
-        title = 'Servicio no disponible';
-      default:
-        icon = Icons.error_outline;
-        title = 'Error de conexión';
+    if (widget.message.errorTitle != null &&
+        widget.message.errorTitle!.isNotEmpty) {
+      icon = widget.message.errorTitle!.contains('demasiado grande')
+          ? Icons.compress
+          : Icons.policy_outlined;
+      title = widget.message.errorTitle!;
+    } else {
+      switch (statusCode) {
+        case 401:
+          icon = Icons.key_off;
+          title = 'Clave API inválida';
+        case 402:
+          icon = Icons.account_balance_wallet_outlined;
+          title = 'Sin saldo';
+        case 403:
+          icon = Icons.block;
+          title = 'Acceso denegado';
+        case 404:
+          icon = Icons.search_off;
+          title = 'Modelo no encontrado';
+        case 429:
+          icon = Icons.speed;
+          title = 'Límite de uso alcanzado';
+        case 500 || 502 || 503 || 529:
+          icon = Icons.cloud_off;
+          title = 'Servicio no disponible';
+        default:
+          icon = Icons.error_outline;
+          title = 'Error de conexión';
+      }
     }
 
     return Align(
@@ -1104,6 +1112,27 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                       height: 1.4,
                     ),
                   ),
+                  if (widget.message.errorCtaUrl != null &&
+                      widget.message.errorCtaUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.tonal(
+                        onPressed: () async {
+                          final uri = Uri.tryParse(widget.message.errorCtaUrl!);
+                          if (uri != null && await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        child: Text(
+                          widget.message.errorCtaLabel ?? 'Abrir enlace',
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

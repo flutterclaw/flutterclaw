@@ -47,10 +47,12 @@ class ProviderRouter {
         provider: _openAiProvider,
         defaultApiBase: 'https://api.deepseek.com/v1',
       ),
+      // Same OpenAI-compat path as `google` (ai.google.dev/gemini-api/docs/openai).
       'gemini': VendorConfig(
         provider: _openAiProvider,
         defaultApiBase: 'https://generativelanguage.googleapis.com/v1beta/openai',
       ),
+      // Zhipu GLM OpenAI-compatible API (open.bigmodel.cn/dev/api).
       'zhipu': VendorConfig(
         provider: _openAiProvider,
         defaultApiBase: 'https://open.bigmodel.cn/api/paas/v4',
@@ -59,6 +61,7 @@ class ProviderRouter {
         provider: _openAiProvider,
         defaultApiBase: 'https://openrouter.ai/api/v1',
       ),
+      // ByteDance Volcengine Ark OpenAI-compatible (volcengine.com/docs/ark).
       'volcengine': VendorConfig(
         provider: _openAiProvider,
         defaultApiBase: 'https://ark.cn-beijing.volces.com/api/v3',
@@ -71,6 +74,7 @@ class ProviderRouter {
         provider: _openAiProvider,
         defaultApiBase: 'http://localhost:11434/v1',
       ),
+      // Alibaba DashScope OpenAI-compatible (help.aliyun.com/zh/model-studio/).
       'qwen': VendorConfig(
         provider: _openAiProvider,
         defaultApiBase: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -112,19 +116,19 @@ class ProviderRouter {
     int maxTokens = 4096,
     double temperature = 0.7,
   }) {
-    final vendorConfig = getVendorConfig(modelEntry.vendor);
+    final vendorConfig = getVendorConfig(modelEntry.provider);
     final apiBase =
         modelEntry.apiBase ??
         vendorConfig?.defaultApiBase ??
         'https://api.openai.com/v1';
     final apiKey = modelEntry.apiKey ?? '';
 
-    // OpenRouter model IDs always include the org prefix (e.g.
-    // "openrouter/xiaomi/mimo-v2-pro", "google/gemini-2.5-flash"), so we must NOT
-    // strip the vendor segment.  For all other vendors the first segment is
-    // our internal routing prefix and should be removed.
-    final modelForApi = modelEntry.vendor == 'openrouter'
-        ? modelEntry.model  // keep full ID
+    // OpenRouter: send the full upstream model id (e.g. "minimax/minimax-m2.5:free",
+    // "xiaomi/mimo-v2-pro"). Use [ModelEntry.provider], not [ModelEntry.vendor] —
+    // the latter is only the first path segment and is often "minimax", not "openrouter".
+    // Other vendors: first path segment is our internal prefix; strip it for the API.
+    final modelForApi = modelEntry.provider == 'openrouter'
+        ? modelEntry.model
         : modelEntry.modelId;
 
     return LlmRequest(
@@ -151,7 +155,7 @@ class ProviderRouter {
     final entry = resolveModelEntry(modelName);
     if (entry == null) return null;
 
-    final vendorConfig = getVendorConfig(entry.vendor);
+    final vendorConfig = getVendorConfig(entry.provider);
     if (vendorConfig == null) return null;
 
     final request = buildRequest(

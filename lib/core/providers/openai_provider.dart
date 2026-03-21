@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:logging/logging.dart';
@@ -29,6 +30,7 @@ class OpenAiProvider implements LlmProvider {
   Future<LlmResponse> chatCompletion(LlmRequest request) async {
     final url = _buildUrl(request.apiBase);
     final body = _buildBody(request, stream: false);
+    _logChatRequest(operation: 'chatCompletion', url: url, apiBase: request.apiBase, body: body);
 
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -44,7 +46,7 @@ class OpenAiProvider implements LlmProvider {
 
       return _parseNonStreamResponse(response.data!);
     } on DioException catch (e) {
-      throw _handleDioError(e);
+      throw await _handleDioError(e);
     }
   }
 
@@ -52,6 +54,7 @@ class OpenAiProvider implements LlmProvider {
   Stream<LlmStreamEvent> chatCompletionStream(LlmRequest request) async* {
     final url = _buildUrl(request.apiBase);
     final body = _buildBody(request, stream: true);
+    _logChatRequest(operation: 'chatCompletionStream', url: url, apiBase: request.apiBase, body: body);
 
     Response<ResponseBody> response;
     try {
@@ -66,7 +69,7 @@ class OpenAiProvider implements LlmProvider {
         ),
       );
     } on DioException catch (e) {
-      throw _handleDioError(e);
+      throw await _handleDioError(e);
     }
 
     final bodyStream = response.data!.stream;
@@ -205,6 +208,21 @@ class OpenAiProvider implements LlmProvider {
     return RegExp(r'^o\d').hasMatch(m);
   }
 
+  /// OpenRouter expects upstream ids like `minimax/minimax-m2.5:free`.
+  /// Model discovery used to prefix every id with `openrouter/`, producing
+  /// invalid ids such as `openrouter/minimax/minimax-m2.5:free` (404).
+  /// Genuine OpenRouter slugs like `openrouter/auto` have only two segments
+  /// and must be sent unchanged.
+  static String _openRouterUpstreamModelId(String apiBase, String model) {
+    if (!apiBase.toLowerCase().contains('openrouter.ai')) return model;
+    if (!model.startsWith('openrouter/')) return model;
+    final segments = model.split('/');
+    if (segments.length >= 3) {
+      return segments.skip(1).join('/');
+    }
+    return model;
+  }
+
   Map<String, dynamic> _buildBody(LlmRequest request, {required bool stream}) {
     // Build message list with consecutive-role protection.
     // If a previous request failed mid-stream, the session JSONL may contain a
@@ -230,10 +248,11 @@ class OpenAiProvider implements LlmProvider {
       messages.add(converted);
     }
 
-    final reasoning = _isReasoningModel(request.model);
+    final modelForApi = _openRouterUpstreamModelId(request.apiBase, request.model);
+    final reasoning = _isReasoningModel(modelForApi);
 
     final body = <String, dynamic>{
-      'model': request.model,
+      'model': modelForApi,
       'messages': messages,
       'stream': stream,
     };
@@ -504,24 +523,130 @@ class OpenAiProvider implements LlmProvider {
     );
   }
 
-  LlmProviderException _handleDioError(DioException e) {
-    String message = e.message ?? 'Unknown error';
-    int? statusCode = e.response?.statusCode;
+  /// One-line summary of the outgoing request (no API keys).
+  void _logChatRequest({
+    required String operation,
+    required String url,
+    required String apiBase,
+    required Map<String, dynamic> body,
+  }) {
+    try {
+      final encoded = jsonEncode(body);
+      final bytes = utf8.encode(encoded).length;
+      final msgs = body['messages'] as List<dynamic>?;
+      final model = body['model'];
+      final stream = body['stream'];
+      final toolCount = (body['tools'] as List<dynamic>?)?.length ?? 0;
+      _log.info(
+        '$operation: POST $url | model=$model | stream=$stream | '
+        'messages=${msgs?.length ?? 0} | tools=$toolCount | approxBodyBytes=$bytes | apiBase=$apiBase',
+      );
+    } catch (err, st) {
+      _log.warning('Failed to log request summary: $err', err, st);
+    }
+  }
 
-    if (e.response?.data is Map<String, dynamic>) {
-      final data = e.response!.data as Map<String, dynamic>;
-      final error = data['error'] as Map<String, dynamic>?;
-      if (error != null) {
-        message = error['message'] as String? ?? message;
+  static Map<String, dynamic>? _tryDecodeErrorMap(dynamic data) {
+    if (data == null) return null;
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    if (data is String) {
+      try {
+        final j = jsonDecode(data);
+        if (j is Map) return Map<String, dynamic>.from(j);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  static String? _extractProviderErrorMessage(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    final err = data['error'];
+    if (err is Map) {
+      final m = err['message'];
+      if (m is String && m.isNotEmpty) return m;
+      // Some APIs nest { "error": { "code": "", "message": "" } }
+      final inner = err['error'];
+      if (inner is Map && inner['message'] is String) {
+        return inner['message'] as String;
       }
-    } else if (e.response?.data is String) {
-      message = e.response!.data as String;
+    }
+    final top = data['message'];
+    if (top is String && top.isNotEmpty) return top;
+    return null;
+  }
+
+  static String _truncateForLog(String s, [int max = 6000]) =>
+      s.length <= max ? s : '${s.substring(0, max)}… [+${s.length - max} chars]';
+
+  /// With [ResponseType.stream], failed responses expose [ResponseBody]; Dio does
+  /// not decode it to JSON/string, so we must drain the stream for logs and parsing.
+  static const _maxErrorBodyBytes = 65536;
+
+  Future<dynamic> _normalizeDioErrorResponseData(Response? response) async {
+    if (response == null) return null;
+    final data = response.data;
+    if (data is ResponseBody) {
+      try {
+        final bytes = <int>[];
+        await for (final chunk in data.stream) {
+          bytes.addAll(chunk);
+          if (bytes.length >= _maxErrorBodyBytes) {
+            bytes.length = _maxErrorBodyBytes;
+            break;
+          }
+        }
+        return utf8.decode(Uint8List.fromList(bytes), allowMalformed: true);
+      } catch (err, st) {
+        _log.warning('Failed to read error ResponseBody: $err', err, st);
+        return null;
+      }
+    }
+    if (data is Uint8List) {
+      return utf8.decode(data, allowMalformed: true);
+    }
+    return data;
+  }
+
+  Future<LlmProviderException> _handleDioError(DioException e) async {
+    final statusCode = e.response?.statusCode;
+    final uri = e.requestOptions.uri;
+    final method = e.requestOptions.method;
+
+    final rawData = await _normalizeDioErrorResponseData(e.response);
+    final map = _tryDecodeErrorMap(rawData);
+    String? providerMsg = _extractProviderErrorMessage(map);
+
+    // Dio often puts a long generic explanation in e.message; prefer API body.
+    String message = providerMsg ??
+        (rawData is String && rawData.length < 4000 ? rawData : null) ??
+        e.message ??
+        'Unknown error';
+
+    // If we still only have Dio's boilerplate, try to log raw payload for debugging.
+    if (providerMsg == null &&
+        message.contains('validateStatus was configured to throw')) {
+      message = 'HTTP $statusCode from provider (see log for response body)';
     }
 
-    _log.severe('API error $statusCode: $message');
+    _log.severe(
+      'API error: $method $uri → HTTP $statusCode | dioType=${e.type.name} | '
+      'providerMessage=${providerMsg ?? "(none parsed)"}',
+    );
+    if (map != null) {
+      _log.severe('error.json (truncated): ${_truncateForLog(jsonEncode(map))}');
+    } else if (rawData != null) {
+      final s = rawData.toString();
+      _log.severe('error.body (truncated): ${_truncateForLog(s)}');
+    } else {
+      _log.severe('error.body: <empty — network/CORS/timeout?>');
+    }
 
+    final forUser = providerMsg ??
+        (rawData is String && rawData.length < 4000 ? rawData : null) ??
+        message;
     return LlmProviderException(
-      message: message,
+      message: forUser,
       statusCode: statusCode,
       cause: e,
     );

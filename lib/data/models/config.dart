@@ -894,6 +894,7 @@ After this introduction, this file will be automatically deleted.
     await _migrateToMultiAgent();
     _migrateApiKeysToProviderCredentials();
     _migrateStealthModelIds();
+    _migrateOpenRouterDiscoveryModelIds();
     // IDENTITY.md is the authoritative source — sync name/emoji into AgentProfile
     await syncAgentIdentitiesFromWorkspace();
     debugPrint(
@@ -1009,6 +1010,10 @@ After this introduction, this file will be automatically deleted.
       'gemini-2.5-flash-lite-preview-06-17',
       // Deprecated Groq model
       'mixtral-8x7b-32768',
+      // Catalog alignment with upstream IDs (official provider / OpenRouter docs)
+      'moonshotai/kimi-k2-instruct',
+      'claude-sonnet-4-6-20260301',
+      'claude-opus-4-6-20260301',
     };
     const deprecatedNames = {
       'Healer Alpha',
@@ -1030,6 +1035,9 @@ After this introduction, this file will be automatically deleted.
       'grok-3': 'grok-4.20-0309-non-reasoning',
       'grok-4-fast': 'grok-4-1-fast-non-reasoning',
       'gemini-2.5-flash-lite-preview-06-17': 'gemini-2.5-flash-lite',
+      'moonshotai/kimi-k2-instruct': 'moonshotai/kimi-k2',
+      'claude-sonnet-4-6-20260301': 'claude-sonnet-4-6',
+      'claude-opus-4-6-20260301': 'claude-opus-4-6',
     };
     const modelNameOverrides = <String, String>{
       'openrouter/xiaomi/mimo-v2-omni': 'MiMo-V2-Omni',
@@ -1069,6 +1077,45 @@ After this introduction, this file will be automatically deleted.
 
     _config = _config.copyWith(modelList: updatedModels, agentProfiles: updatedAgents);
     debugPrint('[ConfigManager] Migrated deprecated model IDs');
+  }
+
+  /// Fixes model ids like `openrouter/minimax/minimax-m2.5:free` produced by an
+  /// older discovery implementation. OpenRouter expects `minimax/minimax-m2.5:free`.
+  /// Slugs with only two segments (e.g. `openrouter/auto`) stay as-is.
+  void _migrateOpenRouterDiscoveryModelIds() {
+    String? stripErroneousOpenRouterPrefix(String model) {
+      if (!model.startsWith('openrouter/')) return null;
+      final segments = model.split('/');
+      if (segments.length >= 3) {
+        return segments.skip(1).join('/');
+      }
+      return null;
+    }
+
+    var changed = false;
+    final updated = _config.modelList.map((m) {
+      if (m.provider != 'openrouter') return m;
+      final next = stripErroneousOpenRouterPrefix(m.model);
+      if (next == null) return m;
+      changed = true;
+      return ModelEntry(
+        modelName: m.modelName,
+        model: next,
+        apiKey: m.apiKey,
+        apiBase: m.apiBase,
+        requestTimeout: m.requestTimeout,
+        provider: m.provider,
+        isFree: m.isFree,
+        input: m.input,
+      );
+    }).toList();
+
+    if (changed) {
+      _config = _config.copyWith(modelList: updated);
+      debugPrint(
+        '[ConfigManager] Migrated OpenRouter discovery model ids (stripped erroneous openrouter/ prefix)',
+      );
+    }
   }
 
   Future<void> save() async {

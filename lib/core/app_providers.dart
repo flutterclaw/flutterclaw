@@ -853,6 +853,9 @@ class ChatMessage {
   // Error message fields
   final bool isError;
   final int? errorStatusCode;
+  final String? errorTitle;
+  final String? errorCtaUrl;
+  final String? errorCtaLabel;
 
   // Shell command message (for terminal-style rendering)
   final bool isShellCommand;
@@ -872,6 +875,9 @@ class ChatMessage {
     this.documentFileName,
     this.isError = false,
     this.errorStatusCode,
+    this.errorTitle,
+    this.errorCtaUrl,
+    this.errorCtaLabel,
     this.isShellCommand = false,
   });
 
@@ -883,6 +889,9 @@ class ChatMessage {
     String? imageMimeType,
     bool? isError,
     int? errorStatusCode,
+    String? errorTitle,
+    String? errorCtaUrl,
+    String? errorCtaLabel,
   }) => ChatMessage(
     text: text ?? this.text,
     isUser: isUser,
@@ -892,8 +901,15 @@ class ChatMessage {
     toolResultText: toolResultText ?? this.toolResultText,
     imageData: imageData ?? this.imageData,
     imageMimeType: imageMimeType ?? this.imageMimeType,
+    isDocumentMessage: isDocumentMessage,
+    documentData: documentData,
+    documentMimeType: documentMimeType,
+    documentFileName: documentFileName,
     isError: isError ?? this.isError,
     errorStatusCode: errorStatusCode ?? this.errorStatusCode,
+    errorTitle: errorTitle ?? this.errorTitle,
+    errorCtaUrl: errorCtaUrl ?? this.errorCtaUrl,
+    errorCtaLabel: errorCtaLabel ?? this.errorCtaLabel,
   );
 }
 
@@ -906,6 +922,9 @@ ChatMessage _buildErrorMessage(Object e) {
     timestamp: DateTime.now(),
     isError: true,
     errorStatusCode: parsed.statusCode,
+    errorTitle: parsed.errorTitle,
+    errorCtaUrl: parsed.ctaUrl,
+    errorCtaLabel: parsed.ctaLabel,
   );
 }
 
@@ -1138,6 +1157,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
       final isError = msg.metadata?['error'] == true;
       final errorStatusCode = msg.metadata?['errorStatusCode'] as int?;
+      final errorTitle = msg.metadata?['errorTitle'] as String?;
+      final errorCtaUrl = msg.metadata?['errorCtaUrl'] as String?;
+      final errorCtaLabel = msg.metadata?['errorCtaLabel'] as String?;
 
       messages.add(
         ChatMessage(
@@ -1152,6 +1174,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           documentFileName: docInfo?.$3,
           isError: isError,
           errorStatusCode: errorStatusCode,
+          errorTitle: errorTitle,
+          errorCtaUrl: errorCtaUrl,
+          errorCtaLabel: errorCtaLabel,
         ),
       );
     }
@@ -1235,6 +1260,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             isStreaming: false,
             isError: resp?.isError ?? false,
             errorStatusCode: resp?.errorStatusCode,
+            errorTitle: resp?.errorTitle,
+            errorCtaUrl: resp?.errorCtaUrl,
+            errorCtaLabel: resp?.errorCtaLabel,
           );
           state = updated;
 
@@ -1252,6 +1280,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           isStreaming: false,
           isError: true,
           errorStatusCode: errorMsg.errorStatusCode,
+          errorTitle: errorMsg.errorTitle,
+          errorCtaUrl: errorMsg.errorCtaUrl,
+          errorCtaLabel: errorMsg.errorCtaLabel,
         );
       }
       state = updated;
@@ -1345,6 +1376,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             isStreaming: false,
             isError: resp?.isError ?? false,
             errorStatusCode: resp?.errorStatusCode,
+            errorTitle: resp?.errorTitle,
+            errorCtaUrl: resp?.errorCtaUrl,
+            errorCtaLabel: resp?.errorCtaLabel,
           );
           state = updated;
 
@@ -1361,6 +1395,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
         isStreaming: false,
         isError: true,
         errorStatusCode: errorMsg.errorStatusCode,
+        errorTitle: errorMsg.errorTitle,
+        errorCtaUrl: errorMsg.errorCtaUrl,
+        errorCtaLabel: errorMsg.errorCtaLabel,
       );
       state = updated;
     } finally {
@@ -1459,6 +1496,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             isStreaming: false,
             isError: resp?.isError ?? false,
             errorStatusCode: resp?.errorStatusCode,
+            errorTitle: resp?.errorTitle,
+            errorCtaUrl: resp?.errorCtaUrl,
+            errorCtaLabel: resp?.errorCtaLabel,
           );
           state = updated;
 
@@ -1475,6 +1515,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
         isStreaming: false,
         isError: true,
         errorStatusCode: errorMsg.errorStatusCode,
+        errorTitle: errorMsg.errorTitle,
+        errorCtaUrl: errorMsg.errorCtaUrl,
+        errorCtaLabel: errorMsg.errorCtaLabel,
       );
       state = updated;
     } finally {
@@ -1644,6 +1687,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             isStreaming: false,
             isError: resp?.isError ?? false,
             errorStatusCode: resp?.errorStatusCode,
+            errorTitle: resp?.errorTitle,
+            errorCtaUrl: resp?.errorCtaUrl,
+            errorCtaLabel: resp?.errorCtaLabel,
           );
           state = updated;
 
@@ -1658,14 +1704,28 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       }
     } catch (e) {
       final updated = List<ChatMessage>.from(state);
-      updated[updated.length - 1] = updated.last.copyWith(
-        text: _cancelled
-            ? (state.last.text.isEmpty ? '_(cancelled)_' : state.last.text)
-            : _buildErrorMessage(e).text,
-        isStreaming: false,
-        isError: !_cancelled,
-        errorStatusCode: !_cancelled && e is LlmProviderException ? e.statusCode : null,
-      );
+      if (_cancelled) {
+        updated[updated.length - 1] = updated.last.copyWith(
+          text: state.last.text.isEmpty ? '_(cancelled)_' : state.last.text,
+          isStreaming: false,
+          isError: false,
+          errorStatusCode: null,
+          errorTitle: null,
+          errorCtaUrl: null,
+          errorCtaLabel: null,
+        );
+      } else {
+        final errorMsg = _buildErrorMessage(e);
+        updated[updated.length - 1] = updated.last.copyWith(
+          text: errorMsg.text,
+          isStreaming: false,
+          isError: true,
+          errorStatusCode: errorMsg.errorStatusCode,
+          errorTitle: errorMsg.errorTitle,
+          errorCtaUrl: errorMsg.errorCtaUrl,
+          errorCtaLabel: errorMsg.errorCtaLabel,
+        );
+      }
       state = updated;
     } finally {
       _cancelled = false;
