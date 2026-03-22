@@ -104,7 +104,8 @@ fi
 # Run flutter analyze
 log "Running flutter analyze..."
 if ! flutter analyze --no-pub 2>&1 | grep -q "No issues found"; then
-    ISSUES=$(flutter analyze --no-pub 2>&1 | tail -1)
+    # Avoid pipefail exiting the script: flutter analyze returns non-zero when infos/warnings exist.
+    ISSUES=$(flutter analyze --no-pub 2>&1 | tail -1) || true
     warn "Flutter analyze: $ISSUES"
     # Don't fail on warnings/info, only on errors
     if flutter analyze --no-pub 2>&1 | grep -q " error "; then
