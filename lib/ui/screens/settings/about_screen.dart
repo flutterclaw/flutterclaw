@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutterclaw/core/app_providers.dart';
+import 'package:flutterclaw/core/package_info_provider.dart';
 import 'package:flutterclaw/data/models/config.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/ui/screens/onboarding/onboarding_screen.dart';
@@ -31,7 +32,27 @@ class AboutScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.tag),
                   title: Text(context.l10n.version),
-                  trailing: const Text('0.1.0'),
+                  trailing: ref.watch(packageInfoProvider).when(
+                        data: (info) => Text(
+                          '${info.version} (${info.buildNumber})',
+                        ),
+                        loading: () => const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        error: (_, _) => const Text('—'),
+                      ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.language),
+                  title: Text(context.l10n.officialWebsite),
+                  subtitle: const Text('flutterclaw.ai'),
+                  trailing: const Icon(Icons.open_in_new, size: 16),
+                  onTap: () => launchUrl(
+                    Uri.parse('https://flutterclaw.ai'),
+                    mode: LaunchMode.externalApplication,
+                  ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.link),

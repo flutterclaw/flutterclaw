@@ -1344,7 +1344,16 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String get flutterClawVersion => 'FlutterClaw v0.1.0';
+  String appVersionSubtitle(
+    String appName,
+    String version,
+    String buildNumber,
+  ) {
+    return '$appName v$version ($buildNumber)';
+  }
+
+  @override
+  String get officialWebsite => 'Situs web resmi';
 
   @override
   String get noPendingPairingRequests =>

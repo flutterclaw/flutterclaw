@@ -1345,7 +1345,16 @@ class AppLocalizationsCs extends AppLocalizations {
   }
 
   @override
-  String get flutterClawVersion => 'FlutterClaw v0.1.0';
+  String appVersionSubtitle(
+    String appName,
+    String version,
+    String buildNumber,
+  ) {
+    return '$appName v$version ($buildNumber)';
+  }
+
+  @override
+  String get officialWebsite => 'Oficiální web';
 
   @override
   String get noPendingPairingRequests => 'Žádné čekající žádosti o párování';

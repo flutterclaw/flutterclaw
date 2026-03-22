@@ -1305,7 +1305,16 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
-  String get flutterClawVersion => 'FlutterClaw v0.1.0';
+  String appVersionSubtitle(
+    String appName,
+    String version,
+    String buildNumber,
+  ) {
+    return '$appName v$version ($buildNumber)';
+  }
+
+  @override
+  String get officialWebsite => '공식 웹사이트';
 
   @override
   String get noPendingPairingRequests => '대기 중인 페어링 요청 없음';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/core/app_providers.dart';
+import 'package:flutterclaw/core/package_info_provider.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/ui/screens/settings/about_screen.dart';
 import 'package:flutterclaw/ui/screens/settings/gateway_screen.dart';
@@ -59,7 +60,15 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.info_outline,
             title: context.l10n.about,
-            subtitle: context.l10n.flutterClawVersion,
+            subtitle: ref.watch(packageInfoProvider).when(
+                  data: (info) => context.l10n.appVersionSubtitle(
+                        context.l10n.appTitle,
+                        info.version,
+                        info.buildNumber,
+                      ),
+                  loading: () => context.l10n.appTitle,
+                  error: (_, _) => context.l10n.appTitle,
+                ),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AboutScreen()),

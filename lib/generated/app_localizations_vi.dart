@@ -1336,7 +1336,16 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get flutterClawVersion => 'FlutterClaw v0.1.0';
+  String appVersionSubtitle(
+    String appName,
+    String version,
+    String buildNumber,
+  ) {
+    return '$appName v$version ($buildNumber)';
+  }
+
+  @override
+  String get officialWebsite => 'Trang web chính thức';
 
   @override
   String get noPendingPairingRequests => 'Không có yêu cầu ghép nối đang chờ';

@@ -2029,8 +2029,18 @@
     "placeholders": { "count": { "type": "int" } }
   },
 
-  "flutterClawVersion": "FlutterClaw v0.1.0",
-  "@flutterClawVersion": { "description": "About subtitle" },
+  "appVersionSubtitle": "{appName} v{version} ({buildNumber})",
+  "@appVersionSubtitle": {
+    "description": "Settings About row: app name and runtime version from PackageInfo",
+    "placeholders": {
+      "appName": { "type": "String" },
+      "version": { "type": "String" },
+      "buildNumber": { "type": "String" }
+    }
+  },
+
+  "officialWebsite": "Official website",
+  "@officialWebsite": { "description": "Link label for flutterclaw.ai in About" },
 
   "noPendingPairingRequests": "No pending pairing requests",
   "@noPendingPairingRequests": { "description": "Empty pairing requests" },

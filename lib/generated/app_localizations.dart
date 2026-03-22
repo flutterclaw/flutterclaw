@@ -2510,11 +2510,17 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 tool disabled} other{{count} tools disabled}}'**
   String toolsDisabledCount(int count);
 
-  /// About subtitle
+  /// Settings About row: app name and runtime version from PackageInfo
   ///
   /// In en, this message translates to:
-  /// **'FlutterClaw v0.1.0'**
-  String get flutterClawVersion;
+  /// **'{appName} v{version} ({buildNumber})'**
+  String appVersionSubtitle(String appName, String version, String buildNumber);
+
+  /// Link label for flutterclaw.ai in About
+  ///
+  /// In en, this message translates to:
+  /// **'Official website'**
+  String get officialWebsite;
 
   /// Empty pairing requests
   ///

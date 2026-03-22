@@ -61,6 +61,7 @@ dependencies:
   live_activities: ^2.4.7
   smooth_page_indicator: ^1.2.0+3
   url_launcher: ^6.3.1
+  package_info_plus: ^9.0.0
   flutter_markdown: ^0.7.7
   markdown: ^7.0.0
   image_picker: ^1.1.2

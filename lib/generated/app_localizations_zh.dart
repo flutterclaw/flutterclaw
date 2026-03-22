@@ -1300,7 +1300,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get flutterClawVersion => 'FlutterClaw v0.1.0';
+  String appVersionSubtitle(
+    String appName,
+    String version,
+    String buildNumber,
+  ) {
+    return '$appName v$version ($buildNumber)';
+  }
+
+  @override
+  String get officialWebsite => '官方网站';
 
   @override
   String get noPendingPairingRequests => '无待处理的配对请求';
