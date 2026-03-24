@@ -651,13 +651,14 @@ class _ChannelTile extends StatelessWidget {
         leading: Container(
           width: 40,
           height: 40,
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: (iconColor ?? theme.colorScheme.primary).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: ChannelBrandIcon(
             channelType: channelType,
-            size: 22,
+            size: 20,
             iconColor: iconColor ?? theme.colorScheme.primary,
           ),
         ),

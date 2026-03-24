@@ -57,13 +57,14 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
                   leading: Container(
                     width: 40,
                     height: 40,
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: colors.primaryContainer,
                       borderRadius: BorderRadius.circular(AppTokens.radiusSM),
                     ),
                     child: ProviderBrandIcon(
                       provider: catalogProv,
-                      size: 20,
+                      size: 18,
                       iconColor: colors.primary,
                       fallbackIcon: Icons.key,
                     ),
@@ -166,6 +167,7 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
                   leading: Container(
                     width: 44,
                     height: 44,
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: isDefault
                           ? colors.primaryContainer
@@ -174,7 +176,7 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
                     ),
                     child: ProviderBrandIcon(
                       provider: provider,
-                      size: 22,
+                      size: 20,
                       iconColor: isDefault
                           ? colors.primary
                           : colors.onSurfaceVariant,
