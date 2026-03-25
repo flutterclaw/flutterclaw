@@ -19,9 +19,10 @@ class ProviderPage extends StatelessWidget {
     final colors = theme.colorScheme;
 
     final freeProviders =
-        ModelCatalog.providers.where((p) => p.hasFreeModels).toList();
-    final paidProviders =
-        ModelCatalog.providers.where((p) => !p.hasFreeModels).toList();
+        ModelCatalog.availableProviders.where((p) => p.hasFreeModels).toList();
+    final paidProviders = ModelCatalog.availableProviders
+        .where((p) => !p.hasFreeModels)
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),

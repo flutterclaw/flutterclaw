@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutterclaw/services/region_service.dart';
 
 class CatalogProvider {
   final String id;
@@ -517,6 +518,24 @@ class ModelCatalog {
       input: ['text', 'image'],
     ),
   ];
+
+  /// Providers available in the current region (hides restricted ones in China).
+  static List<CatalogProvider> get availableProviders => RegionService.isChina
+      ? providers
+          .where((p) => !RegionService.isProviderRestricted(p.id))
+          .toList()
+      : providers;
+
+  /// Models available in the current region (hides restricted ones in China).
+  static List<CatalogModel> get availableModels => RegionService.isChina
+      ? models
+          .where((m) => !RegionService.isProviderRestricted(m.providerId))
+          .toList()
+      : models;
+
+  /// Models for a specific provider, filtered by region.
+  static List<CatalogModel> availableModelsForProvider(String providerId) =>
+      availableModels.where((m) => m.providerId == providerId).toList();
 
   static CatalogProvider? getProvider(String id) {
     for (final p in providers) {

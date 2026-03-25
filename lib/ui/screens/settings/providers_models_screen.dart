@@ -828,7 +828,7 @@ class _AddProviderScreenState extends State<_AddProviderScreen> {
               style: theme.textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          ...ModelCatalog.providers.map((p) => _ProviderChip(
+          ...ModelCatalog.availableProviders.map((p) => _ProviderChip(
                 provider: p,
                 isSelected: _selectedProviderId == p.id,
                 onTap: () => setState(() {
@@ -1064,7 +1064,7 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
               style: theme.textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          ...ModelCatalog.providers.map((p) => _ProviderChip(
+          ...ModelCatalog.availableProviders.map((p) => _ProviderChip(
                 provider: p,
                 isSelected: _selectedProviderId == p.id,
                 isAuthenticated: config.isProviderAuthenticated(p.id),
@@ -1082,7 +1082,7 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
                 style: theme.textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            ...ModelCatalog.modelsForProvider(_selectedProviderId!)
+            ...ModelCatalog.availableModelsForProvider(_selectedProviderId!)
                 .map((m) => _ModelChip(
                       model: m,
                       isSelected:
