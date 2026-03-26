@@ -119,6 +119,11 @@ class AgentsDefaults {
   /// automatic compaction will be triggered.
   final double autoCompactThreshold;
 
+  /// Run a silent memory-flush turn before compacting so the agent can persist
+  /// important facts to memory/MEMORY.md before old messages are summarized
+  /// away (default: true). Matches OpenClaw's compaction.memoryFlush behavior.
+  final bool memoryFlushEnabled;
+
   const AgentsDefaults({
     this.workspace = '~/.flutterclaw/workspace',
     this.modelName = 'gpt-4o',
@@ -129,6 +134,7 @@ class AgentsDefaults {
     this.maxToolResultTokens = 50000,
     this.autoCompactEnabled = true,
     this.autoCompactThreshold = 0.85,
+    this.memoryFlushEnabled = true,
   });
 
   factory AgentsDefaults.fromJson(Map<String, dynamic> json) => AgentsDefaults(
@@ -142,6 +148,7 @@ class AgentsDefaults {
     maxToolResultTokens: json['max_tool_result_tokens'] as int? ?? 50000,
     autoCompactEnabled: json['auto_compact_enabled'] as bool? ?? true,
     autoCompactThreshold: (json['auto_compact_threshold'] as num?)?.toDouble() ?? 0.85,
+    memoryFlushEnabled: json['memory_flush_enabled'] as bool? ?? true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -154,6 +161,7 @@ class AgentsDefaults {
     'max_tool_result_tokens': maxToolResultTokens,
     'auto_compact_enabled': autoCompactEnabled,
     'auto_compact_threshold': autoCompactThreshold,
+    'memory_flush_enabled': memoryFlushEnabled,
   };
 }
 

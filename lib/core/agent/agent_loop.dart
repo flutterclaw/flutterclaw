@@ -1079,6 +1079,21 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
     final context = sessionManager.getContextMessages(sessionKey);
     if (context.length < 10) return null;
 
+    final defaults = configManager.config.agents.defaults;
+    final modelName = session.modelOverride ?? defaults.modelName;
+    final modelEntry = configManager.config.getModel(modelName);
+    if (modelEntry == null) return null;
+
+    // -- Memory flush (pre-compaction) ----------------------------------------
+    // Before discarding old messages, run a silent agentic turn that gives the
+    // model a chance to persist any important facts via memory_write.  This
+    // mirrors OpenClaw's `compaction.memoryFlush` behavior and prevents
+    // valuable context (user preferences, decisions, URLs, etc.) from being
+    // silently lost when old messages are summarized away.
+    if (defaults.memoryFlushEnabled) {
+      await _runMemoryFlush(sessionKey, context, modelEntry);
+    }
+
     // Keep the last ~6 messages, summarize everything before.
     // Adjust the boundary so we never split a tool-call group: if the first
     // kept message is a tool result, walk backwards to include its parent
@@ -1094,7 +1109,9 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
         break;
       }
     }
-    final toSummarize = context.sublist(0, context.length - keepRecent);
+    // Re-read context: the memory flush may have appended messages.
+    final freshContext = sessionManager.getContextMessages(sessionKey);
+    final toSummarize = freshContext.sublist(0, freshContext.length - keepRecent);
 
     if (toSummarize.isEmpty) return null;
 
@@ -1113,11 +1130,6 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
         content: 'Summarize the conversation above.',
       ),
     ];
-
-    final defaults = configManager.config.agents.defaults;
-    final modelName = session.modelOverride ?? defaults.modelName;
-    final modelEntry = configManager.config.getModel(modelName);
-    if (modelEntry == null) return null;
 
     try {
       final summCred = configManager.config.providerCredentials[modelEntry.provider];
@@ -1171,6 +1183,105 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
     } catch (e) {
       _log.warning('Compaction failed for $sessionKey: $e');
       return null;
+    }
+  }
+
+  /// Silent agentic turn that runs before compaction to let the model persist
+  /// important information to memory before old messages are summarized away.
+  ///
+  /// Uses a minimal subset of tools (only memory_write) to avoid side-effects.
+  /// The turn is not streamed and its messages are not added to the main
+  /// session transcript — it only matters what the tool actually writes to disk.
+  Future<void> _runMemoryFlush(
+    String sessionKey,
+    List<LlmMessage> context,
+    dynamic modelEntry,
+  ) async {
+    _log.info('Memory flush: checking for important facts before compaction');
+    try {
+      // Resolve workspace path for the session agent
+      final agentProfile = _resolveSessionAgent(sessionKey);
+      final workspacePath = agentProfile != null
+          ? await configManager.getAgentWorkspace(agentProfile.id)
+          : await configManager.workspacePath;
+
+      // Only the memory_write tool is exposed during the flush.
+      // This prevents unintended side effects (no web calls, no file writes
+      // outside memory, no UI automation, etc.).
+      final memoryTool = toolRegistry.get('memory_write');
+      final flushTools = memoryTool != null
+          ? [
+              {
+                'type': 'function',
+                'function': {
+                  'name': memoryTool.name,
+                  'description': memoryTool.description,
+                  'parameters': memoryTool.parameters,
+                },
+              }
+            ]
+          : <Map<String, dynamic>>[];
+
+      final flushSystemPrompt =
+          'You are performing a memory consolidation pass before this '
+          'conversation is compacted. Your ONLY task is to identify and save '
+          'any important information that is NOT already in MEMORY.md or '
+          "today's episodic log. Use memory_write for each fact worth keeping."
+          '\n\nWorkspace: $workspacePath\n\n'
+          'If there is nothing new to save, respond with "Nothing to save." '
+          'and do NOT call any tools.';
+
+      final flushMessages = <LlmMessage>[
+        LlmMessage(role: 'system', content: flushSystemPrompt),
+        // Show the messages to be compacted so the model can evaluate them
+        ...context,
+        const LlmMessage(
+          role: 'user',
+          content:
+              'Review the conversation above. Save any important facts, '
+              'decisions, user preferences, or task context that should be '
+              'remembered long-term but are not already in memory. '
+              'Then reply with a brief confirmation.',
+        ),
+      ];
+
+      final flushCred = configManager.config.providerCredentials[modelEntry.provider as String?];
+      final request = LlmRequest(
+        model: modelEntry.model as String,
+        apiKey: configManager.config.resolveApiKey(modelEntry),
+        apiBase: configManager.config.resolveApiBase(modelEntry),
+        messages: flushMessages,
+        tools: flushTools.isNotEmpty ? flushTools : null,
+        maxTokens: 512,
+        temperature: 0.1,
+        timeoutSeconds: modelEntry.requestTimeout as int?,
+        supportsVision: false,
+        awsSecretKey: flushCred?.awsSecretKey,
+        awsRegion: flushCred?.awsRegion,
+        awsAuthMode: flushCred?.awsAuthMode,
+      );
+
+      final response = await providerRouter.chatCompletion(request);
+
+      // Execute any memory_write tool calls the model decided to make
+      if (response.toolCalls != null) {
+        for (final tc in response.toolCalls!) {
+          if (tc.function.name == 'memory_write') {
+            try {
+              final args = _parseToolArgs(tc.function.arguments);
+              await toolRegistry.execute('memory_write', args);
+              _log.info('Memory flush: wrote entry via memory_write');
+            } catch (e) {
+              _log.warning('Memory flush: memory_write failed: $e');
+            }
+          }
+        }
+      }
+
+      _log.info('Memory flush complete for $sessionKey');
+    } catch (e) {
+      // Memory flush is best-effort — a failure must not block compaction.
+      _log.warning('Memory flush failed (continuing with compaction): $e');
     }
   }
 
