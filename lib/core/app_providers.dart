@@ -26,6 +26,7 @@ import 'package:flutterclaw/services/pairing_service.dart';
 import 'package:flutterclaw/services/skills_service.dart';
 import 'package:flutterclaw/data/models/model_catalog.dart';
 import 'package:flutterclaw/core/agent/agent_loop.dart';
+import 'package:flutterclaw/core/agent/token_budget_manager.dart';
 import 'package:flutterclaw/core/agent/provider_router.dart';
 import 'package:flutterclaw/core/agent/session_manager.dart';
 import 'package:flutterclaw/core/providers/openai_provider.dart';
@@ -161,6 +162,40 @@ final sessionManagerProvider = Provider<SessionManager>((ref) {
   final sm = SessionManager(configManager);
   ref.onDispose(sm.dispose);
   return sm;
+});
+
+/// Estimated context usage for the active session as a value 0.0–1.0.
+///
+/// Computes: estimated context tokens / model context window.
+/// Used by [ContextUsageBar] to show a progress indicator above the input.
+final contextUsageProvider = Provider<double>((ref) {
+  final configManager = ref.watch(configManagerProvider);
+  final sessionManager = ref.watch(sessionManagerProvider);
+  final activeKey = ref.watch(activeSessionKeyProvider);
+  final chatMessages = ref.watch(chatProvider);
+
+  // Derive model name for this session
+  final modelName = resolveSessionModelName(
+    activeKey,
+    configManager,
+    sessionManager,
+  );
+  final contextWindow = TokenBudgetManager.getContextWindow(
+    modelName,
+    configManager,
+  );
+  if (contextWindow <= 0) return 0.0;
+
+  // Estimate from the rendered chat messages as a proxy for context size.
+  // This is a fast heuristic that avoids reading the JSONL transcript on
+  // every build — exact accuracy is not required for a progress bar.
+  final estimatedTokens = chatMessages.fold<int>(
+    0,
+    (sum, m) => sum + TokenBudgetManager.estimateTokens(m.text),
+  );
+
+  final ratio = estimatedTokens / contextWindow;
+  return ratio.clamp(0.0, 1.0);
 });
 
 final subagentRegistryProvider = Provider<SubagentRegistry>((ref) {

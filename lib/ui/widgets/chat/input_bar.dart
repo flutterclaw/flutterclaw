@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'slash_commands.dart';
 import 'slash_command_picker.dart';
@@ -81,9 +82,14 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
     final theme = Theme.of(context);
     final suggestions = _suggestions;
 
+    final contextUsage = ref.watch(contextUsageProvider);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Context usage bar — only visible when context is 50%+ full
+        if (contextUsage >= 0.50)
+          _ContextUsageBar(usage: contextUsage),
         if (suggestions.isNotEmpty)
           SlashCommandPicker(
             suggestions: suggestions,
@@ -181,6 +187,62 @@ class _ChatInputBarState extends ConsumerState<ChatInputBar> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A slim context-usage progress bar shown above the input area when the
+/// context window is 50%+ full.  Color shifts green → amber → red as usage
+/// approaches the auto-compact threshold.
+class _ContextUsageBar extends StatelessWidget {
+  final double usage; // 0.0 – 1.0
+
+  const _ContextUsageBar({required this.usage});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    final Color barColor;
+    if (usage < 0.60) {
+      barColor = Colors.green.shade400;
+    } else if (usage < 0.85) {
+      barColor = Colors.amber.shade600;
+    } else {
+      barColor = colors.error;
+    }
+
+    final pct = (usage * 100).round();
+    final label = usage >= 0.85
+        ? '$pct% — compacting soon'
+        : '$pct% context';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: usage,
+                minHeight: 3,
+                backgroundColor: colors.outlineVariant.withValues(alpha: 0.3),
+                valueColor: AlwaysStoppedAnimation<Color>(barColor),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: barColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

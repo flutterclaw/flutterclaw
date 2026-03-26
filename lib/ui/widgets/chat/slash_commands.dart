@@ -7,6 +7,7 @@ class SlashCommandDef {
 
 const kSlashCommands = [
   SlashCommandDef('/help', 'Show available commands'),
+  SlashCommandDef('/context', 'Context window usage breakdown'),
   SlashCommandDef('/status', 'Session info (model, tokens, cost)'),
   SlashCommandDef('/new', 'Start a new session'),
   SlashCommandDef('/reset', 'Reset the current session'),
