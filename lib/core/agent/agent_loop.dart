@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:flutterclaw/core/agent/provider_router.dart';
 import 'package:flutterclaw/core/agent/session_manager.dart';
+import 'package:flutterclaw/core/agent/token_budget_manager.dart';
 import 'package:flutterclaw/core/providers/error_parser.dart';
 import 'package:flutterclaw/core/providers/provider_interface.dart';
 import 'package:flutterclaw/data/models/agent_profile.dart';
@@ -382,7 +383,7 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
       );
     }
 
-    final context = sessionManager.getContextMessages(sessionKey);
+    var context = sessionManager.getContextMessages(sessionKey);
     final messages = <LlmMessage>[];
     if (systemPrompt.isNotEmpty) {
       messages.add(LlmMessage(role: 'system', content: systemPrompt));
@@ -420,6 +421,62 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
         content: 'Error: Model "$modelName" is not configured.',
         sessionKey: sessionKey,
       );
+    }
+
+    // Pre-request token validation: check if context approaching limit
+    final totalTokens = _estimateContextTokens(context, systemPrompt);
+    final contextWindow =
+        TokenBudgetManager.getContextWindow(modelName, configManager);
+    final safeLimit = TokenBudgetManager.getSafeContextLimit(
+      modelName,
+      configManager,
+    );
+
+    if (totalTokens > safeLimit) {
+      _log.warning(
+        'Context approaching limit: $totalTokens tokens > $safeLimit threshold '
+        '(model: $modelName, limit: $contextWindow)',
+      );
+
+      // Option A: Auto-compact if enabled and session is eligible
+      if (await _shouldAutoCompact(sessionKey)) {
+        _log.info('Auto-compacting session $sessionKey');
+        final compacted = await compactSession(sessionKey);
+        if (compacted != null) {
+          _log.info('Compaction successful: $compacted');
+          // Reload context after compaction
+          context = sessionManager.getContextMessages(sessionKey);
+          // Rebuild messages list with new context
+          messages.clear();
+          if (systemPrompt.isNotEmpty) {
+            messages.add(LlmMessage(role: 'system', content: systemPrompt));
+          }
+          if (ephemeralContext != null) {
+            messages.add(LlmMessage(role: 'system', content: ephemeralContext));
+          }
+          messages.addAll(context);
+        }
+      }
+
+      // Option B: If still too large, emergency truncate tool results
+      final reestimatedTokens = _estimateContextTokens(context, systemPrompt);
+      if (reestimatedTokens > safeLimit) {
+        _log.warning(
+          'Context still too large after compaction ($reestimatedTokens tokens), '
+          'applying emergency truncation',
+        );
+        _truncateOldestToolResults(context, contextWindow);
+
+        // Rebuild messages with truncated context
+        messages.clear();
+        if (systemPrompt.isNotEmpty) {
+          messages.add(LlmMessage(role: 'system', content: systemPrompt));
+        }
+        if (ephemeralContext != null) {
+          messages.add(LlmMessage(role: 'system', content: ephemeralContext));
+        }
+        messages.addAll(context);
+      }
     }
 
     final tools = toolRegistry.toProviderDefs();
@@ -642,7 +699,7 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
       );
     }
 
-    final context = sessionManager.getContextMessages(sessionKey);
+    var context = sessionManager.getContextMessages(sessionKey);
     final messages = <LlmMessage>[];
     if (systemPrompt.isNotEmpty) {
       messages.add(LlmMessage(role: 'system', content: systemPrompt));
@@ -680,6 +737,62 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
         ),
       );
       return;
+    }
+
+    // Pre-request token validation: check if context approaching limit
+    final totalTokens = _estimateContextTokens(context, systemPrompt);
+    final contextWindow =
+        TokenBudgetManager.getContextWindow(modelName, configManager);
+    final safeLimit = TokenBudgetManager.getSafeContextLimit(
+      modelName,
+      configManager,
+    );
+
+    if (totalTokens > safeLimit) {
+      _log.warning(
+        'Context approaching limit: $totalTokens tokens > $safeLimit threshold '
+        '(model: $modelName, limit: $contextWindow)',
+      );
+
+      // Option A: Auto-compact if enabled and session is eligible
+      if (await _shouldAutoCompact(sessionKey)) {
+        _log.info('Auto-compacting session $sessionKey');
+        final compacted = await compactSession(sessionKey);
+        if (compacted != null) {
+          _log.info('Compaction successful: $compacted');
+          // Reload context after compaction
+          context = sessionManager.getContextMessages(sessionKey);
+          // Rebuild messages list with new context
+          messages.clear();
+          if (systemPrompt.isNotEmpty) {
+            messages.add(LlmMessage(role: 'system', content: systemPrompt));
+          }
+          if (ephemeralContext != null) {
+            messages.add(LlmMessage(role: 'system', content: ephemeralContext));
+          }
+          messages.addAll(context);
+        }
+      }
+
+      // Option B: If still too large, emergency truncate tool results
+      final reestimatedTokens = _estimateContextTokens(context, systemPrompt);
+      if (reestimatedTokens > safeLimit) {
+        _log.warning(
+          'Context still too large after compaction ($reestimatedTokens tokens), '
+          'applying emergency truncation',
+        );
+        _truncateOldestToolResults(context, contextWindow);
+
+        // Rebuild messages with truncated context
+        messages.clear();
+        if (systemPrompt.isNotEmpty) {
+          messages.add(LlmMessage(role: 'system', content: systemPrompt));
+        }
+        if (ephemeralContext != null) {
+          messages.add(LlmMessage(role: 'system', content: ephemeralContext));
+        }
+        messages.addAll(context);
+      }
     }
 
     final tools = toolRegistry.toProviderDefs();
@@ -1278,5 +1391,100 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
       'cs': 'Czech',
     };
     return languageNames[languageCode] ?? languageCode;
+  }
+
+  /// Estimate total tokens in a conversation context.
+  int _estimateContextTokens(List<LlmMessage> context, String systemPrompt) {
+    var total = TokenBudgetManager.estimateTokens(systemPrompt);
+    for (final msg in context) {
+      total += TokenBudgetManager.estimateTokens(msg.content ?? '');
+    }
+    return total;
+  }
+
+  /// Check if auto-compaction should trigger.
+  ///
+  /// Returns false if:
+  /// - Auto-compact is disabled in config
+  /// - Session not found
+  /// - Context too short (< 15 messages)
+  /// - Recently compacted (within last 10 messages)
+  Future<bool> _shouldAutoCompact(String sessionKey) async {
+    // Check if auto-compact is enabled in config
+    if (!configManager.config.agents.defaults.autoCompactEnabled) {
+      return false;
+    }
+
+    final session = sessionManager.getSession(sessionKey);
+    if (session == null) return false;
+
+    final context = sessionManager.getContextMessages(sessionKey);
+    if (context.length < 15) return false; // Too short to compact
+
+    // Check if last compaction was recent
+    final lastCompactEntry =
+        await sessionManager.getLastCompactionEntry(sessionKey);
+    if (lastCompactEntry != null) {
+      // Don't compact if recently compacted (within last 10 messages)
+      // This is approximate - better would be to track entry count
+      if (context.length < 20) {
+        return false; // Recently compacted, context still small
+      }
+    }
+
+    return true; // Safe to compact
+  }
+
+  /// Truncate oldest tool results in context (emergency measure).
+  ///
+  /// Walks backwards through context, truncating tool results
+  /// until total tokens are under the target (70% of context window).
+  ///
+  /// Note: Modifies messages in place by creating new LlmMessage objects
+  /// since content is final.
+  void _truncateOldestToolResults(
+    List<LlmMessage> context,
+    int contextWindow,
+  ) {
+    final targetTokens = (contextWindow * 0.70).toInt();
+    var currentTokens = context.fold<int>(
+      0,
+      (sum, msg) =>
+          sum + TokenBudgetManager.estimateTokens(msg.content ?? ''),
+    );
+
+    _log.warning(
+      'Emergency truncation: current=$currentTokens tokens, '
+      'target=$targetTokens tokens',
+    );
+
+    // Walk backwards, replace tool results until under budget
+    for (var i = context.length - 1; i >= 0 && currentTokens > targetTokens;
+        i--) {
+      final msg = context[i];
+      if (msg.role == 'tool' && (msg.content?.length ?? 0) > 5000) {
+        final originalTokens =
+            TokenBudgetManager.estimateTokens(msg.content ?? '');
+
+        // Create new message with truncated content
+        final truncatedContent =
+            '[Tool result truncated to fit context budget]\n'
+            '${msg.content?.substring(0, 1000) ?? ''}...';
+
+        context[i] = LlmMessage(
+          role: msg.role,
+          content: truncatedContent,
+          name: msg.name,
+          toolCallId: msg.toolCallId,
+        );
+
+        final newTokens = TokenBudgetManager.estimateTokens(truncatedContent);
+        currentTokens -= (originalTokens - newTokens);
+
+        _log.info('Truncated tool result at index $i');
+      }
+    }
+
+    _log.info('After emergency truncation: $currentTokens tokens');
   }
 }

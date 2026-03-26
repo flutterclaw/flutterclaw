@@ -124,6 +124,7 @@ flutter:
     - assets/skills/web-search/SKILL.md
     - assets/skills/memory-manager/SKILL.md
     - assets/skills/file-manager/SKILL.md
+    - assets/skills/health-analyst/SKILL.md
     - assets/audio/silence.mp3
     - assets/shortcuts/
 

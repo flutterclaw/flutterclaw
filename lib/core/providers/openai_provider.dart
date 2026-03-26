@@ -721,9 +721,25 @@ class OpenAiProvider implements LlmProvider {
       _log.severe('error.body: <empty — network/CORS/timeout?>');
     }
 
-    final forUser = providerMsg ??
+    var forUser = providerMsg ??
         (rawData is String && rawData.length < 4000 ? rawData : null) ??
         message;
+
+    // Detect token overflow errors and provide actionable guidance
+    if (statusCode == 400 &&
+        (forUser.toLowerCase().contains('context_length_exceeded') ||
+            forUser.toLowerCase().contains('maximum context length') ||
+            forUser.toLowerCase().contains('prompt is too long') ||
+            forUser.toLowerCase().contains('context length') && forUser.toLowerCase().contains('exceeded'))) {
+      forUser = 'Context too large for model.\n\n'
+          'Your conversation has exceeded the model\'s context window. '
+          'Try one of these options:\n\n'
+          '1. Use the /compact command to summarize old messages\n'
+          '2. Start a new chat for a fresh context\n'
+          '3. Request less data from tools (e.g., smaller date ranges)\n\n'
+          'Original error: $forUser';
+    }
+
     return LlmProviderException(
       message: forUser,
       statusCode: statusCode,

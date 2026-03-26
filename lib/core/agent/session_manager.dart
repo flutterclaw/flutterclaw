@@ -517,6 +517,27 @@ class SessionManager {
     return _readTranscript(dir, meta.sessionId);
   }
 
+  /// Get the last compaction entry for a session, if any.
+  ///
+  /// Returns null if no compaction has been performed yet.
+  /// Used by auto-compaction logic to avoid compacting too frequently.
+  Future<TranscriptEntry?> getLastCompactionEntry(String key) async {
+    final meta = _meta[key];
+    if (meta == null) return null;
+
+    final dir = await _getSessionsDir();
+    final entries = await _readTranscript(dir, meta.sessionId);
+
+    // Search backwards for the most recent compaction entry
+    for (var i = entries.length - 1; i >= 0; i--) {
+      if (entries[i].type == 'compaction') {
+        return entries[i];
+      }
+    }
+
+    return null; // No compaction found
+  }
+
   // -- Private helpers ------------------------------------------------------
 
   bool _storeLoaded = false;

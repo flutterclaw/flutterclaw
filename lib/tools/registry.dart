@@ -4,6 +4,13 @@
 /// and OpenAI function calling format support.
 library;
 
+import 'package:logging/logging.dart';
+
+import '../core/agent/token_budget_manager.dart';
+import '../data/models/config.dart';
+
+final _log = Logger('flutterclaw.tool_registry');
+
 /// Abstract base class for all tools.
 abstract class Tool {
   String get name;
@@ -70,6 +77,14 @@ class ToolRegistry {
   /// Tool names blocked by user policy. Blocked tools are hidden from the LLM
   /// and return an error if somehow invoked.
   final Set<String> _disabled = {};
+
+  /// Config manager for accessing model context limits.
+  ConfigManager? _configManager;
+
+  /// Set the config manager (called during initialization).
+  void setConfigManager(ConfigManager manager) {
+    _configManager = manager;
+  }
 
   /// Replace the set of disabled tools (call when config changes).
   void setDisabledTools(Iterable<String> names) {
@@ -138,6 +153,8 @@ class ToolRegistry {
 
   /// Executes a tool by name. Returns error result if tool not found, expired,
   /// or disabled by user policy.
+  ///
+  /// Automatically truncates oversized tool results to prevent context overflow.
   Future<ToolResult> execute(String name, Map<String, dynamic> args) async {
     if (_disabled.contains(name)) {
       return ToolResult.error(
@@ -147,7 +164,11 @@ class ToolRegistry {
     if (tool == null) {
       return ToolResult.error('Tool "$name" not found or expired');
     }
-    return tool.execute(args);
+
+    final result = await tool.execute(args);
+
+    // Apply truncation middleware if needed
+    return _maybeTruncateResult(name, result);
   }
 
   /// Executes a tool and yields incremental output chunks via [onChunk] if the
@@ -156,6 +177,8 @@ class ToolRegistry {
   ///
   /// [onChunk] is called for each output chunk BEFORE the final result is
   /// returned. The final [ToolResult] is the return value.
+  ///
+  /// Automatically truncates oversized tool results to prevent context overflow.
   Future<ToolResult> executeWithProgress(
     String name,
     Map<String, dynamic> args, {
@@ -169,6 +192,8 @@ class ToolRegistry {
     if (tool == null) {
       return ToolResult.error('Tool "$name" not found or expired');
     }
+
+    ToolResult result;
 
     if (tool.supportsStreaming) {
       final stream = tool.executeStream(args);
@@ -186,11 +211,65 @@ class ToolRegistry {
             onChunk(chunk);
           }
         }
-        return ToolResult.success(resultContent);
+        result = ToolResult.success(resultContent);
+      } else {
+        result = await tool.execute(args);
       }
+    } else {
+      // Non-streaming fallback
+      result = await tool.execute(args);
     }
-    // Non-streaming fallback
-    return tool.execute(args);
+
+    // Apply truncation middleware if needed
+    return _maybeTruncateResult(name, result);
+  }
+
+  /// Apply truncation middleware to tool results if they exceed safe limits.
+  ///
+  /// Skips truncation for:
+  /// - Error results
+  /// - Already-truncated results
+  /// - Results under the safe token limit
+  ToolResult _maybeTruncateResult(String toolName, ToolResult result) {
+    // Skip truncation for errors
+    if (result.isError) return result;
+
+    // Skip if already truncated
+    if (result.content.contains('[... TOOL RESULT TRUNCATED ...]')) {
+      return result;
+    }
+
+    // Skip if no config manager available
+    if (_configManager == null) return result;
+
+    // Get current model and check if result is safe
+    final modelName = _configManager!.config.agents.defaults.modelName;
+
+    if (!TokenBudgetManager.isToolResultSafe(
+      result.content,
+      modelName,
+      _configManager!,
+    )) {
+      // Result exceeds safe limit, truncate it
+      final maxTokens = TokenBudgetManager.getMaxToolResultTokens(
+        modelName,
+        _configManager!,
+      );
+      final truncated = TokenBudgetManager.truncateToTokenLimit(
+        result.content,
+        maxTokens,
+      );
+
+      _log.warning(
+        'Tool "$toolName" result truncated: '
+        '${result.content.length} chars → ${truncated.length} chars',
+      );
+
+      return ToolResult.success(truncated);
+    }
+
+    // Result is safe, return as-is
+    return result;
   }
 
   /// Returns tool definitions for system prompt (human-readable).

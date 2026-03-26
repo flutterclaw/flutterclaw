@@ -433,6 +433,20 @@ class BedrockProvider implements LlmProvider {
       message = e.response!.data as String;
     }
 
+    // Detect token overflow errors and provide actionable guidance
+    if (statusCode == 400 &&
+        (message.contains('prompt is too long') ||
+            message.contains('context_length_exceeded') ||
+            message.contains('maximum context length'))) {
+      message = 'Context too large for model.\n\n'
+          'Your conversation has exceeded the model\'s context window. '
+          'Try one of these options:\n\n'
+          '1. Use the /compact command to summarize old messages\n'
+          '2. Start a new chat for a fresh context\n'
+          '3. Request less data from tools (e.g., smaller date ranges)\n\n'
+          'Original error: $message';
+    }
+
     return LlmProviderException(
       message: message,
       statusCode: statusCode,

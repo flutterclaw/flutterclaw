@@ -87,6 +87,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final credential = ProviderCredential(
         apiKey: _authResult!.apiKey,
         apiBase: _authResult!.apiBase ?? provider?.apiBase,
+        awsSecretKey: _authResult!.awsSecretKey,
+        awsRegion: _authResult!.awsRegion,
+        awsAuthMode: _authResult!.awsAuthMode,
       );
 
       // Model entry no longer needs apiKey — resolved from providerCredentials

@@ -228,6 +228,7 @@ class SkillsService {
       'memory-manager',
       'file-manager',
       'headless-browser',
+      'health-analyst',
     ];
 
     for (final name in bundledSkills) {

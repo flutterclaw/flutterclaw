@@ -194,6 +194,9 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
 
   final registry = ToolRegistry();
 
+  // Set config manager for token budget management
+  registry.setConfigManager(configManager);
+
   // Apply tool policies from config
   registry.setDisabledTools(configManager.config.tools.disabled);
 
@@ -260,6 +263,7 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
   registry.register(CalendarCreateEventTool());
   registry.register(ContactsSearchTool());
   registry.register(GetHealthDataTool());
+  registry.register(HealthStatusTool());
   registry.register(MediaPlayTool());
   registry.register(MediaControlTool());
   registry.register(

@@ -107,6 +107,18 @@ class AgentsDefaults {
   final int maxToolIterations;
   final bool restrictToWorkspace;
 
+  /// Maximum tokens allowed per tool result (default: 50000 for most models).
+  /// Tool results exceeding this limit will be automatically truncated.
+  final int maxToolResultTokens;
+
+  /// Automatically compact session when approaching context limit (default: true).
+  final bool autoCompactEnabled;
+
+  /// Threshold (0.0-1.0) of context window to trigger auto-compact (default: 0.85).
+  /// When estimated tokens exceed this fraction of the model's context window,
+  /// automatic compaction will be triggered.
+  final double autoCompactThreshold;
+
   const AgentsDefaults({
     this.workspace = '~/.flutterclaw/workspace',
     this.modelName = 'gpt-4o',
@@ -114,6 +126,9 @@ class AgentsDefaults {
     this.temperature = 0.7,
     this.maxToolIterations = 40,
     this.restrictToWorkspace = true,
+    this.maxToolResultTokens = 50000,
+    this.autoCompactEnabled = true,
+    this.autoCompactThreshold = 0.85,
   });
 
   factory AgentsDefaults.fromJson(Map<String, dynamic> json) => AgentsDefaults(
@@ -124,6 +139,9 @@ class AgentsDefaults {
     temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
     maxToolIterations: json['max_tool_iterations'] as int? ?? 20,
     restrictToWorkspace: json['restrict_to_workspace'] as bool? ?? true,
+    maxToolResultTokens: json['max_tool_result_tokens'] as int? ?? 50000,
+    autoCompactEnabled: json['auto_compact_enabled'] as bool? ?? true,
+    autoCompactThreshold: (json['auto_compact_threshold'] as num?)?.toDouble() ?? 0.85,
   );
 
   Map<String, dynamic> toJson() => {
@@ -133,6 +151,9 @@ class AgentsDefaults {
     'temperature': temperature,
     'max_tool_iterations': maxToolIterations,
     'restrict_to_workspace': restrictToWorkspace,
+    'max_tool_result_tokens': maxToolResultTokens,
+    'auto_compact_enabled': autoCompactEnabled,
+    'auto_compact_threshold': autoCompactThreshold,
   };
 }
 

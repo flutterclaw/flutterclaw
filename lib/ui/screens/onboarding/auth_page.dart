@@ -37,6 +37,9 @@ class AuthResult {
   final String modelDisplayName;
   final String? apiBase;
   final bool isFree;
+  final String? awsSecretKey;
+  final String? awsRegion;
+  final String? awsAuthMode;
 
   const AuthResult({
     required this.apiKey,
@@ -44,6 +47,9 @@ class AuthResult {
     required this.modelDisplayName,
     this.apiBase,
     this.isFree = false,
+    this.awsSecretKey,
+    this.awsRegion,
+    this.awsAuthMode,
   });
 }
 
@@ -51,6 +57,9 @@ class _AuthPageState extends State<AuthPage> {
   late final TextEditingController _apiKeyController;
   late final TextEditingController _apiBaseController;
   late final TextEditingController _customModelController;
+  late final TextEditingController _awsSecretKeyController;
+  late final TextEditingController _awsRegionController;
+  String _awsAuthMode = 'bearer';
   String? _selectedModelId;
   bool _useCustomModel = false;
   bool _isValidating = false;
@@ -59,11 +68,15 @@ class _AuthPageState extends State<AuthPage> {
   List<DiscoveredModel> _discoveredModels = [];
   bool _isDiscovering = false;
 
+  bool get _isBedrock => widget.providerId == 'bedrock';
+
   @override
   void initState() {
     super.initState();
     _apiKeyController = TextEditingController(text: widget.initialApiKey ?? '');
     _customModelController = TextEditingController();
+    _awsSecretKeyController = TextEditingController();
+    _awsRegionController = TextEditingController(text: 'us-east-1');
     final provider = ModelCatalog.getProvider(widget.providerId);
     _apiBaseController = TextEditingController(
       text: widget.initialApiBase ?? provider?.apiBase ?? '',
@@ -98,6 +111,8 @@ class _AuthPageState extends State<AuthPage> {
     _apiKeyController.dispose();
     _apiBaseController.dispose();
     _customModelController.dispose();
+    _awsSecretKeyController.dispose();
+    _awsRegionController.dispose();
     super.dispose();
   }
 
@@ -109,14 +124,29 @@ class _AuthPageState extends State<AuthPage> {
     final models = ModelCatalog.modelsForProvider(widget.providerId);
     final selectedModel = models.where((m) => m.id == effectiveModelId).firstOrNull;
 
+    String? apiBase;
+    if (_isBedrock) {
+      final region = _awsRegionController.text.trim().isNotEmpty
+          ? _awsRegionController.text.trim()
+          : 'us-east-1';
+      apiBase = 'https://bedrock-runtime.$region.amazonaws.com';
+    } else if (_apiBaseController.text.trim().isNotEmpty) {
+      apiBase = _apiBaseController.text.trim();
+    }
+
     widget.onChanged(AuthResult(
       apiKey: _apiKeyController.text.trim(),
       modelId: effectiveModelId,
       modelDisplayName: selectedModel?.displayName ?? effectiveModelId,
-      apiBase: _apiBaseController.text.trim().isNotEmpty
-          ? _apiBaseController.text.trim()
-          : null,
+      apiBase: apiBase,
       isFree: selectedModel?.isFree ?? false,
+      awsSecretKey: _isBedrock && _awsAuthMode == 'sigv4'
+          ? _awsSecretKeyController.text.trim()
+          : null,
+      awsRegion: _isBedrock ? (_awsRegionController.text.trim().isNotEmpty
+          ? _awsRegionController.text.trim()
+          : 'us-east-1') : null,
+      awsAuthMode: _isBedrock ? _awsAuthMode : null,
     ));
   }
 
@@ -129,6 +159,12 @@ class _AuthPageState extends State<AuthPage> {
     });
 
     try {
+      // Bedrock: validate by calling ListFoundationModels via the appropriate auth
+      if (_isBedrock) {
+        await _validateBedrock();
+        return;
+      }
+
       final provider = ModelCatalog.getProvider(widget.providerId);
       final apiBase = _apiBaseController.text.trim().isNotEmpty
           ? _apiBaseController.text.trim()
@@ -208,6 +244,78 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
+  Future<void> _validateBedrock() async {
+    final region = _awsRegionController.text.trim().isNotEmpty
+        ? _awsRegionController.text.trim()
+        : 'us-east-1';
+    final apiKey = _apiKeyController.text.trim();
+
+    try {
+      final dio = Dio();
+      final timeout = const Duration(seconds: 10);
+
+      if (_awsAuthMode == 'bearer') {
+        // Bearer token: simple GET to bedrock endpoint
+        final url = 'https://bedrock.$region.amazonaws.com/foundation-models';
+        final response = await dio.get(
+          url,
+          options: Options(
+            headers: {'Authorization': 'Bearer $apiKey'},
+            receiveTimeout: timeout,
+            sendTimeout: timeout,
+            validateStatus: (s) => true,
+          ),
+        );
+        if (!mounted) return;
+        final status = response.statusCode ?? 0;
+        _ValidationResult result;
+        if (status >= 200 && status < 300) {
+          result = _ValidationResult.success;
+        } else if (status == 401 || status == 403) {
+          result = _ValidationResult.failed('Invalid token');
+        } else {
+          result = _ValidationResult.failed('HTTP $status');
+        }
+        setState(() => _validationResult = result);
+        widget.onValidated?.call(result.isSuccess);
+      } else {
+        // SigV4: we can't easily sign requests from the onboarding page,
+        // so do a basic format check and trust the user.
+        final secretKey = _awsSecretKeyController.text.trim();
+        if (apiKey.isEmpty || secretKey.isEmpty) {
+          setState(() => _validationResult =
+              _ValidationResult.failed('Access Key ID and Secret Key are required'));
+          widget.onValidated?.call(false);
+          return;
+        }
+        // AWS Access Key IDs start with AKIA/ASIA and are 20 chars
+        if (!RegExp(r'^[A-Z0-9]{16,128}$').hasMatch(apiKey)) {
+          setState(() => _validationResult =
+              _ValidationResult.failed('Access Key ID format looks invalid'));
+          widget.onValidated?.call(false);
+          return;
+        }
+        // Passes basic checks — accept it
+        setState(() => _validationResult = _ValidationResult.success);
+        widget.onValidated?.call(true);
+      }
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final msg = e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout
+          ? 'Request timed out'
+          : e.message ?? 'Connection error';
+      setState(() => _validationResult = _ValidationResult.failed(msg));
+      widget.onValidated?.call(false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _validationResult = _ValidationResult.failed('$e'));
+      widget.onValidated?.call(false);
+    } finally {
+      if (mounted) setState(() => _isValidating = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -228,7 +336,9 @@ class _AuthPageState extends State<AuthPage> {
         ),
         const SizedBox(height: 4),
         Text(
-          context.l10n.enterApiKeyDesc,
+          _isBedrock
+              ? 'Configure your AWS Bedrock credentials.'
+              : context.l10n.enterApiKeyDesc,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: colors.onSurfaceVariant,
           ),
@@ -252,12 +362,16 @@ class _AuthPageState extends State<AuthPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        context.l10n.dontHaveApiKey,
+                        _isBedrock
+                            ? 'Need AWS access?'
+                            : context.l10n.dontHaveApiKey,
                         style: theme.textTheme.labelLarge,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        context.l10n.createAccountCopyKey,
+                        _isBedrock
+                            ? 'Open the AWS Bedrock console to get started.'
+                            : context.l10n.createAccountCopyKey,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -276,12 +390,38 @@ class _AuthPageState extends State<AuthPage> {
 
         const SizedBox(height: 20),
 
-        // API key input
+        // Bedrock: auth mode selector
+        if (_isBedrock) ...[
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'bearer', label: Text('Bearer Token')),
+              ButtonSegment(value: 'sigv4', label: Text('Access Keys')),
+            ],
+            selected: {_awsAuthMode},
+            onSelectionChanged: (v) {
+              setState(() {
+                _awsAuthMode = v.first;
+                _apiKeyController.clear();
+                _awsSecretKeyController.clear();
+                _validationResult = null;
+              });
+              widget.onValidated?.call(false);
+              _emitChange();
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // API key / Bearer Token / Access Key ID input
         TextField(
           controller: _apiKeyController,
           obscureText: true,
           decoration: InputDecoration(
-            labelText: context.l10n.apiKey,
+            labelText: _isBedrock
+                ? (_awsAuthMode == 'bearer'
+                    ? 'Bearer Token'
+                    : 'AWS Access Key ID')
+                : context.l10n.apiKey,
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.key),
             suffixIcon: Row(
@@ -305,7 +445,48 @@ class _AuthPageState extends State<AuthPage> {
 
         const SizedBox(height: 16),
 
-        // Custom base URL
+        // Bedrock SigV4: AWS Secret Access Key
+        if (_isBedrock && _awsAuthMode == 'sigv4') ...[
+          TextField(
+            controller: _awsSecretKeyController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'AWS Secret Access Key',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.lock),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.paste),
+                tooltip: context.l10n.pasteFromClipboard,
+                onPressed: () async {
+                  final data = await Clipboard.getData(Clipboard.kTextPlain);
+                  if (data?.text != null && data!.text!.isNotEmpty) {
+                    _awsSecretKeyController.text = data.text!;
+                    _emitChange();
+                  }
+                },
+              ),
+            ),
+            onChanged: (_) => _emitChange(),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Bedrock: AWS Region
+        if (_isBedrock) ...[
+          TextField(
+            controller: _awsRegionController,
+            decoration: const InputDecoration(
+              labelText: 'AWS Region',
+              hintText: 'us-east-1',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.public),
+            ),
+            onChanged: (_) => _emitChange(),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Custom base URL (non-Bedrock only)
         if (showBaseUrl) ...[
           TextField(
             controller: _apiBaseController,
