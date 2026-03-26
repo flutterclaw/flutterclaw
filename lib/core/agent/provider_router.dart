@@ -3,6 +3,7 @@ library;
 
 import 'package:flutterclaw/core/providers/anthropic_provider.dart';
 import 'package:flutterclaw/core/providers/bedrock_provider.dart';
+import 'package:flutterclaw/core/providers/error_parser.dart';
 import 'package:flutterclaw/core/providers/openai_provider.dart';
 import 'package:flutterclaw/core/providers/provider_interface.dart';
 import 'package:flutterclaw/data/models/config.dart';
@@ -43,11 +44,20 @@ LlmProvider _resolveProvider(LlmRequest request) {
   return OpenAiProvider();
 }
 
-/// Provider router with automatic failover to fallback models.
+/// Provider router with automatic retry (exponential backoff) for transient
+/// errors and optional fallback to configured secondary models.
+///
+/// Retry policy (mirrors OpenClaw `failover-policy.ts`):
+///   • Transient (429, 529, 5xx, timeout, network): up to 3 attempts with
+///     1 s → 2 s → 4 s backoff.
+///   • Permanent (401, 402, 403, 404): fail immediately, no retry.
 class FailoverProviderRouter implements ProviderRouter {
   final LlmProvider primary;
   final List<LlmProvider> fallbacks;
   final ConfigManager configManager;
+
+  static const _maxRetries = 3;
+  static const _baseDelayMs = 1000;
 
   FailoverProviderRouter({
     required this.primary,
@@ -57,12 +67,38 @@ class FailoverProviderRouter implements ProviderRouter {
 
   @override
   Future<LlmResponse> chatCompletion(LlmRequest request) async {
-    try {
-      return await _resolveProvider(request).chatCompletion(request);
-    } catch (e) {
-      _log.warning('Primary model failed: $e, trying fallbacks...');
-      return _tryFallbacks(request, e);
+    Object? lastError;
+
+    for (var attempt = 0; attempt < _maxRetries; attempt++) {
+      try {
+        return await _resolveProvider(request).chatCompletion(request);
+      } catch (e) {
+        lastError = e;
+        final parsed = parseLlmError(e);
+
+        if (parsed.isPermanent) {
+          // No point retrying auth/billing/model-not-found errors.
+          _log.warning(
+            'Permanent error (${parsed.failoverReason.name}), '
+            'skipping retry: ${parsed.friendlyMessage}',
+          );
+          break;
+        }
+
+        if (attempt < _maxRetries - 1) {
+          final delayMs = _baseDelayMs * (1 << attempt); // 1s, 2s, 4s
+          _log.warning(
+            'Transient error (${parsed.failoverReason.name}) on attempt '
+            '${attempt + 1}/$_maxRetries — retrying in ${delayMs}ms',
+          );
+          await Future<void>.delayed(Duration(milliseconds: delayMs));
+        }
+      }
     }
+
+    // Primary exhausted — try configured fallback models if any
+    _log.warning('Primary model failed after $_maxRetries attempts, trying fallbacks...');
+    return _tryFallbacks(request, lastError!);
   }
 
   @override
@@ -85,10 +121,13 @@ class FailoverProviderRouter implements ProviderRouter {
           apiKey: config.resolveApiKey(fallbackModel),
           apiBase: config.resolveApiBase(fallbackModel),
         );
-
         return await _resolveProvider(fallbackRequest).chatCompletion(fallbackRequest);
       } catch (e) {
-        _log.warning('Fallback ${fallbackModel.modelName} also failed: $e');
+        final parsed = parseLlmError(e);
+        _log.warning(
+          'Fallback ${fallbackModel.modelName} failed '
+          '(${parsed.failoverReason.name}): ${parsed.friendlyMessage}',
+        );
       }
     }
 

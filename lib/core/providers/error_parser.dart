@@ -5,6 +5,27 @@ import 'package:dio/dio.dart';
 import 'package:flutterclaw/core/providers/openai_provider.dart'
     show LlmProviderException;
 
+/// Classifies the failure reason so the router can decide whether to retry,
+/// back off, or fail immediately.  Mirrors OpenClaw's `FailoverReason`.
+enum FailoverReason {
+  /// Transient — safe to retry with exponential backoff.
+  rateLimited,
+  /// Transient — provider overloaded, retry after brief delay.
+  overloaded,
+  /// Transient — network issue or unknown, may resolve on retry.
+  networkError,
+  /// Permanent — bad API key, don't retry.
+  authFailed,
+  /// Permanent — insufficient credits/quota, don't retry.
+  billing,
+  /// Permanent — model does not exist, don't retry.
+  modelNotFound,
+  /// Transient — request timed out, may succeed on retry.
+  timeout,
+  /// Transient — unknown error, can attempt retry.
+  unknown,
+}
+
 class ParsedLlmError {
   final String friendlyMessage;
   final int? statusCode;
@@ -13,6 +34,8 @@ class ParsedLlmError {
   /// Optional primary action (e.g. OpenRouter privacy settings).
   final String? ctaUrl;
   final String? ctaLabel;
+  /// Failover classification used by [FailoverProviderRouter].
+  final FailoverReason failoverReason;
 
   const ParsedLlmError({
     required this.friendlyMessage,
@@ -20,10 +43,25 @@ class ParsedLlmError {
     this.errorTitle,
     this.ctaUrl,
     this.ctaLabel,
+    this.failoverReason = FailoverReason.unknown,
   });
+
+  /// Whether this error is transient and safe to retry with backoff.
+  bool get isTransient => switch (failoverReason) {
+    FailoverReason.rateLimited => true,
+    FailoverReason.overloaded => true,
+    FailoverReason.networkError => true,
+    FailoverReason.timeout => true,
+    FailoverReason.unknown => true,
+    _ => false,
+  };
+
+  /// Whether this error is permanent — retrying will not help.
+  bool get isPermanent => !isTransient;
 }
 
-/// Extracts a user-friendly message and status code from a caught exception.
+/// Extracts a user-friendly message, status code, and failover reason
+/// from a caught exception.
 ParsedLlmError parseLlmError(Object e) {
   int? statusCode;
   String raw;
@@ -43,6 +81,7 @@ ParsedLlmError parseLlmError(Object e) {
     }
   }
 
+  final reason = _classifyFailover(statusCode, raw);
   final mt = _messageAndTitle(statusCode, raw);
   return ParsedLlmError(
     friendlyMessage: mt.message,
@@ -50,7 +89,39 @@ ParsedLlmError parseLlmError(Object e) {
     errorTitle: mt.title,
     ctaUrl: mt.ctaUrl,
     ctaLabel: mt.ctaLabel,
+    failoverReason: reason,
   );
+}
+
+/// Classifies the error into a [FailoverReason] for retry logic.
+FailoverReason _classifyFailover(int? statusCode, String raw) {
+  final lower = raw.toLowerCase();
+  switch (statusCode) {
+    case 401:
+    case 403:
+      return FailoverReason.authFailed;
+    case 402:
+      return FailoverReason.billing;
+    case 404:
+      return FailoverReason.modelNotFound;
+    case 429:
+      return FailoverReason.rateLimited;
+    case 500:
+    case 502:
+    case 503:
+    case 529:
+      return FailoverReason.overloaded;
+    default:
+      if (lower.contains('timed out') || lower.contains('timeoutexception')) {
+        return FailoverReason.timeout;
+      }
+      if (lower.contains('socketexception') ||
+          lower.contains('connection refused') ||
+          lower.contains('network')) {
+        return FailoverReason.networkError;
+      }
+      return FailoverReason.unknown;
+  }
 }
 
 /// OpenRouter returns HTTP 404 with a body like "No endpoints available… data policy…
