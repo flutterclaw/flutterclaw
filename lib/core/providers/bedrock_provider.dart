@@ -415,12 +415,18 @@ class BedrockProvider implements LlmProvider {
     }
   }
 
-  UsageInfo _parseUsage(Map<String, dynamic> json) => UsageInfo(
-        promptTokens: json['input_tokens'] as int? ?? 0,
-        completionTokens: json['output_tokens'] as int? ?? 0,
-        totalTokens:
-            (json['input_tokens'] as int? ?? 0) + (json['output_tokens'] as int? ?? 0),
-      );
+  UsageInfo _parseUsage(Map<String, dynamic> json) {
+    final inputTokens = json['input_tokens'] as int? ?? 0;
+    final outputTokens = json['output_tokens'] as int? ?? 0;
+    return UsageInfo(
+      promptTokens: inputTokens,
+      completionTokens: outputTokens,
+      totalTokens: inputTokens + outputTokens,
+      // Bedrock returns the same cache token fields as direct Anthropic API
+      cacheReadTokens: json['cache_read_input_tokens'] as int? ?? 0,
+      cacheWriteTokens: json['cache_creation_input_tokens'] as int? ?? 0,
+    );
+  }
 
   LlmProviderException _handleDioError(DioException e) {
     String message = e.message ?? 'Unknown error';
