@@ -39,7 +39,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get powerfulAIModels => '强大的AI模型';
 
   @override
-  String get powerfulAIModelsDesc => 'OpenAI、Anthropic、Grok和免费模型';
+  String get powerfulAIModelsDesc => '强大的AI模型和免费选项';
 
   @override
   String get localGateway => '本地网关';

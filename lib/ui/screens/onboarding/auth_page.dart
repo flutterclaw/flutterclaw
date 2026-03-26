@@ -82,7 +82,7 @@ class _AuthPageState extends State<AuthPage> {
       text: widget.initialApiBase ?? provider?.apiBase ?? '',
     );
 
-    final models = ModelCatalog.modelsForProvider(widget.providerId);
+    final models = ModelCatalog.availableModelsForProvider(widget.providerId);
     if (widget.initialModelId != null) {
       _selectedModelId = widget.initialModelId;
     } else if (models.isNotEmpty) {
@@ -321,7 +321,7 @@ class _AuthPageState extends State<AuthPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final provider = ModelCatalog.getProvider(widget.providerId);
-    final models = ModelCatalog.modelsForProvider(widget.providerId);
+    final models = ModelCatalog.availableModelsForProvider(widget.providerId);
     final showBaseUrl = widget.providerId == 'ollama' ||
         widget.providerId == 'custom';
 
