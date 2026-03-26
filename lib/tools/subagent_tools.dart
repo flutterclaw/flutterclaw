@@ -113,6 +113,16 @@ class SessionsSpawnTool extends Tool {
         : 0;
 
     final parentKey = parentSessionKeyGetter();
+
+    // Depth guard: prevent infinite subagent recursion
+    if (!registry.canSpawn(parentKey)) {
+      return ToolResult.error(
+        'Cannot spawn subagent: maximum nesting depth '
+        '(${SubagentRegistry.maxSpawnDepth}) reached. '
+        'This prevents infinite subagent recursion.',
+      );
+    }
+
     final shortId = _uuid.v4().substring(0, 8);
     // When targeting a named agent use 'agent:<agentId>:<shortId>' so that
     // AgentLoop can resolve that agent's workspace and identity.

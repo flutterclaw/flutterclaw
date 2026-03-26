@@ -74,6 +74,36 @@ class SubagentCompletion {
 class SubagentRegistry {
   final Map<String, SubagentRun> _runs = {};
 
+  /// Maximum nesting depth for subagent spawning.
+  ///
+  /// A depth of 3 means: root agent (0) → subagent (1) → sub-subagent (2)
+  /// → sub-sub-subagent (3). Any further spawn is rejected.
+  /// Matches OpenClaw's `subagent-depth.ts` default.
+  static const maxSpawnDepth = 3;
+
+  /// Returns the current spawn depth for [parentSessionKey].
+  ///
+  /// Depth is computed by counting how many 'subagent:' prefixes are nested
+  /// in the session key chain. A top-level agent has depth 0.
+  int spawnDepthFor(String parentSessionKey) {
+    var depth = 0;
+    var key = parentSessionKey;
+    while (key.startsWith('subagent:')) {
+      depth++;
+      // Extract the parent key from 'subagent:<parentKey>:<shortId>'
+      final withoutPrefix = key.substring('subagent:'.length);
+      final lastColon = withoutPrefix.lastIndexOf(':');
+      if (lastColon < 0) break;
+      key = withoutPrefix.substring(0, lastColon);
+    }
+    return depth;
+  }
+
+  /// Returns true if spawning a new subagent from [parentSessionKey] is
+  /// permitted (i.e. current depth < [maxSpawnDepth]).
+  bool canSpawn(String parentSessionKey) =>
+      spawnDepthFor(parentSessionKey) < maxSpawnDepth;
+
   final _completionController =
       StreamController<SubagentCompletion>.broadcast();
 
