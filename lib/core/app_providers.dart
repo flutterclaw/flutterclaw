@@ -1555,6 +1555,15 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           );
           state = updated;
 
+          // If battery-aware or offline switching changed the model, sync
+          // the actual model used to the Live Activity so it shows correctly.
+          if (resp?.modelUsed != null) {
+            final gwNotifier = ref.read(gatewayStateProvider.notifier);
+            if (resp!.modelUsed != ref.read(gatewayStateProvider).currentModel) {
+              gwNotifier.setModel(resp.modelUsed!);
+            }
+          }
+
           if (_isAppInBackground && finalText.trim().isNotEmpty) {
             _sendBackgroundNotification(finalText);
           }

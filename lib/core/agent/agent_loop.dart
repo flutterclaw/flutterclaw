@@ -36,6 +36,9 @@ class AgentResponse {
   final String? errorTitle;
   final String? errorCtaUrl;
   final String? errorCtaLabel;
+  /// The model name actually used (may differ from config when battery-aware
+  /// switching or offline fallback kicks in).
+  final String? modelUsed;
 
   const AgentResponse({
     required this.content,
@@ -46,6 +49,7 @@ class AgentResponse {
     this.errorTitle,
     this.errorCtaUrl,
     this.errorCtaLabel,
+    this.modelUsed,
   });
 
   bool get isError => errorStatusCode != null;
@@ -1109,6 +1113,7 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
             toolCallsExecuted: toolCallsExecuted,
             usage: totalUsage,
             sessionKey: sessionKey,
+            modelUsed: modelName,
           ),
         );
         return;
@@ -1185,6 +1190,7 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
         toolCallsExecuted: toolCallsExecuted,
         usage: totalUsage,
         sessionKey: sessionKey,
+        modelUsed: modelName,
       ),
     );
   }

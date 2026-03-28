@@ -51,7 +51,15 @@ class ConnectivityService {
     if (results.contains(ConnectivityResult.mobile)) {
       return ConnectivityState.cellular;
     }
-    return ConnectivityState.offline;
+    // Only report offline when the list is exclusively [none].
+    // An empty list or mixed/unknown results means we can't be certain —
+    // default to online to avoid false-positive blocks (common on iOS simulator
+    // or briefly during app startup before the network stack is ready).
+    if (results.isNotEmpty &&
+        results.every((r) => r == ConnectivityResult.none)) {
+      return ConnectivityState.offline;
+    }
+    return ConnectivityState.wifi;
   }
 
   void dispose() => _sub?.cancel();
