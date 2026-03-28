@@ -183,6 +183,9 @@ PODS:
   - OrderedSet (6.0.3)
   - package_info_plus (0.4.5):
     - Flutter
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - pdfx (1.0.0):
     - Flutter
   - permission_handler_apple (9.3.0):
@@ -235,6 +238,7 @@ DEPENDENCIES:
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - live_activities (from `.symlinks/plugins/live_activities/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - pdfx (from `.symlinks/plugins/pdfx/ios`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - record_ios (from `.symlinks/plugins/record_ios/ios`)
@@ -314,6 +318,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/live_activities/ios"
   package_info_plus:
     :path: ".symlinks/plugins/package_info_plus/ios"
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
   pdfx:
     :path: ".symlinks/plugins/pdfx/ios"
   permission_handler_apple:
@@ -372,6 +378,7 @@ SPEC CHECKSUMS:
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
+  path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   pdfx: 77f4dddc48361fbb01486fa2bdee4532cbb97ef3
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47

@@ -108,6 +108,10 @@ dependency_overrides:
   # Force timezone to 0.11.x — device_calendar declares ^0.9 but is compatible
   # with 0.11, and flutter_local_notifications 21 requires ^0.11.
   timezone: ^0.11.0
+  # Pin path_provider_foundation to 2.5.1 to avoid objective_c 9.x which bundles
+  # a framework that fails iOS 26 code signature verification (0xe8008014).
+  # objective_c was only introduced in 2.6.0.
+  path_provider_foundation: 2.5.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
