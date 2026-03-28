@@ -30,6 +30,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private var sandboxHandler: SandboxHandler? = null
+    private var onDeviceLlmHandler: OnDeviceLlmHandler? = null
     private var overlayView: OverlayStatusView? = null
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
@@ -62,6 +63,15 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // On-device LLM (Gemini Nano via AICore)
+        onDeviceLlmHandler = OnDeviceLlmHandler(applicationContext)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "ai.flutterclaw/on_device_llm")
+            .setMethodCallHandler { call, result ->
+                onDeviceLlmHandler?.handleMethodCall(call, result) ?: result.notImplemented()
+            }
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "ai.flutterclaw/on_device_llm_stream")
+            .setStreamHandler(onDeviceLlmHandler)
 
         // Sandbox shell (PRoot + Alpine rootfs)
         sandboxHandler = SandboxHandler(applicationContext)
@@ -154,6 +164,7 @@ class MainActivity : FlutterActivity() {
         // Do NOT hide the overlay here — it should persist when the Activity is
         // destroyed (e.g. user pressed Home while the agent is still running tools).
         // The overlay auto-hides after 30s, or when the agent fires isDone.
+        onDeviceLlmHandler?.cleanup()
         sandboxHandler?.cleanup()
         super.onDestroy()
     }

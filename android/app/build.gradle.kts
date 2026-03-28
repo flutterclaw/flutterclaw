@@ -85,4 +85,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Gemini Nano on-device inference (AICore). Only activates on compatible hardware:
+    // Pixel 8+, Samsung Galaxy S24+, etc. Gracefully falls back when unavailable.
+    implementation("com.google.ai.edge.aicore:aicore:0.0.3-alpha01")
 }
