@@ -36,6 +36,9 @@ import UserNotifications
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     setupUiAutomationChannel(engineBridge)
     setupSandboxChannel(engineBridge)
+    if #available(iOS 26.0, *) {
+      setupOnDeviceLlmChannel(engineBridge)
+    }
   }
 
   // MARK: - UI Automation (iOS: screenshot only; gestures not supported)
@@ -120,6 +123,26 @@ import UserNotifications
     )
     sandboxStreamChannel!.setStreamHandler(sandboxHandler)
     print("[AppDelegate] sandbox EventChannel registered")
+  }
+
+  // MARK: - On-Device LLM (Apple Foundation Models, iOS 26+)
+
+  private var onDeviceLlmHandler: OnDeviceLlmHandler?
+  private var onDeviceLlmStreamChannel: FlutterEventChannel?
+
+  private func setupOnDeviceLlmChannel(_ engineBridge: FlutterImplicitEngineBridge) {
+    guard let messenger = engineBridge.pluginRegistry
+      .registrar(forPlugin: "OnDeviceLlm")?.messenger() else {
+      print("[AppDelegate] setupOnDeviceLlmChannel: messenger unavailable")
+      return
+    }
+    onDeviceLlmHandler = OnDeviceLlmHandler(messenger: messenger)
+    onDeviceLlmStreamChannel = FlutterEventChannel(
+      name: "ai.flutterclaw/on_device_llm_stream",
+      binaryMessenger: messenger
+    )
+    onDeviceLlmStreamChannel!.setStreamHandler(onDeviceLlmHandler)
+    print("[AppDelegate] on-device LLM EventChannel registered")
   }
 
   private func configureAudioSession() {
