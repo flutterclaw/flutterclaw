@@ -366,7 +366,14 @@ class OpenAiProvider implements LlmProvider {
           ? _convertToolContent(m.content as String, stripImages: stripImages)
           : _convertContent(m.content, apiBase: apiBase, stripImages: stripImages),
     };
-    if (m.name != null) map['name'] = m.name;
+    if (m.name != null) {
+      map['name'] = m.name;
+    } else if (m.role == 'tool') {
+      // Gemini's OpenAI-compat layer requires function_response.name to be
+      // non-empty for every tool message. Fall back to a placeholder so the
+      // request isn't rejected with a 400.
+      map['name'] = 'unknown_tool';
+    }
     if (m.toolCalls != null) {
       map['tool_calls'] = m.toolCalls!.map((e) => e.toJson()).toList();
     }
