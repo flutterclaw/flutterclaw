@@ -455,8 +455,41 @@ class WebToolsConfig {
   };
 }
 
+class BrowserConfig {
+  /// Whether to auto-inject stealth scripts to avoid bot detection.
+  final bool antiDetectionEnabled;
+  /// Maximum profile file size in MB.
+  final int maxProfileSizeMb;
+  /// Maximum number of tabs allowed simultaneously.
+  final int maxTabs;
+  /// Maximum entries in the network request log.
+  final int networkLogMaxEntries;
+
+  const BrowserConfig({
+    this.antiDetectionEnabled = true,
+    this.maxProfileSizeMb = 5,
+    this.maxTabs = 5,
+    this.networkLogMaxEntries = 200,
+  });
+
+  factory BrowserConfig.fromJson(Map<String, dynamic> json) => BrowserConfig(
+    antiDetectionEnabled: json['anti_detection_enabled'] as bool? ?? true,
+    maxProfileSizeMb: json['max_profile_size_mb'] as int? ?? 5,
+    maxTabs: json['max_tabs'] as int? ?? 5,
+    networkLogMaxEntries: json['network_log_max_entries'] as int? ?? 200,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'anti_detection_enabled': antiDetectionEnabled,
+    'max_profile_size_mb': maxProfileSizeMb,
+    'max_tabs': maxTabs,
+    'network_log_max_entries': networkLogMaxEntries,
+  };
+}
+
 class ToolsConfig {
   final WebToolsConfig web;
+  final BrowserConfig browser;
   /// Tool names explicitly disabled by the user (e.g. ['sandbox_exec', 'camera_take_photo']).
   /// Disabled tools are removed from the tool catalog sent to the LLM and
   /// blocked at execution time.
@@ -464,6 +497,7 @@ class ToolsConfig {
 
   const ToolsConfig({
     this.web = const WebToolsConfig(),
+    this.browser = const BrowserConfig(),
     this.disabled = const [],
   });
 
@@ -473,6 +507,9 @@ class ToolsConfig {
     web: json['web'] != null
         ? WebToolsConfig.fromJson(json['web'] as Map<String, dynamic>)
         : const WebToolsConfig(),
+    browser: json['browser'] != null
+        ? BrowserConfig.fromJson(json['browser'] as Map<String, dynamic>)
+        : const BrowserConfig(),
     disabled: (json['disabled'] as List<dynamic>?)
             ?.map((e) => e as String)
             .toList() ??
@@ -481,6 +518,7 @@ class ToolsConfig {
 
   Map<String, dynamic> toJson() => {
     'web': web.toJson(),
+    'browser': browser.toJson(),
     if (disabled.isNotEmpty) 'disabled': disabled,
   };
 }
