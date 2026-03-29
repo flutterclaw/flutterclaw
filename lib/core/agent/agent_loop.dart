@@ -625,31 +625,51 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
           }
 
           for (final tc in response.toolCalls!) {
-            final args = _parseToolArgs(tc.function.arguments);
-            // Inject session context so tools that need to reach back to the user
-            // (e.g. web_browse request_user_action) know which channel to use.
-            args['__session_key'] = sessionKey;
-            _log.info('Tool start: ${tc.function.name} (onToolStatus=${onToolStatus != null})');
-            onToolStatus?.call(tc.function.name, args, isDone: false);
-            ToolResult result;
             try {
-              result = await toolRegistry.execute(tc.function.name, args);
-            } catch (e, st) {
-              _log.severe('Tool ${tc.function.name} threw unexpectedly', e, st);
-              result = ToolResult.error('Tool "${tc.function.name}" crashed: $e');
-            }
-            onToolStatus?.call(tc.function.name, args, isDone: true);
-            toolCallsExecuted++;
+              final args = _parseToolArgs(tc.function.arguments);
+              // Inject session context so tools that need to reach back to the user
+              // (e.g. web_browse request_user_action) know which channel to use.
+              args['__session_key'] = sessionKey;
+              _log.info('Tool start: ${tc.function.name} (onToolStatus=${onToolStatus != null})');
+              onToolStatus?.call(tc.function.name, args, isDone: false);
+              ToolResult result;
+              try {
+                result = await toolRegistry.execute(tc.function.name, args);
+              } catch (e, st) {
+                _log.severe('Tool ${tc.function.name} threw unexpectedly', e, st);
+                result = ToolResult.error('Tool "${tc.function.name}" crashed: $e');
+              }
+              onToolStatus?.call(tc.function.name, args, isDone: true);
+              toolCallsExecuted++;
 
-            // Persist tool result
-            final toolMsg = LlmMessage(
-              role: 'tool',
-              content: result.content,
-              toolCallId: tc.id,
-              name: tc.function.name,
-            );
-            await sessionManager.addMessage(sessionKey, toolMsg);
-            loopMessages.add(toolMsg);
+              // Persist tool result
+              final toolMsg = LlmMessage(
+                role: 'tool',
+                content: result.content,
+                toolCallId: tc.id,
+                name: tc.function.name,
+              );
+              await sessionManager.addMessage(sessionKey, toolMsg);
+              loopMessages.add(toolMsg);
+            } catch (e, st) {
+              _log.severe(
+                'Outer tool-call handling failed for ${tc.function.name}',
+                e, st,
+              );
+              // Ensure a tool_result is always written to prevent orphaned tool_use.
+              final errorMsg = LlmMessage(
+                role: 'tool',
+                content: 'Tool "${tc.function.name}" failed: $e',
+                toolCallId: tc.id,
+                name: tc.function.name,
+              );
+              try {
+                await sessionManager.addMessage(sessionKey, errorMsg);
+              } catch (persistErr) {
+                _log.severe('Failed to persist error tool_result', persistErr);
+              }
+              loopMessages.add(errorMsg);
+            }
           }
           continue;
         }
@@ -1072,64 +1092,84 @@ If you have exhausted ALL approaches above (minimum 8-10 different attempts) and
           loopMessages.add(assistantMsg);
 
           for (final tc in toolCallsBuffer) {
-            final args = _parseToolArgs(tc.function.arguments);
-            args['__session_key'] = sessionKey;
-            onToolStatus?.call(tc.function.name, args, isDone: false);
-            yield AgentStreamEvent(toolName: tc.function.name, toolArgs: args);
-
-            // Use streaming execution when the tool supports it so incremental
-            // output is shown in the expandable tool card as it arrives.
-            final StreamController<AgentStreamEvent> chunkCtrl =
-                StreamController<AgentStreamEvent>();
-
-            ToolResult result;
             try {
-              final chunkFuture = toolRegistry.executeWithProgress(
-                tc.function.name,
-                args,
-                onChunk: (chunk) {
-                  if (!chunkCtrl.isClosed) {
-                    chunkCtrl.add(AgentStreamEvent(toolResultChunk: chunk));
-                  }
-                },
-              ).then((r) {
-                chunkCtrl.close();
-                return r;
-              }).catchError((Object e, StackTrace st) {
-                _log.severe('Streaming tool ${tc.function.name} threw', e, st);
-                if (!chunkCtrl.isClosed) chunkCtrl.close();
-                return ToolResult.error(
-                    'Tool "${tc.function.name}" crashed: $e');
-              });
+              final args = _parseToolArgs(tc.function.arguments);
+              args['__session_key'] = sessionKey;
+              onToolStatus?.call(tc.function.name, args, isDone: false);
+              yield AgentStreamEvent(toolName: tc.function.name, toolArgs: args);
 
-              await for (final chunkEvent in chunkCtrl.stream) {
-                yield chunkEvent;
+              // Use streaming execution when the tool supports it so incremental
+              // output is shown in the expandable tool card as it arrives.
+              final StreamController<AgentStreamEvent> chunkCtrl =
+                  StreamController<AgentStreamEvent>();
+
+              ToolResult result;
+              try {
+                final chunkFuture = toolRegistry.executeWithProgress(
+                  tc.function.name,
+                  args,
+                  onChunk: (chunk) {
+                    if (!chunkCtrl.isClosed) {
+                      chunkCtrl.add(AgentStreamEvent(toolResultChunk: chunk));
+                    }
+                  },
+                ).then((r) {
+                  chunkCtrl.close();
+                  return r;
+                }).catchError((Object e, StackTrace st) {
+                  _log.severe('Streaming tool ${tc.function.name} threw', e, st);
+                  if (!chunkCtrl.isClosed) chunkCtrl.close();
+                  return ToolResult.error(
+                      'Tool "${tc.function.name}" crashed: $e');
+                });
+
+                await for (final chunkEvent in chunkCtrl.stream) {
+                  yield chunkEvent;
+                }
+                result = await chunkFuture;
+              } catch (e, st) {
+                _log.severe(
+                    'Streaming tool ${tc.function.name} outer error', e, st);
+                if (!chunkCtrl.isClosed) chunkCtrl.close();
+                result = ToolResult.error(
+                    'Tool "${tc.function.name}" crashed: $e');
               }
-              result = await chunkFuture;
+
+              onToolStatus?.call(tc.function.name, args, isDone: true);
+              toolCallsExecuted++;
+              yield AgentStreamEvent(
+                toolResult: result.content,
+                toolDetails: result.details,
+              );
+
+              // Persist tool result
+              final toolMsg = LlmMessage(
+                role: 'tool',
+                content: result.content,
+                toolCallId: tc.id,
+                name: tc.function.name,
+              );
+              await sessionManager.addMessage(sessionKey, toolMsg);
+              loopMessages.add(toolMsg);
             } catch (e, st) {
               _log.severe(
-                  'Streaming tool ${tc.function.name} outer error', e, st);
-              if (!chunkCtrl.isClosed) chunkCtrl.close();
-              result = ToolResult.error(
-                  'Tool "${tc.function.name}" crashed: $e');
+                'Outer streaming tool-call handling failed for ${tc.function.name}',
+                e, st,
+              );
+              // Ensure a tool_result is always written to prevent orphaned tool_use.
+              final errorMsg = LlmMessage(
+                role: 'tool',
+                content: 'Tool "${tc.function.name}" failed: $e',
+                toolCallId: tc.id,
+                name: tc.function.name,
+              );
+              try {
+                await sessionManager.addMessage(sessionKey, errorMsg);
+              } catch (persistErr) {
+                _log.severe('Failed to persist error tool_result', persistErr);
+              }
+              loopMessages.add(errorMsg);
             }
-
-            onToolStatus?.call(tc.function.name, args, isDone: true);
-            toolCallsExecuted++;
-            yield AgentStreamEvent(
-              toolResult: result.content,
-              toolDetails: result.details,
-            );
-
-            // Persist tool result
-            final toolMsg = LlmMessage(
-              role: 'tool',
-              content: result.content,
-              toolCallId: tc.id,
-              name: tc.function.name,
-            );
-            await sessionManager.addMessage(sessionKey, toolMsg);
-            loopMessages.add(toolMsg);
           }
           continue;
         }

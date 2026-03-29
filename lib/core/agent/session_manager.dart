@@ -446,7 +446,11 @@ class SessionManager {
 
   /// Get context messages for LLM calls (respects compaction).
   List<LlmMessage> getContextMessages(String key) {
-    return List.from(_contextCache[key] ?? []);
+    final messages = _contextCache[key];
+    if (messages != null) {
+      _repairOrphanedToolUses(messages);
+    }
+    return List.from(messages ?? []);
   }
 
   /// Get message history (legacy compatibility).
