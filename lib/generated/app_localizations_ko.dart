@@ -684,6 +684,50 @@ class AppLocalizationsKo extends AppLocalizations {
   String get defaultModelHint => '기본 모델은 자체 모델을 지정하지 않는 에이전트에 사용됩니다.';
 
   @override
+  String get voiceCallModelSection => 'Voice call (Live)';
+
+  @override
+  String get voiceCallModelDescription =>
+      'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.';
+
+  @override
+  String get voiceCallModelLabel => 'Live model';
+
+  @override
+  String get voiceCallModelAutomatic => 'Automatic';
+
+  @override
+  String get preferLiveVoiceBootstrapTitle => 'Bootstrap in voice call';
+
+  @override
+  String get preferLiveVoiceBootstrapSubtitle =>
+      'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).';
+
+  @override
+  String get liveVoiceNameLabel => 'Voice';
+
+  @override
+  String get firstHatchModeChoiceTitle => '어떻게 시작할까요?';
+
+  @override
+  String get firstHatchModeChoiceBody =>
+      '텍스트로 채팅하거나 짧은 통화처럼 음성 대화를 시작할 수 있어요. 편한 방법을 고르세요.';
+
+  @override
+  String get firstHatchModeChoiceChatButton => '채팅으로 입력';
+
+  @override
+  String get firstHatchModeChoiceVoiceButton => '음성으로 말하기';
+
+  @override
+  String get liveVoiceBargeInHint =>
+      'Speak after the assistant stops (echo was interrupting them mid-speech).';
+
+  @override
+  String get cannotAddLiveModelAsChat =>
+      'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
   String get holdToSetAsDefault => '길게 눌러 기본값으로 설정';
 
   @override

@@ -13,6 +13,7 @@ import 'package:flutterclaw/ui/widgets/agent_switcher_chip.dart';
 import 'package:flutterclaw/ui/widgets/chat/message_bubble.dart';
 import 'package:flutterclaw/ui/widgets/chat/date_separator.dart';
 import 'package:flutterclaw/ui/widgets/chat/input_bar.dart';
+import 'package:flutterclaw/ui/widgets/chat/live_voice_overlay.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -41,10 +42,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       // Auto-scroll when messages change (instead of inside build).
       // Also fire a light haptic when a tool pill transitions to done.
       ref.listenManual(chatProvider, (prev, next) {
-        _scrollToBottom();
+        final liveStatus = ref.read(liveSessionProvider).status;
+        final liveActive =
+            liveStatus == LiveSessionStatus.connecting ||
+            liveStatus == LiveSessionStatus.ready;
+        if (liveActive && prev != null) {
+          var listChanged = next.length != prev.length;
+          if (!listChanged) {
+            final n = next.length;
+            for (var i = 0; i < n; i++) {
+              final pl = prev[i];
+              final nl = next[i];
+              if (pl.text != nl.text ||
+                  pl.isStreaming != nl.isStreaming ||
+                  pl.toolResultText != nl.toolResultText ||
+                  pl.isToolStatus != nl.isToolStatus) {
+                listChanged = true;
+                break;
+              }
+            }
+          }
+          _scrollToBottom(force: listChanged);
+        } else {
+          _scrollToBottom();
+        }
         if (prev != null) {
-          final prevRunning = prev.where((m) => m.isToolStatus && m.isStreaming == true).length;
-          final nextRunning = next.where((m) => m.isToolStatus && m.isStreaming == true).length;
+          final prevRunning = prev
+              .where((m) => m.isToolStatus && m.isStreaming == true)
+              .length;
+          final nextRunning = next
+              .where((m) => m.isToolStatus && m.isStreaming == true)
+              .length;
           if (nextRunning < prevRunning) HapticFeedback.selectionClick();
         }
       });
@@ -77,10 +105,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     // Load previous messages from persisted session
     await ref.read(chatProvider.notifier).loadHistory();
 
-    // Then check if we need to trigger the bootstrap hatch
     if (_hatchChecked) return;
-    _hatchChecked = true;
 
+    final configManager = ref.read(configManagerProvider);
+    final cfg = configManager.config;
+    final pending = cfg.pendingFirstHatchModePrompt;
+    final liveOk = ref.read(activeModelSupportsLiveProvider);
+
+    if (pending) {
+      if (!liveOk) {
+        configManager.update(cfg.copyWith(pendingFirstHatchModePrompt: false));
+        await configManager.save();
+      } else if (!mounted) {
+        return;
+      } else {
+        final useVoice = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) {
+            final l10n = ctx.l10n;
+            return AlertDialog(
+              title: Text(l10n.firstHatchModeChoiceTitle),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(l10n.firstHatchModeChoiceBody),
+                  const SizedBox(height: 20),
+                  FilledButton.tonal(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(l10n.firstHatchModeChoiceChatButton),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(l10n.firstHatchModeChoiceVoiceButton),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+        if (!mounted) return;
+        final preferVoice = useVoice ?? false;
+        final nextDefaults = cfg.agents.defaults.copyWith(
+          preferLiveVoiceBootstrap: preferVoice,
+        );
+        configManager.update(
+          cfg.copyWith(
+            agents: cfg.agents.copyWith(defaults: nextDefaults),
+            pendingFirstHatchModePrompt: false,
+          ),
+        );
+        await configManager.save();
+      }
+    }
+
+    _hatchChecked = true;
     ref.read(chatProvider.notifier).triggerHatch(userLanguage: languageCode);
   }
 
@@ -142,30 +223,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
       final bytes = await File(image.path).readAsBytes();
       final base64Image = base64Encode(bytes);
-      final mimeType =
-          image.path.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      final mimeType = image.path.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
       final caption = _controller.text.trim();
       _controller.clear();
 
-      await ref.read(chatProvider.notifier).sendImageMessage(
+      await ref
+          .read(chatProvider.notifier)
+          .sendImageMessage(
             base64Image: base64Image,
             mimeType: mimeType,
-            caption: caption.isNotEmpty
-                ? caption
-                : defaultCaption,
+            caption: caption.isNotEmpty ? caption : defaultCaption,
             fileName: image.name,
           );
     } catch (e) {
       if (!mounted) return;
-      final isSimulator = e.toString().contains('channel-error') ||
+      final isSimulator =
+          e.toString().contains('channel-error') ||
           e.toString().contains('Unable to establish connection');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isSimulator
-              ? errorSimulator
-              : errorGeneric),
-        ),
+        SnackBar(content: Text(isSimulator ? errorSimulator : errorGeneric)),
       );
     }
   }
@@ -175,9 +252,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _programmaticScroll = true;
-        _scrollController.jumpTo(
-          _scrollController.position.maxScrollExtent,
-        );
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         _programmaticScroll = false;
       }
     });
@@ -192,22 +267,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _isNearBottom = true;
     _focusNode.requestFocus();
 
-    await ref.read(analyticsServiceProvider).logAction(
-      name: 'send_message',
-      parameters: {
-        'length': text.length,
-      },
-    );
+    await ref
+        .read(analyticsServiceProvider)
+        .logAction(name: 'send_message', parameters: {'length': text.length});
 
     await ref.read(chatProvider.notifier).sendMessage(text);
   }
 
-  Future<void> _sendDocumentMessage(String base64Data, String mimeType, String fileName) async {
-    await ref.read(chatProvider.notifier).sendDocumentMessage(
-      base64Data: base64Data,
-      mimeType: mimeType,
-      fileName: fileName,
-    );
+  Future<void> _sendDocumentMessage(
+    String base64Data,
+    String mimeType,
+    String fileName,
+  ) async {
+    await ref
+        .read(chatProvider.notifier)
+        .sendDocumentMessage(
+          base64Data: base64Data,
+          mimeType: mimeType,
+          fileName: fileName,
+        );
   }
 
   Future<void> _pickAndSendDocument() async {
@@ -231,8 +309,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.couldNotOpenDocument(e.toString()))),
+        SnackBar(
+          content: Text(context.l10n.couldNotOpenDocument(e.toString())),
+        ),
       );
+    }
+  }
+
+  void _toggleLiveSession() {
+    unawaited(_toggleLiveSessionAsync());
+  }
+
+  Future<void> _toggleLiveSessionAsync() async {
+    final notifier = ref.read(liveSessionProvider.notifier);
+    final status = ref.read(liveSessionProvider).status;
+    if (status == LiveSessionStatus.idle || status == LiveSessionStatus.error) {
+      final locale = Localizations.maybeLocaleOf(context);
+      notifier.startSession(userLanguage: locale?.languageCode);
+      return;
+    }
+    await notifier.stopSession();
+    if (mounted) {
+      await ref.read(chatProvider.notifier).reloadHistory();
     }
   }
 
@@ -242,6 +340,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final isProcessing = ref.read(chatProvider.notifier).isProcessing;
     final modelSupportsVision = ref.watch(activeModelSupportsVisionProvider);
     final activeAgent = ref.watch(activeAgentProvider);
+    final liveStatus = ref.watch(liveSessionProvider).status;
+    final showLiveOverlay =
+        liveStatus == LiveSessionStatus.connecting ||
+        liveStatus == LiveSessionStatus.ready;
 
     return GestureDetector(
       onTap: () => _focusNode.unfocus(),
@@ -264,19 +366,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               child: Stack(
                 children: [
                   messages.isEmpty
-                      ? _ChatEmptyState(agent: activeAgent)
+                      ? Padding(
+                          padding: EdgeInsets.only(
+                            top: showLiveOverlay
+                                ? LiveVoiceOverlay.listTopPaddingWhenLive
+                                : 0,
+                          ),
+                          child: _ChatEmptyState(agent: activeAgent),
+                        )
                       : ListView.builder(
                           controller: _scrollController,
                           keyboardDismissBehavior:
                               ScrollViewKeyboardDismissBehavior.onDrag,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                          padding: EdgeInsets.fromLTRB(
+                            12,
+                            showLiveOverlay
+                                ? LiveVoiceOverlay.listTopPaddingWhenLive
+                                : 8,
+                            12,
+                            8,
+                          ),
                           itemCount: messages.length,
                           itemBuilder: (context, index) {
                             final msg = messages[index];
                             final prev = index > 0 ? messages[index - 1] : null;
-                            final showSeparator =
-                                _shouldShowDateSeparator(prev, msg);
+                            final showSeparator = _shouldShowDateSeparator(
+                              prev,
+                              msg,
+                            );
                             return Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -286,11 +403,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                   message: msg,
                                   onCopy: () {
                                     Clipboard.setData(
-                                        ClipboardData(text: msg.text));
+                                      ClipboardData(text: msg.text),
+                                    );
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content:
-                                            Text(context.l10n.copiedToClipboard),
+                                        content: Text(
+                                          context.l10n.copiedToClipboard,
+                                        ),
                                         duration: const Duration(seconds: 1),
                                       ),
                                     );
@@ -317,6 +436,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         child: const Icon(Icons.keyboard_arrow_down),
                       ),
                     ),
+                  // Live voice overlay
+                  if (showLiveOverlay) const LiveVoiceOverlay(),
                 ],
               ),
             ),
@@ -329,6 +450,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   ref.read(chatProvider.notifier).cancelProcessing(),
               onAttach: modelSupportsVision ? _pickAndSendImage : null,
               onAttachDocument: _pickAndSendDocument,
+              onLiveVoice: _toggleLiveSession,
             ),
           ],
         ),
@@ -361,37 +483,48 @@ class _ChatEmptyState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 64)),
-            const SizedBox(height: 12),
-            Text(
-              name,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(emoji, style: const TextStyle(fontSize: 64)),
+                    const SizedBox(height: 12),
+                    Text(
+                      name,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      context.l10n.yourPersonalAssistant,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _SuggestionChip(label: 'What can you do?'),
+                        _SuggestionChip(label: '/help'),
+                        _SuggestionChip(label: '/status'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              context.l10n.yourPersonalAssistant,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                _SuggestionChip(label: 'What can you do?'),
-                _SuggestionChip(label: '/help'),
-                _SuggestionChip(label: '/status'),
-              ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -423,11 +556,9 @@ class _ThinkingLevelChip extends ConsumerWidget {
     'high': 'Deep thinking — ~16k tokens (ultrathink)',
   };
 
-  String _currentLabel(String? level) =>
-      _labels[level ?? 'auto'] ?? 'Auto';
+  String _currentLabel(String? level) => _labels[level ?? 'auto'] ?? 'Auto';
 
-  bool _isActive(String? level) =>
-      level != null && level != 'off';
+  bool _isActive(String? level) => level != null && level != 'off';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -451,8 +582,9 @@ class _ThinkingLevelChip extends ConsumerWidget {
             color: active ? colors.onPrimary : colors.onSurfaceVariant,
           ),
         ),
-        backgroundColor:
-            active ? colors.primary : colors.surfaceContainerHighest,
+        backgroundColor: active
+            ? colors.primary
+            : colors.surfaceContainerHighest,
         side: BorderSide.none,
         visualDensity: VisualDensity.compact,
         tooltip: 'Thinking level',
@@ -493,27 +625,36 @@ class _ThinkingLevelChip extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Icon(Icons.psychology_outlined,
-                        size: 20, color: colors.primary),
+                    Icon(
+                      Icons.psychology_outlined,
+                      size: 20,
+                      color: colors.primary,
+                    ),
                     const SizedBox(width: 8),
-                    Text('Thinking Level',
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      'Thinking Level',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Controls how much the model reasons before responding. '
                   'Say "ultrathink" in chat for one-turn high thinking.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: colors.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ..._levels.map((lvl) {
                   final selected = (current ?? 'auto') == lvl;
                   return ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 0,
+                    ),
                     leading: Icon(
                       selected
                           ? Icons.radio_button_checked
@@ -524,15 +665,17 @@ class _ThinkingLevelChip extends ConsumerWidget {
                     title: Text(
                       _labels[lvl]!,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight:
-                            selected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                         color: selected ? colors.primary : null,
                       ),
                     ),
                     subtitle: Text(
                       _descriptions[lvl]!,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: colors.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                     onTap: () {
                       final stored = lvl == 'auto' ? null : lvl;
@@ -562,4 +705,3 @@ class _SuggestionChip extends ConsumerWidget {
     );
   }
 }
-

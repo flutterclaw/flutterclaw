@@ -698,6 +698,50 @@ class AppLocalizationsCs extends AppLocalizations {
       'Výchozí model je používán agenty, kteří neurčují svůj vlastní.';
 
   @override
+  String get voiceCallModelSection => 'Voice call (Live)';
+
+  @override
+  String get voiceCallModelDescription =>
+      'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.';
+
+  @override
+  String get voiceCallModelLabel => 'Live model';
+
+  @override
+  String get voiceCallModelAutomatic => 'Automatic';
+
+  @override
+  String get preferLiveVoiceBootstrapTitle => 'Bootstrap in voice call';
+
+  @override
+  String get preferLiveVoiceBootstrapSubtitle =>
+      'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).';
+
+  @override
+  String get liveVoiceNameLabel => 'Voice';
+
+  @override
+  String get firstHatchModeChoiceTitle => 'Jak chcete začít?';
+
+  @override
+  String get firstHatchModeChoiceBody =>
+      'Můžete si s asistentem psát v chatu nebo začít hlasovou konverzaci — jako krátký hovor. Vyberte si, co vám vyhovuje víc.';
+
+  @override
+  String get firstHatchModeChoiceChatButton => 'Psát v chatu';
+
+  @override
+  String get firstHatchModeChoiceVoiceButton => 'Mluvit hlasem';
+
+  @override
+  String get liveVoiceBargeInHint =>
+      'Speak after the assistant stops (echo was interrupting them mid-speech).';
+
+  @override
+  String get cannotAddLiveModelAsChat =>
+      'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
   String get holdToSetAsDefault => 'Podržte pro nastavení jako výchozí';
 
   @override

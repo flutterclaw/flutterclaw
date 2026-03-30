@@ -93,12 +93,31 @@ class _CreateAgentScreenState extends ConsumerState<CreateAgentScreen> {
 
   bool get _isEditMode => widget.agent != null;
 
+  bool _fixedLiveModelSelection = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_fixedLiveModelSelection) return;
+    _fixedLiveModelSelection = true;
+    final config = ref.read(configManagerProvider).config;
+    final chat =
+        config.modelList.where((m) => !m.isLiveOnly).toList();
+    if (_selectedModel != null &&
+        chat.isNotEmpty &&
+        !chat.any((m) => m.modelName == _selectedModel)) {
+      setState(() => _selectedModel = chat.first.modelName);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final configManager = ref.read(configManagerProvider);
-    final models = configManager.config.modelList;
+    final models = configManager.config.modelList
+        .where((m) => !m.isLiveOnly)
+        .toList();
 
     // Set default model if not already set
     if (_selectedModel == null && models.isNotEmpty) {

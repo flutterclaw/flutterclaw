@@ -1376,6 +1376,84 @@ abstract class AppLocalizations {
   /// **'The default model is used by agents that don\'t specify their own.'**
   String get defaultModelHint;
 
+  /// Settings section for Gemini Live voice model
+  ///
+  /// In en, this message translates to:
+  /// **'Voice call (Live)'**
+  String get voiceCallModelSection;
+
+  /// Explains Live model vs chat model
+  ///
+  /// In en, this message translates to:
+  /// **'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.'**
+  String get voiceCallModelDescription;
+
+  /// Dropdown label for voice Live model override
+  ///
+  /// In en, this message translates to:
+  /// **'Live model'**
+  String get voiceCallModelLabel;
+
+  /// Use default Live model selection
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get voiceCallModelAutomatic;
+
+  /// Settings switch title for hatch via Live
+  ///
+  /// In en, this message translates to:
+  /// **'Bootstrap in voice call'**
+  String get preferLiveVoiceBootstrapTitle;
+
+  /// Settings switch subtitle for voice bootstrap
+  ///
+  /// In en, this message translates to:
+  /// **'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).'**
+  String get preferLiveVoiceBootstrapSubtitle;
+
+  /// Dropdown label for Gemini Live voice name selector
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get liveVoiceNameLabel;
+
+  /// One-time dialog after onboarding: title for chat vs voice bootstrap
+  ///
+  /// In en, this message translates to:
+  /// **'How would you like to get started?'**
+  String get firstHatchModeChoiceTitle;
+
+  /// One-time dialog after onboarding: explains text vs voice for first assistant setup
+  ///
+  /// In en, this message translates to:
+  /// **'You can chat with your assistant in text, or jump into a voice conversation—like a quick call. Pick whatever feels easiest for you.'**
+  String get firstHatchModeChoiceBody;
+
+  /// Choose text-based first setup after onboarding
+  ///
+  /// In en, this message translates to:
+  /// **'Write in chat'**
+  String get firstHatchModeChoiceChatButton;
+
+  /// Choose voice-call style first setup after onboarding
+  ///
+  /// In en, this message translates to:
+  /// **'Talk with voice'**
+  String get firstHatchModeChoiceVoiceButton;
+
+  /// Shown under Speaking in live voice overlay: voice barge-in
+  ///
+  /// In en, this message translates to:
+  /// **'Speak after the assistant stops (echo was interrupting them mid-speech).'**
+  String get liveVoiceBargeInHint;
+
+  /// Snack when user tries to add a Live-only model as primary
+  ///
+  /// In en, this message translates to:
+  /// **'This model is for voice calls only. Choose a chat model from the list.'**
+  String get cannotAddLiveModelAsChat;
+
   /// Tooltip for model long-press
   ///
   /// In en, this message translates to:

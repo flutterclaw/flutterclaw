@@ -701,6 +701,50 @@ class AppLocalizationsRu extends AppLocalizations {
       'Модель по умолчанию используется агентами, которые не указали свою.';
 
   @override
+  String get voiceCallModelSection => 'Voice call (Live)';
+
+  @override
+  String get voiceCallModelDescription =>
+      'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.';
+
+  @override
+  String get voiceCallModelLabel => 'Live model';
+
+  @override
+  String get voiceCallModelAutomatic => 'Automatic';
+
+  @override
+  String get preferLiveVoiceBootstrapTitle => 'Bootstrap in voice call';
+
+  @override
+  String get preferLiveVoiceBootstrapSubtitle =>
+      'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).';
+
+  @override
+  String get liveVoiceNameLabel => 'Voice';
+
+  @override
+  String get firstHatchModeChoiceTitle => 'Как вы хотите начать?';
+
+  @override
+  String get firstHatchModeChoiceBody =>
+      'Можно общаться с ассистентом текстом или начать голосовой разговор — как короткий звонок. Выберите то, что вам удобнее.';
+
+  @override
+  String get firstHatchModeChoiceChatButton => 'Писать в чате';
+
+  @override
+  String get firstHatchModeChoiceVoiceButton => 'Говорить голосом';
+
+  @override
+  String get liveVoiceBargeInHint =>
+      'Speak after the assistant stops (echo was interrupting them mid-speech).';
+
+  @override
+  String get cannotAddLiveModelAsChat =>
+      'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
   String get holdToSetAsDefault => 'Удерживайте для установки по умолчанию';
 
   @override

@@ -683,6 +683,50 @@ class AppLocalizationsJa extends AppLocalizations {
   String get defaultModelHint => 'デフォルトモデルは独自のモデルを指定しないエージェントで使用されます。';
 
   @override
+  String get voiceCallModelSection => 'Voice call (Live)';
+
+  @override
+  String get voiceCallModelDescription =>
+      'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.';
+
+  @override
+  String get voiceCallModelLabel => 'Live model';
+
+  @override
+  String get voiceCallModelAutomatic => 'Automatic';
+
+  @override
+  String get preferLiveVoiceBootstrapTitle => 'Bootstrap in voice call';
+
+  @override
+  String get preferLiveVoiceBootstrapSubtitle =>
+      'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).';
+
+  @override
+  String get liveVoiceNameLabel => 'Voice';
+
+  @override
+  String get firstHatchModeChoiceTitle => 'どのように始めますか？';
+
+  @override
+  String get firstHatchModeChoiceBody =>
+      'テキストでチャットするか、短い通話のような音声会話を始められます。よい方を選んでください。';
+
+  @override
+  String get firstHatchModeChoiceChatButton => 'チャットで入力';
+
+  @override
+  String get firstHatchModeChoiceVoiceButton => '音声で話す';
+
+  @override
+  String get liveVoiceBargeInHint =>
+      'Speak after the assistant stops (echo was interrupting them mid-speech).';
+
+  @override
+  String get cannotAddLiveModelAsChat =>
+      'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
   String get holdToSetAsDefault => '長押しでデフォルトに設定';
 
   @override

@@ -682,6 +682,50 @@ class AppLocalizationsZh extends AppLocalizations {
   String get defaultModelHint => '默认模型用于未指定自身模型的代理。';
 
   @override
+  String get voiceCallModelSection => 'Voice call (Live)';
+
+  @override
+  String get voiceCallModelDescription =>
+      'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.';
+
+  @override
+  String get voiceCallModelLabel => 'Live model';
+
+  @override
+  String get voiceCallModelAutomatic => 'Automatic';
+
+  @override
+  String get preferLiveVoiceBootstrapTitle => 'Bootstrap in voice call';
+
+  @override
+  String get preferLiveVoiceBootstrapSubtitle =>
+      'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).';
+
+  @override
+  String get liveVoiceNameLabel => 'Voice';
+
+  @override
+  String get firstHatchModeChoiceTitle => '你想怎么开始？';
+
+  @override
+  String get firstHatchModeChoiceBody =>
+      '你可以用文字和助手聊天，或开始语音对话，就像一通简短电话。选你觉得最轻松的方式就好。';
+
+  @override
+  String get firstHatchModeChoiceChatButton => '用文字聊天';
+
+  @override
+  String get firstHatchModeChoiceVoiceButton => '语音对话';
+
+  @override
+  String get liveVoiceBargeInHint =>
+      'Speak after the assistant stops (echo was interrupting them mid-speech).';
+
+  @override
+  String get cannotAddLiveModelAsChat =>
+      'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
   String get holdToSetAsDefault => '长按设为默认';
 
   @override

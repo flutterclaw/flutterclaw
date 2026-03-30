@@ -601,17 +601,15 @@ class GatewayServer {
     final current = configManager.config;
     final defaults = current.agents.defaults;
 
-    final newDefaults = AgentsDefaults(
-      workspace: defaults.workspace,
+    final newDefaults = defaults.copyWith(
       modelName: params['model'] as String? ?? defaults.modelName,
       maxTokens: params['max_tokens'] as int? ?? defaults.maxTokens,
       temperature: (params['temperature'] as num?)?.toDouble() ?? defaults.temperature,
       maxToolIterations: params['max_tool_iterations'] as int? ?? defaults.maxToolIterations,
-      restrictToWorkspace: defaults.restrictToWorkspace,
     );
 
     configManager.update(current.copyWith(
-      agents: AgentsConfig(defaults: newDefaults),
+      agents: current.agents.copyWith(defaults: newDefaults),
     ));
     await configManager.save();
     return {'ok': true};

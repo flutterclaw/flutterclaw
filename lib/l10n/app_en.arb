@@ -1172,6 +1172,59 @@
     "description": "Default model explanation"
   },
 
+  "voiceCallModelSection": "Voice call (Live)",
+  "@voiceCallModelSection": {
+    "description": "Settings section for Gemini Live voice model"
+  },
+  "voiceCallModelDescription": "Used only when you tap the call button. Chat, agents, and background tasks use your normal model.",
+  "@voiceCallModelDescription": {
+    "description": "Explains Live model vs chat model"
+  },
+  "voiceCallModelLabel": "Live model",
+  "@voiceCallModelLabel": {
+    "description": "Dropdown label for voice Live model override"
+  },
+  "voiceCallModelAutomatic": "Automatic",
+  "@voiceCallModelAutomatic": {
+    "description": "Use default Live model selection"
+  },
+  "preferLiveVoiceBootstrapTitle": "Bootstrap in voice call",
+  "@preferLiveVoiceBootstrapTitle": {
+    "description": "Settings switch title for hatch via Live"
+  },
+  "preferLiveVoiceBootstrapSubtitle": "On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).",
+  "@preferLiveVoiceBootstrapSubtitle": {
+    "description": "Settings switch subtitle for voice bootstrap"
+  },
+  "liveVoiceNameLabel": "Voice",
+  "@liveVoiceNameLabel": {
+    "description": "Dropdown label for Gemini Live voice name selector"
+  },
+  "firstHatchModeChoiceTitle": "How would you like to get started?",
+  "@firstHatchModeChoiceTitle": {
+    "description": "One-time dialog after onboarding: title for chat vs voice bootstrap"
+  },
+  "firstHatchModeChoiceBody": "You can chat with your assistant in text, or jump into a voice conversation—like a quick call. Pick whatever feels easiest for you.",
+  "@firstHatchModeChoiceBody": {
+    "description": "One-time dialog after onboarding: explains text vs voice for first assistant setup"
+  },
+  "firstHatchModeChoiceChatButton": "Write in chat",
+  "@firstHatchModeChoiceChatButton": {
+    "description": "Choose text-based first setup after onboarding"
+  },
+  "firstHatchModeChoiceVoiceButton": "Talk with voice",
+  "@firstHatchModeChoiceVoiceButton": {
+    "description": "Choose voice-call style first setup after onboarding"
+  },
+  "liveVoiceBargeInHint": "Speak after the assistant stops (echo was interrupting them mid-speech).",
+  "@liveVoiceBargeInHint": {
+    "description": "Shown under Speaking in live voice overlay: voice barge-in"
+  },
+  "cannotAddLiveModelAsChat": "This model is for voice calls only. Choose a chat model from the list.",
+  "@cannotAddLiveModelAsChat": {
+    "description": "Snack when user tries to add a Live-only model as primary"
+  },
+
   "holdToSetAsDefault": "Hold to set as default",
   "@holdToSetAsDefault": {
     "description": "Tooltip for model long-press"

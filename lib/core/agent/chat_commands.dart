@@ -189,6 +189,7 @@ class ChatCommandHandler {
       final current =
           configManager.config.agents.defaults.modelName;
       final models = configManager.config.modelList
+          .where((m) => !m.isLiveOnly)
           .map((m) => '- ${m.modelName} (`${m.model}`)')
           .join('\n');
       return ChatCommandResult(

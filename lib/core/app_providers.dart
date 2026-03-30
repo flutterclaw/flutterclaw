@@ -32,6 +32,7 @@ import 'package:flutterclaw/data/models/model_catalog.dart';
 import 'package:flutterclaw/core/agent/agent_loop.dart';
 import 'package:flutterclaw/core/agent/token_budget_manager.dart';
 import 'package:flutterclaw/core/agent/provider_router.dart';
+import 'package:flutterclaw/core/agent/live_session_transcript.dart';
 import 'package:flutterclaw/core/agent/session_manager.dart';
 import 'package:flutterclaw/core/providers/openai_provider.dart';
 import 'package:flutterclaw/core/providers/provider_router.dart'
@@ -96,11 +97,19 @@ import 'package:flutterclaw/tools/mcp_proxy_tool.dart';
 import 'package:flutterclaw/tools/mcp_management_tools.dart';
 import 'package:flutterclaw/tools/tts_tool.dart';
 import 'package:flutterclaw/tools/pdf_tool.dart';
+import 'package:flutterclaw/tools/live_voice_tool.dart';
 import 'package:flutterclaw/services/connectivity_service.dart';
 import 'package:flutterclaw/services/battery_service.dart';
 import 'package:flutterclaw/services/auth_profile_service.dart';
 import 'package:flutterclaw/services/secrets_resolver.dart';
 import 'package:flutterclaw/services/secure_key_store.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:flutterclaw/services/gemini_live/gemini_live_service.dart';
+import 'package:flutterclaw/services/gemini_live/live_event.dart';
+import 'package:flutterclaw/services/gemini_live/live_session_config.dart';
+import 'package:flutterclaw/services/gemini_live/gemini_tool_translator.dart';
+import 'package:flutterclaw/services/pcm_audio_stream_service.dart';
+import 'package:flutterclaw/core/agent/live_agent_loop.dart';
 
 final configManagerProvider = Provider<ConfigManager>((ref) {
   final mgr = ConfigManager();
@@ -191,6 +200,48 @@ final activeModelSupportsVisionProvider = Provider<bool>((ref) {
   if (catalogInput != null) return catalogInput.contains('image');
 
   return false;
+});
+
+/// Whether Live voice mode is available — true whenever a Google API key is
+/// configured (either at provider level or on any Google model entry).
+///
+/// Live mode is a call mode layered on top of any agent, not tied to the
+/// active model. The notifier picks the best available Live model automatically.
+final activeModelSupportsLiveProvider = Provider<bool>((ref) {
+  final agent = ref.watch(activeAgentProvider);
+  if (agent == null) return false;
+
+  final config = ref.watch(configManagerProvider).config;
+
+  // Active model entry must exist.
+  final modelEntry = config.modelList
+      .cast<ModelEntry?>()
+      .firstWhere((m) => m!.modelName == agent.modelName, orElse: () => null);
+  if (modelEntry == null) return false;
+
+  // Catalog must have at least one Live (call-mode) model for this provider.
+  final hasLiveModel = ModelCatalog.models
+      .any((m) => m.providerId == modelEntry.provider && m.isLiveModel);
+  if (!hasLiveModel) return false;
+
+  // An API key must be configured for this provider.
+  if (config.providerCredentials[modelEntry.provider]?.apiKey.isNotEmpty ==
+      true) {
+    return true;
+  }
+  return modelEntry.apiKey?.isNotEmpty == true;
+});
+
+/// True when the active agent's **chat** model is WebSocket/Live-only (no REST).
+/// Distinct from [activeModelSupportsLiveProvider] (whether voice call is available).
+final activeAgentChatModelIsLiveOnlyProvider = Provider<bool>((ref) {
+  final agent = ref.watch(activeAgentProvider);
+  if (agent == null) return false;
+  final config = ref.watch(configManagerProvider).config;
+  final modelEntry = config.modelList
+      .cast<ModelEntry?>()
+      .firstWhere((m) => m!.modelName == agent.modelName, orElse: () => null);
+  return modelEntry?.isLiveOnly ?? false;
 });
 
 final sessionManagerProvider = Provider<SessionManager>((ref) {
@@ -726,6 +777,8 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
 
   // MCP server management tools — let the agent configure MCP servers conversationally.
   final mcpManager = ref.read(mcpClientManagerProvider);
+  registry.register(SetLiveVoiceTool(configManager));
+
   registry.register(McpServerListTool(
       configManager: configManager, mcpManager: mcpManager));
   registry.register(
@@ -1460,6 +1513,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   bool get isProcessing => _processing;
   bool _cancelled = false;
   StreamSubscription<AgentStreamEvent>? _activeSubscription;
+  Timer? _liveTranscriptFlushTimer;
+  final StringBuffer _liveUserDeltaBuf = StringBuffer();
+  final StringBuffer _liveModelDeltaBuf = StringBuffer();
   bool _hatchTriggered = false;
   String? _historyLoadedForAgent; // agentId whose history is currently loaded
   bool _isAppInBackground = false;
@@ -1545,6 +1601,139 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     return (channelType, chatId);
   }
 
+  bool _liveVoiceChatActive() {
+    final s = ref.read(liveSessionProvider).status;
+    return s == LiveSessionStatus.connecting || s == LiveSessionStatus.ready;
+  }
+
+  void _cancelLiveTranscriptUi() {
+    _liveTranscriptFlushTimer?.cancel();
+    _liveTranscriptFlushTimer = null;
+    _liveUserDeltaBuf.clear();
+    _liveModelDeltaBuf.clear();
+  }
+
+  void _armLiveTranscriptFlushTimer() {
+    if (_liveTranscriptFlushTimer?.isActive == true) return;
+    _liveTranscriptFlushTimer = Timer(const Duration(milliseconds: 33), () {
+      _liveTranscriptFlushTimer = null;
+      if (!_liveVoiceChatActive()) return;
+      _flushLiveTranscriptDeltaBuffers();
+    });
+  }
+
+  /// Applies batched user/model transcript deltas to [state] (voice call UI).
+  void _flushLiveTranscriptDeltaBuffers() {
+    final userChunk = _liveUserDeltaBuf.toString();
+    final modelChunk = _liveModelDeltaBuf.toString();
+    _liveUserDeltaBuf.clear();
+    _liveModelDeltaBuf.clear();
+    if (userChunk.isEmpty && modelChunk.isEmpty) return;
+
+    var list = List<ChatMessage>.from(state);
+
+    if (userChunk.isNotEmpty) {
+      final i = list.lastIndexWhere(
+        (m) => m.isUser && !m.isToolStatus && m.isStreaming,
+      );
+      if (i < 0) {
+        list.add(
+          ChatMessage(
+            text: userChunk,
+            isUser: true,
+            timestamp: DateTime.now(),
+            isStreaming: true,
+          ),
+        );
+      } else {
+        final m = list[i];
+        list[i] = m.copyWith(text: m.text + userChunk);
+      }
+    }
+
+    if (modelChunk.isNotEmpty) {
+      var i = list.lastIndexWhere(
+        (m) => !m.isUser && !m.isToolStatus && m.isStreaming,
+      );
+      if (i < 0) {
+        final uIdx = list.lastIndexWhere(
+          (m) => m.isUser && !m.isToolStatus && m.isStreaming,
+        );
+        if (uIdx < 0) {
+          list.add(
+            ChatMessage(
+              text: '',
+              isUser: true,
+              timestamp: DateTime.now(),
+              isStreaming: true,
+            ),
+          );
+        }
+        list.add(
+          ChatMessage(
+            text: modelChunk,
+            isUser: false,
+            timestamp: DateTime.now(),
+            isStreaming: true,
+          ),
+        );
+      } else {
+        final m = list[i];
+        list[i] = m.copyWith(text: m.text + modelChunk);
+      }
+    }
+
+    state = list;
+  }
+
+  void _finalizeLiveStreamingBubbles({bool assistantsOnly = false}) {
+    final list = List<ChatMessage>.from(state);
+    var changed = false;
+    for (var i = 0; i < list.length; i++) {
+      final m = list[i];
+      if (!m.isStreaming || m.isToolStatus) continue;
+      if (assistantsOnly && m.isUser) continue;
+      list[i] = m.copyWith(isStreaming: false);
+      changed = true;
+    }
+    if (changed) state = list;
+  }
+
+  void _handleLiveAgentEvent(LiveAgentEvent event) {
+    switch (event) {
+      case LiveUserTranscript(:final text):
+        if (!_liveVoiceChatActive()) return;
+        _liveUserDeltaBuf.write(text);
+        _armLiveTranscriptFlushTimer();
+      case LiveModelTranscript(:final text):
+        if (!_liveVoiceChatActive()) return;
+        _liveModelDeltaBuf.write(text);
+        _armLiveTranscriptFlushTimer();
+      case LiveTurnComplete():
+        _liveTranscriptFlushTimer?.cancel();
+        _liveTranscriptFlushTimer = null;
+        if (_liveVoiceChatActive()) {
+          _flushLiveTranscriptDeltaBuffers();
+          _finalizeLiveStreamingBubbles();
+        }
+      case LiveInterrupted():
+        _liveTranscriptFlushTimer?.cancel();
+        _liveTranscriptFlushTimer = null;
+        if (_liveVoiceChatActive()) {
+          _flushLiveTranscriptDeltaBuffers();
+          _finalizeLiveStreamingBubbles(assistantsOnly: true);
+        }
+      case LiveSessionDisconnected():
+        _cancelLiveTranscriptUi();
+      case LiveAudioOutput():
+      case LiveToolStarted():
+      case LiveToolCompleted():
+      case LiveSessionReady():
+      case LiveAgentError():
+        break;
+    }
+  }
+
   @override
   List<ChatMessage> build() {
     // Subscribe to subagent completion events. When a subagent belonging to
@@ -1568,6 +1757,22 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     });
     ref.onDispose(subagentSub.cancel);
 
+    final liveEvSub =
+        ref.read(liveSessionProvider.notifier).agentEvents.listen(
+              _handleLiveAgentEvent,
+            );
+    ref.onDispose(() {
+      liveEvSub.cancel();
+      _cancelLiveTranscriptUi();
+    });
+
+    ref.listen(liveSessionProvider, (prev, next) {
+      if (next.status != LiveSessionStatus.idle) return;
+      if (prev == null) return;
+      if (prev.status == LiveSessionStatus.idle) return;
+      _cancelLiveTranscriptUi();
+    });
+
     // Subscribe to session manager message stream. When a foreign session
     // (Telegram, cron, heartbeat, subagent) receives a new message and the
     // user is watching it, append the message to the visible chat in real-time.
@@ -1575,16 +1780,80 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     final messageSub = sessionManager.messageStream.listen((event) {
       final (sessionKey, message) = event;
       if (sessionKey != _getSessionKey()) return;
-      if (_processing) return; // We are already managing state ourselves.
-      if (message.role == 'system' || message.role == 'tool') return;
-      final text = _extractTextFromContent(message.content);
-      if (text.trim().isEmpty) return;
-      // Skip pure tool-call assistant stubs (no visible text).
-      if (message.role == 'assistant' &&
-          (message.toolCalls?.isNotEmpty ?? false) &&
-          text.isEmpty) {
+      final liveOn = _liveVoiceChatActive();
+      if (_processing && !liveOn) return; // We are already managing state ourselves.
+      if (message.role == 'system') return;
+
+      // Tool result written by SessionManager (e.g. Gemini Live) — close the pill.
+      if (message.role == 'tool' && message.toolCallId != null) {
+        final toolName = message.name;
+        final result = message.content?.toString() ?? '';
+        final updated = List<ChatMessage>.from(state);
+        for (var i = updated.length - 1; i >= 0; i--) {
+          if (!updated[i].isToolStatus || updated[i].isStreaming != true) {
+            continue;
+          }
+          if (toolName != null && toolName.isNotEmpty) {
+            final label = updated[i].text;
+            if (label != toolName && !label.startsWith('$toolName:')) {
+              continue;
+            }
+          }
+          updated[i] = updated[i].copyWith(
+            isStreaming: false,
+            toolResultText: result,
+          );
+          state = updated;
+          return;
+        }
         return;
       }
+      if (message.role == 'tool') return;
+
+      // Assistant message with tool calls (Live / foreign injectors): mirror loadHistory pills.
+      if (message.role == 'assistant' &&
+          (message.toolCalls?.isNotEmpty ?? false)) {
+        final text = _extractTextFromContent(message.content);
+        final updated = List<ChatMessage>.from(state);
+        for (final tc in message.toolCalls!) {
+          Map<String, dynamic>? args;
+          try {
+            args = jsonDecode(tc.function.arguments) as Map<String, dynamic>?;
+          } catch (_) {}
+          updated.add(
+            ChatMessage(
+              text: _formatToolStatus(tc.function.name, args),
+              isUser: false,
+              timestamp: DateTime.now(),
+              isToolStatus: true,
+              isStreaming: true,
+            ),
+          );
+        }
+        if (text.trim().isNotEmpty) {
+          updated.add(
+            ChatMessage(
+              text: text,
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
+        }
+        state = updated;
+        return;
+      }
+
+      final text = _extractTextFromContent(message.content);
+      if (text.trim().isEmpty) return;
+
+      // During a voice call, plain user/assistant rows are streamed via
+      // [LiveUserTranscript]/[LiveModelTranscript]; session persist would duplicate.
+      final plainAssistant = message.role == 'assistant' &&
+          (message.toolCalls == null || message.toolCalls!.isEmpty);
+      if (liveOn && (message.role == 'user' || plainAssistant)) {
+        return;
+      }
+
       // Notify the user if the app is backgrounded and an assistant message arrives.
       if (_isAppInBackground &&
           message.role == 'assistant' &&
@@ -1640,6 +1909,12 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     } catch (_) {
       // Non-fatal — notification failure must not break agent processing.
     }
+  }
+
+  /// Force-reload history from storage (e.g. after a Live call adds transcripts).
+  Future<void> reloadHistory() async {
+    _historyLoadedForAgent = null;
+    await loadHistory();
   }
 
   Future<void> loadHistory() async {
@@ -1748,6 +2023,17 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     final configManager = ref.read(configManagerProvider);
     final hasBootstrap = await configManager.hasBootstrap();
     if (!hasBootstrap) return;
+
+    final preferLive =
+        configManager.config.agents.defaults.preferLiveVoiceBootstrap;
+    final liveOk = ref.read(activeModelSupportsLiveProvider);
+    if (preferLive && liveOk) {
+      await ref.read(liveSessionProvider.notifier).startSession(
+            voiceBootstrap: true,
+            userLanguage: userLanguage,
+          );
+      return;
+    }
 
     // Hatch: trigger the agent without persisting a visible user message.
     // The BOOTSTRAP.md in the system prompt tells the agent what to do.
@@ -2825,5 +3111,401 @@ class GatewayStateNotifier extends Notifier<GatewayState> {
         errorMessage: state.lastError,
       );
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Gemini Live API providers
+// ---------------------------------------------------------------------------
+
+/// Tools that mutate agent config / active agent. Excluded from the Live API
+/// tool list so the voice model cannot call `agent_update` on a casual reply
+/// (that invalidates Riverpod and was correlating with dead mic / disconnects).
+const _liveVoiceExcludedToolNames = <String>{
+  'agent_update',
+  'agent_create',
+  'agent_delete',
+  'agent_switch',
+};
+
+List<Map<String, dynamic>> _toolDefsForLiveVoiceSession(ToolRegistry registry) {
+  return registry.toProviderDefs().where((t) {
+    final fn = t['function'] as Map<String, dynamic>?;
+    final name = fn?['name'] as String?;
+    if (name == null) return true;
+    return !_liveVoiceExcludedToolNames.contains(name);
+  }).toList();
+}
+
+/// Gemini Live WebSocket service (singleton per app lifecycle).
+final geminiLiveServiceProvider = Provider<GeminiLiveService>((ref) {
+  final svc = GeminiLiveService();
+  ref.onDispose(svc.dispose);
+  return svc;
+});
+
+/// PCM microphone stream service for Live API audio input.
+final pcmAudioStreamServiceProvider = Provider<PcmAudioStreamService>((ref) {
+  final svc = PcmAudioStreamService();
+  ref.onDispose(svc.dispose);
+  return svc;
+});
+
+/// State for the Live voice session.
+enum LiveSessionStatus { idle, connecting, ready, error }
+
+class LiveSessionState {
+  final LiveSessionStatus status;
+  final String? errorMessage;
+
+  const LiveSessionState({
+    this.status = LiveSessionStatus.idle,
+    this.errorMessage,
+  });
+
+  LiveSessionState copyWith({LiveSessionStatus? status, String? errorMessage}) =>
+      LiveSessionState(
+        status: status ?? this.status,
+        errorMessage: errorMessage,
+      );
+}
+
+/// Orchestrates the full Gemini Live session lifecycle.
+final liveSessionProvider =
+    NotifierProvider<LiveSessionNotifier, LiveSessionState>(
+  LiveSessionNotifier.new,
+);
+
+class LiveSessionNotifier extends Notifier<LiveSessionState> {
+  LiveAgentLoop? _agentLoop;
+  StreamSubscription? _audioInputSub;
+  StreamSubscription? _agentEventSub;
+
+  /// While true, mic PCM is not sent — avoids speaker bleed being treated as
+  /// user speech (self-interrupt loop). Cleared after local playback ends.
+  bool _suppressMicForLocalPlayback = false;
+  Timer? _playbackUnsuppressTimer;
+  Timer? _micSuppressFailsafeTimer;
+
+  /// Permanent broadcast stream for the UI. Created once in build(), survives
+  /// across connect/disconnect cycles so the overlay can subscribe immediately
+  /// at status=connecting (before _agentLoop exists).
+  final _eventCtrl = StreamController<LiveAgentEvent>.broadcast();
+
+  /// Events for UI consumption (audio output, transcripts, tool status).
+  /// Always non-null — the overlay can subscribe at any time.
+  Stream<LiveAgentEvent> get agentEvents => _eventCtrl.stream;
+
+  @override
+  LiveSessionState build() {
+    // Clean up the stream controller when the provider is disposed.
+    ref.onDispose(() {
+      _playbackUnsuppressTimer?.cancel();
+      _micSuppressFailsafeTimer?.cancel();
+      _agentEventSub?.cancel();
+      _eventCtrl.close();
+    });
+    return const LiveSessionState();
+  }
+
+  static final _liveLog = Logger('GeminiLive.session');
+
+  /// Start a Live voice session with the currently active agent.
+  ///
+  /// [voiceBootstrap]: after setup, send a one-shot text nudge so the model
+  /// begins the BOOTSTRAP / first-contact ritual aloud. System prompt and
+  /// transcript always match REST chat regardless of this flag.
+  Future<void> startSession({
+    bool voiceBootstrap = false,
+    String? userLanguage,
+  }) async {
+    if (state.status == LiveSessionStatus.connecting ||
+        state.status == LiveSessionStatus.ready) {
+      _liveLog.info('startSession: already connecting/ready, ignoring tap');
+      return;
+    }
+
+    _liveLog.info(
+      'startSession: initiated voiceBootstrap=$voiceBootstrap',
+    );
+    state = state.copyWith(status: LiveSessionStatus.connecting);
+
+    try {
+      final configManager = ref.read(configManagerProvider);
+      final sessionManager = ref.read(sessionManagerProvider);
+      final toolRegistry = ref.read(toolRegistryProvider);
+      final liveService = ref.read(geminiLiveServiceProvider);
+      final pcmService = ref.read(pcmAudioStreamServiceProvider);
+
+      // --- Resolve call-mode model and API key ---
+      // Live is a provider-agnostic call overlay. The Live model is looked up
+      // from the catalog by matching the active agent's provider — not from the
+      // user's model list (Live models are hidden from the picker).
+      final activeKey = ref.read(activeSessionKeyProvider);
+      _liveLog.info('startSession: activeKey=$activeKey');
+
+      final activeAgent = ref.read(activeAgentProvider);
+      final agentModelEntry = configManager.config.modelList
+          .cast<ModelEntry?>()
+          .firstWhere(
+            (m) => m!.modelName == activeAgent?.modelName,
+            orElse: () => null,
+          );
+      final provider = agentModelEntry?.provider ?? 'google';
+
+      // Find the Live model: optional user override, else first catalog Live for provider.
+      const fallbackLiveModelId = 'gemini-2.5-flash-preview-native-audio-dialog';
+      final overrideId =
+          configManager.config.agents.defaults.liveVoiceModelId;
+      CatalogModel? overrideCatalog;
+      if (overrideId != null && overrideId.isNotEmpty) {
+        final cm = ModelCatalog.tryGetModelFlexible(overrideId);
+        if (cm != null &&
+            cm.providerId == provider &&
+            cm.isLiveModel) {
+          overrideCatalog = cm;
+        }
+      }
+      final liveModelId = overrideCatalog?.id ??
+          ModelCatalog.models
+              .cast<CatalogModel?>()
+              .firstWhere(
+                (m) => m!.providerId == provider && m.isLiveModel,
+                orElse: () => null,
+              )
+              ?.id ??
+          fallbackLiveModelId;
+
+      // Resolve API key for this provider.
+      final apiKey = configManager.config.providerCredentials[provider]?.apiKey
+                  .isNotEmpty ==
+              true
+          ? configManager.config.providerCredentials[provider]!.apiKey
+          : (agentModelEntry?.apiKey?.isNotEmpty == true
+              ? agentModelEntry!.apiKey!
+              : configManager.config.modelList
+                      .cast<ModelEntry?>()
+                      .firstWhere(
+                        (m) =>
+                            m!.provider == provider &&
+                            m.apiKey?.isNotEmpty == true,
+                        orElse: () => null,
+                      )
+                      ?.apiKey ??
+                  '');
+
+      _liveLog.info(
+        'startSession: liveModel=$liveModelId '
+        'apiKey=${apiKey.isEmpty ? "EMPTY" : "***${apiKey.substring(apiKey.length - 4)}"}',
+      );
+
+      if (apiKey.isEmpty) {
+        _liveLog.severe('startSession: no Google API key found');
+        state = state.copyWith(
+          status: LiveSessionStatus.error,
+          errorMessage: 'Configure a Google API key to use Live voice',
+        );
+        return;
+      }
+
+      // Same system prompt + transcript semantics as REST chat (AgentLoop).
+      final agentLoop = ref.read(agentLoopProvider);
+      final fullPrompt = await agentLoop.buildSystemPromptForAgent(
+        agentId: activeAgent?.id,
+        userLanguage: userLanguage,
+      );
+      const voiceNote = '\n\n# Voice session\n'
+          'You are in a real-time voice call. Animate naturally — speak in the '
+          'same manner as if you were in text chat. Follow workspace instructions, '
+          'BOOTSTRAP when it applies (e.g. first hatch), and use tools when the '
+          'user asks for something that tools can do.\n\n'
+          'IMPORTANT — tools that require user interaction (e.g. web_browse with '
+          'action "request_user_action" to solve a CAPTCHA or complete a login): '
+          'ALWAYS speak to the user FIRST to explain what you need them to do and '
+          'why, THEN call the tool. Never open the browser silently.';
+      const liveSystemMaxChars = 150000;
+      var transcriptBudget =
+          liveSystemMaxChars - fullPrompt.length - voiceNote.length - 2;
+      if (transcriptBudget < 0) transcriptBudget = 0;
+      final contextMsgs = sessionManager.getContextMessages(activeKey);
+      final transcriptBlock = transcriptBudget > 0
+          ? formatContextMessagesForLiveSystemInstruction(
+              contextMsgs,
+              maxChars: transcriptBudget,
+            )
+          : '';
+      var combined = transcriptBlock.isEmpty
+          ? '$fullPrompt$voiceNote'
+          : '$fullPrompt$voiceNote\n\n$transcriptBlock';
+      if (combined.length > liveSystemMaxChars) {
+        combined =
+            '${combined.substring(0, liveSystemMaxChars)}\n\n[... truncated ...]';
+      }
+      final systemInstruction = combined;
+
+      // Translate tools to Gemini format (omit agent CRUD — see
+      // [_liveVoiceExcludedToolNames]).
+      final geminiTools = GeminiToolTranslator.toGeminiTools(
+        _toolDefsForLiveVoiceSession(toolRegistry),
+      );
+
+      // Build session config.
+      final config = LiveSessionConfig(
+        apiKey: apiKey,
+        model: 'models/$liveModelId',
+        systemInstruction: systemInstruction,
+        tools: geminiTools.isNotEmpty ? geminiTools : null,
+        voiceName: configManager.config.agents.defaults.liveVoiceName,
+        responseModalities: const ['AUDIO'],
+      );
+
+      // Connect WebSocket.
+      await liveService.connect(config: config);
+
+      // Ensure the webchat session exists before LiveAgentLoop writes to it.
+      // addMessage silently drops messages if _meta[key] is null (session never created).
+      final keyParts = activeKey.split(':');
+      await sessionManager.getOrCreate(
+        activeKey,
+        keyParts[0],
+        keyParts.length > 1 ? keyParts.sublist(1).join(':') : 'default',
+      );
+
+      // Create and start the agent loop.
+      _agentLoop = LiveAgentLoop(
+        liveService: liveService,
+        toolRegistry: toolRegistry,
+        sessionManager: sessionManager,
+      );
+      _agentLoop!.start(activeKey);
+
+      // Pipe LiveAgentLoop events into the permanent broadcast controller
+      // so the overlay can receive them regardless of when it subscribed.
+      _agentEventSub = _agentLoop!.events.listen((e) {
+        if (!_eventCtrl.isClosed) _eventCtrl.add(e);
+      });
+
+      // Wait for setup complete or error.
+      final firstEvent = await liveService.events.first;
+      if (firstEvent is! SetupComplete) {
+        final msg = firstEvent is LiveError ? firstEvent.message : 'Setup failed';
+        state = state.copyWith(
+          status: LiveSessionStatus.error,
+          errorMessage: msg,
+        );
+        await _cleanup();
+        return;
+      }
+
+      if (voiceBootstrap) {
+        liveService.sendText(
+          'Begin your bootstrap / first-contact ritual per your workspace '
+          'instructions (for example BOOTSTRAP.md). Greet the user aloud.',
+        );
+      }
+
+      // Configure iOS audio session to playAndRecord so we can simultaneously
+      // record mic input and play back the model's audio output.
+      try {
+        final audioSession = await AudioSession.instance;
+        await audioSession.configure(AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playAndRecord,
+          avAudioSessionCategoryOptions:
+              AVAudioSessionCategoryOptions.defaultToSpeaker |
+              AVAudioSessionCategoryOptions.allowBluetooth,
+          avAudioSessionMode: AVAudioSessionMode.voiceChat,
+          avAudioSessionSetActiveOptions:
+              AVAudioSessionSetActiveOptions.notifyOthersOnDeactivation,
+        ));
+        await audioSession.setActive(true);
+        _liveLog.info('startSession: audio session configured (playAndRecord)');
+      } catch (e) {
+        _liveLog.warning('startSession: audio session config failed: $e');
+      }
+
+      // Stream mic whenever not suppressed. Suppression is tied to *local*
+      // speaker playback (see [setLivePlaybackSuppressMic]): sending mic while
+      // the assistant audio plays on-device causes Gemini to hear itself and
+      // fire spurious interruptions.
+      final audioStream = await pcmService.startStreaming();
+      if (audioStream != null) {
+        _audioInputSub = audioStream.listen((chunk) {
+          if (!_suppressMicForLocalPlayback) {
+            liveService.sendAudio(chunk);
+          }
+        });
+      }
+
+      state = state.copyWith(status: LiveSessionStatus.ready);
+    } catch (e, st) {
+      _liveLog.severe('startSession: unexpected error', e, st);
+      state = state.copyWith(
+        status: LiveSessionStatus.error,
+        errorMessage: '$e',
+      );
+      await _cleanup();
+    }
+  }
+
+  /// Stop the Live session.
+  ///
+  /// Callers that need fresh transcript rows should run
+  /// [ChatNotifier.reloadHistory] from the widget layer (e.g. after `await
+  /// stopSession()`), not from here — that avoids Riverpod circular deps with
+  /// [ChatNotifier] which listens to [liveSessionProvider].
+  Future<void> stopSession() async {
+    await _cleanup();
+    state = const LiveSessionState();
+  }
+
+  /// Called by [LiveVoiceOverlay] when local TTS playback starts/stops.
+  void setLivePlaybackSuppressMic(bool suppress) {
+    _playbackUnsuppressTimer?.cancel();
+    _playbackUnsuppressTimer = null;
+    _micSuppressFailsafeTimer?.cancel();
+    _micSuppressFailsafeTimer = null;
+    if (!suppress) {
+      _suppressMicForLocalPlayback = false;
+      return;
+    }
+    _suppressMicForLocalPlayback = true;
+    // If [processingState.completed] never fires, the mic would stay dead.
+    _micSuppressFailsafeTimer = Timer(const Duration(seconds: 45), () {
+      _micSuppressFailsafeTimer = null;
+      _suppressMicForLocalPlayback = false;
+      _liveLog.warning(
+        'live voice: mic suppress failsafe fired (playback completion missed?)',
+      );
+    });
+  }
+
+  /// After a concatenated turn finishes playing, wait for speaker tail before
+  /// sending mic again.
+  void scheduleMicUnsuppressAfterLocalPlayback({
+    Duration delay = const Duration(milliseconds: 400),
+  }) {
+    _playbackUnsuppressTimer?.cancel();
+    _playbackUnsuppressTimer = Timer(delay, () {
+      _playbackUnsuppressTimer = null;
+      _micSuppressFailsafeTimer?.cancel();
+      _micSuppressFailsafeTimer = null;
+      _suppressMicForLocalPlayback = false;
+    });
+  }
+
+  Future<void> _cleanup() async {
+    _playbackUnsuppressTimer?.cancel();
+    _playbackUnsuppressTimer = null;
+    _micSuppressFailsafeTimer?.cancel();
+    _micSuppressFailsafeTimer = null;
+    _suppressMicForLocalPlayback = false;
+    await _audioInputSub?.cancel();
+    _audioInputSub = null;
+    await _agentEventSub?.cancel();
+    _agentEventSub = null;
+    await ref.read(pcmAudioStreamServiceProvider).stopStreaming();
+    await _agentLoop?.stop();
+    _agentLoop = null;
+    await ref.read(geminiLiveServiceProvider).disconnect();
   }
 }

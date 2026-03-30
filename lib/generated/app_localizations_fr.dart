@@ -708,6 +708,50 @@ class AppLocalizationsFr extends AppLocalizations {
       'Le modèle par défaut est utilisé par les agents qui ne spécifient pas le leur.';
 
   @override
+  String get voiceCallModelSection => 'Voice call (Live)';
+
+  @override
+  String get voiceCallModelDescription =>
+      'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.';
+
+  @override
+  String get voiceCallModelLabel => 'Live model';
+
+  @override
+  String get voiceCallModelAutomatic => 'Automatic';
+
+  @override
+  String get preferLiveVoiceBootstrapTitle => 'Bootstrap in voice call';
+
+  @override
+  String get preferLiveVoiceBootstrapSubtitle =>
+      'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).';
+
+  @override
+  String get liveVoiceNameLabel => 'Voice';
+
+  @override
+  String get firstHatchModeChoiceTitle => 'Comment souhaitez-vous commencer ?';
+
+  @override
+  String get firstHatchModeChoiceBody =>
+      'Vous pouvez discuter par écrit avec votre assistant ou lancer une conversation vocale, comme un appel rapide. Choisissez ce qui vous semble le plus simple.';
+
+  @override
+  String get firstHatchModeChoiceChatButton => 'Écrire dans le chat';
+
+  @override
+  String get firstHatchModeChoiceVoiceButton => 'Parler à voix haute';
+
+  @override
+  String get liveVoiceBargeInHint =>
+      'Speak after the assistant stops (echo was interrupting them mid-speech).';
+
+  @override
+  String get cannotAddLiveModelAsChat =>
+      'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
   String get holdToSetAsDefault => 'Maintenez pour définir par défaut';
 
   @override

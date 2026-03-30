@@ -17,6 +17,7 @@ class ProviderCredential {
   final String? apiBase;
   final String? awsSecretKey;
   final String? awsRegion;
+
   /// Bedrock auth mode: 'bearer' (token) or 'sigv4' (access key + secret).
   final String? awsAuthMode;
 
@@ -73,6 +74,17 @@ class ModelEntry {
 
   bool get supportsVision => input?.contains('image') ?? false;
   bool get supportsAudio => input?.contains('audio') ?? false;
+
+  /// True when this entry is Live/WebSocket-only (voice call), not REST chat.
+  ///
+  /// Uses [ModelCatalog.isLiveCatalogId] first, then a Google + `live` heuristic
+  /// for custom ids not in the catalog.
+  bool get isLiveOnly =>
+      ModelCatalog.isLiveCatalogId(model) ||
+      (provider == 'google' && model.toLowerCase().contains('live'));
+
+  /// Same as [isLiveOnly] (legacy name).
+  bool get supportsLive => isLiveOnly;
 
   String get vendor => model.contains('/') ? model.split('/').first : 'openai';
   String get modelId =>
@@ -134,6 +146,18 @@ class AgentsDefaults {
   ///   • 'message'  — send typing only when text starts streaming
   final String typingMode;
 
+  /// Optional catalog API id for voice-call (Live WebSocket). Null = automatic
+  /// (first Live model for the active provider from [ModelCatalog]).
+  final String? liveVoiceModelId;
+
+  /// When true and Live is available, empty sessions with BOOTSTRAP.md open
+  /// voice call for bootstrap instead of a silent REST hatch.
+  final bool preferLiveVoiceBootstrap;
+
+  /// Prebuilt voice for Gemini Live audio output (default: 'Puck').
+  /// See [kLiveVoices] for the full list of available voices.
+  final String liveVoiceName;
+
   const AgentsDefaults({
     this.workspace = '~/.flutterclaw/workspace',
     this.modelName = 'gpt-4o',
@@ -146,6 +170,9 @@ class AgentsDefaults {
     this.autoCompactThreshold = 0.85,
     this.memoryFlushEnabled = true,
     this.typingMode = 'instant',
+    this.liveVoiceModelId,
+    this.preferLiveVoiceBootstrap = false,
+    this.liveVoiceName = 'Puck',
   });
 
   factory AgentsDefaults.fromJson(Map<String, dynamic> json) => AgentsDefaults(
@@ -158,9 +185,14 @@ class AgentsDefaults {
     restrictToWorkspace: json['restrict_to_workspace'] as bool? ?? true,
     maxToolResultTokens: json['max_tool_result_tokens'] as int? ?? 50000,
     autoCompactEnabled: json['auto_compact_enabled'] as bool? ?? true,
-    autoCompactThreshold: (json['auto_compact_threshold'] as num?)?.toDouble() ?? 0.85,
+    autoCompactThreshold:
+        (json['auto_compact_threshold'] as num?)?.toDouble() ?? 0.85,
     memoryFlushEnabled: json['memory_flush_enabled'] as bool? ?? true,
     typingMode: json['typing_mode'] as String? ?? 'instant',
+    liveVoiceModelId: json['live_voice_model_id'] as String?,
+    preferLiveVoiceBootstrap:
+        json['prefer_live_voice_bootstrap'] as bool? ?? false,
+    liveVoiceName: json['live_voice_name'] as String? ?? 'Puck',
   );
 
   Map<String, dynamic> toJson() => {
@@ -175,7 +207,48 @@ class AgentsDefaults {
     'auto_compact_threshold': autoCompactThreshold,
     'memory_flush_enabled': memoryFlushEnabled,
     'typing_mode': typingMode,
+    if (liveVoiceModelId != null) 'live_voice_model_id': liveVoiceModelId,
+    'prefer_live_voice_bootstrap': preferLiveVoiceBootstrap,
+    'live_voice_name': liveVoiceName,
   };
+
+  AgentsDefaults copyWith({
+    String? workspace,
+    String? modelName,
+    int? maxTokens,
+    double? temperature,
+    int? maxToolIterations,
+    bool? restrictToWorkspace,
+    int? maxToolResultTokens,
+    bool? autoCompactEnabled,
+    double? autoCompactThreshold,
+    bool? memoryFlushEnabled,
+    String? typingMode,
+    String? liveVoiceModelId,
+    bool? preferLiveVoiceBootstrap,
+    bool clearLiveVoiceModelId = false,
+    String? liveVoiceName,
+  }) {
+    return AgentsDefaults(
+      workspace: workspace ?? this.workspace,
+      modelName: modelName ?? this.modelName,
+      maxTokens: maxTokens ?? this.maxTokens,
+      temperature: temperature ?? this.temperature,
+      maxToolIterations: maxToolIterations ?? this.maxToolIterations,
+      restrictToWorkspace: restrictToWorkspace ?? this.restrictToWorkspace,
+      maxToolResultTokens: maxToolResultTokens ?? this.maxToolResultTokens,
+      autoCompactEnabled: autoCompactEnabled ?? this.autoCompactEnabled,
+      autoCompactThreshold: autoCompactThreshold ?? this.autoCompactThreshold,
+      memoryFlushEnabled: memoryFlushEnabled ?? this.memoryFlushEnabled,
+      typingMode: typingMode ?? this.typingMode,
+      liveVoiceModelId: clearLiveVoiceModelId
+          ? null
+          : (liveVoiceModelId ?? this.liveVoiceModelId),
+      preferLiveVoiceBootstrap:
+          preferLiveVoiceBootstrap ?? this.preferLiveVoiceBootstrap,
+      liveVoiceName: liveVoiceName ?? this.liveVoiceName,
+    );
+  }
 }
 
 class AgentsConfig {
@@ -190,6 +263,9 @@ class AgentsConfig {
   );
 
   Map<String, dynamic> toJson() => {'defaults': defaults.toJson()};
+
+  AgentsConfig copyWith({AgentsDefaults? defaults}) =>
+      AgentsConfig(defaults: defaults ?? this.defaults);
 }
 
 class TelegramConfig {
@@ -283,8 +359,10 @@ class WhatsAppConfig {
 /// Signal channel configuration (via signal-cli-rest-api proxy).
 class SignalConfig {
   final bool enabled;
+
   /// Base URL of signal-cli-rest-api instance (e.g. http://192.168.1.100:8080)
   final String? apiUrl;
+
   /// Registered Signal phone number (e.g. +12025551234)
   final String? account;
   final List<String> allowFrom;
@@ -298,15 +376,15 @@ class SignalConfig {
 
   factory SignalConfig.fromJson(Map<String, dynamic> json) => SignalConfig(
     enabled: json['enabled'] as bool? ?? false,
-    apiUrl:  json['api_url'] as String?,
+    apiUrl: json['api_url'] as String?,
     account: json['account'] as String?,
     allowFrom: (json['allow_from'] as List<dynamic>?)?.cast<String>() ?? [],
   );
 
   Map<String, dynamic> toJson() => {
     'enabled': enabled,
-    if (apiUrl != null)  'api_url':  apiUrl,
-    if (account != null) 'account':  account,
+    if (apiUrl != null) 'api_url': apiUrl,
+    if (account != null) 'account': account,
     'allow_from': allowFrom,
   };
 }
@@ -318,8 +396,10 @@ class SignalConfig {
 ///  - App-level token (xapp-…): Settings > Basic Information → App-Level Tokens
 class SlackConfig {
   final bool enabled;
+
   /// Bot OAuth token (xoxb-…)
   final String? botToken;
+
   /// App-level token for Socket Mode (xapp-…)
   final String? appToken;
   final List<String> allowFrom;
@@ -460,10 +540,13 @@ class WebToolsConfig {
 class BrowserConfig {
   /// Whether to auto-inject stealth scripts to avoid bot detection.
   final bool antiDetectionEnabled;
+
   /// Maximum profile file size in MB.
   final int maxProfileSizeMb;
+
   /// Maximum number of tabs allowed simultaneously.
   final int maxTabs;
+
   /// Maximum entries in the network request log.
   final int networkLogMaxEntries;
 
@@ -492,6 +575,7 @@ class BrowserConfig {
 class ToolsConfig {
   final WebToolsConfig web;
   final BrowserConfig browser;
+
   /// Tool names explicitly disabled by the user (e.g. ['sandbox_exec', 'camera_take_photo']).
   /// Disabled tools are removed from the tool catalog sent to the LLM and
   /// blocked at execution time.
@@ -512,7 +596,8 @@ class ToolsConfig {
     browser: json['browser'] != null
         ? BrowserConfig.fromJson(json['browser'] as Map<String, dynamic>)
         : const BrowserConfig(),
-    disabled: (json['disabled'] as List<dynamic>?)
+    disabled:
+        (json['disabled'] as List<dynamic>?)
             ?.map((e) => e as String)
             .toList() ??
         const [],
@@ -544,6 +629,7 @@ class GatewayConfig {
   final String host;
   final int port;
   final bool autoStart;
+
   /// Optional bearer token. When non-empty, clients must send it in the
   /// `connect` payload as `token`. Unauthenticated connections are rejected.
   /// Empty string means no authentication (open access — only safe on loopback).
@@ -598,6 +684,9 @@ class FlutterClawConfig {
   final GatewayConfig gateway;
   final bool onboardingCompleted;
 
+  /// After onboarding, show a one-time choice (chat vs voice) before bootstrap hatch.
+  final bool pendingFirstHatchModePrompt;
+
   // Multi-agent support
   final List<AgentProfile> agentProfiles;
   final String? activeAgentId;
@@ -625,6 +714,7 @@ class FlutterClawConfig {
     this.heartbeat = const HeartbeatConfig(),
     this.gateway = const GatewayConfig(),
     this.onboardingCompleted = false,
+    this.pendingFirstHatchModePrompt = false,
     this.agentProfiles = const [],
     this.activeAgentId,
     this.providerCredentials = const {},
@@ -667,8 +757,7 @@ class FlutterClawConfig {
     if (providerId == 'bedrock') {
       if (cred.awsAuthMode == 'bearer') {
         // Bearer: just need the token and region.
-        return cred.apiKey.isNotEmpty &&
-            (cred.awsRegion?.isNotEmpty ?? false);
+        return cred.apiKey.isNotEmpty && (cred.awsRegion?.isNotEmpty ?? false);
       }
       // SigV4: need access key, secret, and region.
       return cred.apiKey.isNotEmpty &&
@@ -706,61 +795,62 @@ class FlutterClawConfig {
     }
   }
 
-  factory FlutterClawConfig.fromJson(Map<String, dynamic> json) =>
-      FlutterClawConfig(
-        agents: json['agents'] != null
-            ? AgentsConfig.fromJson(json['agents'] as Map<String, dynamic>)
-            : const AgentsConfig(),
-        modelList:
-            (json['model_list'] as List<dynamic>?)
-                ?.map((e) => ModelEntry.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-        channels: json['channels'] != null
-            ? ChannelsConfig.fromJson(json['channels'] as Map<String, dynamic>)
-            : const ChannelsConfig(),
-        tools: json['tools'] != null
-            ? ToolsConfig.fromJson(json['tools'] as Map<String, dynamic>)
-            : const ToolsConfig(),
-        heartbeat: json['heartbeat'] != null
-            ? HeartbeatConfig.fromJson(
-                json['heartbeat'] as Map<String, dynamic>,
-              )
-            : const HeartbeatConfig(),
-        gateway: json['gateway'] != null
-            ? GatewayConfig.fromJson(json['gateway'] as Map<String, dynamic>)
-            : const GatewayConfig(),
-        onboardingCompleted: json['onboarding_completed'] as bool? ?? false,
-        agentProfiles:
-            (json['agent_profiles'] as List<dynamic>?)
-                ?.map((e) => AgentProfile.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-        activeAgentId: json['active_agent_id'] as String?,
-        providerCredentials:
-            (json['provider_credentials'] as Map<String, dynamic>?)?.map(
-              (k, v) => MapEntry(
-                k,
-                ProviderCredential.fromJson(v as Map<String, dynamic>),
-              ),
-            ) ??
-            {},
-        mcpServers:
-            (json['mcp_servers'] as List<dynamic>?)
-                ?.map((e) => McpServerEntry.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-        emailAccounts:
-            (json['email_accounts'] as List<dynamic>?)
-                ?.map((e) => EmailAccount.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-        oauthConnections:
-            (json['oauth_connections'] as List<dynamic>?)
-                ?.map((e) => OAuthConnection.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
-      );
+  factory FlutterClawConfig.fromJson(
+    Map<String, dynamic> json,
+  ) => FlutterClawConfig(
+    agents: json['agents'] != null
+        ? AgentsConfig.fromJson(json['agents'] as Map<String, dynamic>)
+        : const AgentsConfig(),
+    modelList:
+        (json['model_list'] as List<dynamic>?)
+            ?.map((e) => ModelEntry.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+    channels: json['channels'] != null
+        ? ChannelsConfig.fromJson(json['channels'] as Map<String, dynamic>)
+        : const ChannelsConfig(),
+    tools: json['tools'] != null
+        ? ToolsConfig.fromJson(json['tools'] as Map<String, dynamic>)
+        : const ToolsConfig(),
+    heartbeat: json['heartbeat'] != null
+        ? HeartbeatConfig.fromJson(json['heartbeat'] as Map<String, dynamic>)
+        : const HeartbeatConfig(),
+    gateway: json['gateway'] != null
+        ? GatewayConfig.fromJson(json['gateway'] as Map<String, dynamic>)
+        : const GatewayConfig(),
+    onboardingCompleted: json['onboarding_completed'] as bool? ?? false,
+    pendingFirstHatchModePrompt:
+        json['pending_first_hatch_mode_prompt'] as bool? ?? false,
+    agentProfiles:
+        (json['agent_profiles'] as List<dynamic>?)
+            ?.map((e) => AgentProfile.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+    activeAgentId: json['active_agent_id'] as String?,
+    providerCredentials:
+        (json['provider_credentials'] as Map<String, dynamic>?)?.map(
+          (k, v) => MapEntry(
+            k,
+            ProviderCredential.fromJson(v as Map<String, dynamic>),
+          ),
+        ) ??
+        {},
+    mcpServers:
+        (json['mcp_servers'] as List<dynamic>?)
+            ?.map((e) => McpServerEntry.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+    emailAccounts:
+        (json['email_accounts'] as List<dynamic>?)
+            ?.map((e) => EmailAccount.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+    oauthConnections:
+        (json['oauth_connections'] as List<dynamic>?)
+            ?.map((e) => OAuthConnection.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        [],
+  );
 
   Map<String, dynamic> toJson() => {
     'agents': agents.toJson(),
@@ -770,6 +860,8 @@ class FlutterClawConfig {
     'heartbeat': heartbeat.toJson(),
     'gateway': gateway.toJson(),
     'onboarding_completed': onboardingCompleted,
+    if (pendingFirstHatchModePrompt)
+      'pending_first_hatch_mode_prompt': pendingFirstHatchModePrompt,
     'agent_profiles': agentProfiles.map((e) => e.toJson()).toList(),
     if (activeAgentId != null) 'active_agent_id': activeAgentId,
     if (providerCredentials.isNotEmpty)
@@ -792,6 +884,7 @@ class FlutterClawConfig {
     HeartbeatConfig? heartbeat,
     GatewayConfig? gateway,
     bool? onboardingCompleted,
+    bool? pendingFirstHatchModePrompt,
     List<AgentProfile>? agentProfiles,
     String? activeAgentId,
     Map<String, ProviderCredential>? providerCredentials,
@@ -806,6 +899,8 @@ class FlutterClawConfig {
     heartbeat: heartbeat ?? this.heartbeat,
     gateway: gateway ?? this.gateway,
     onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+    pendingFirstHatchModePrompt:
+        pendingFirstHatchModePrompt ?? this.pendingFirstHatchModePrompt,
     agentProfiles: agentProfiles ?? this.agentProfiles,
     activeAgentId: activeAgentId ?? this.activeAgentId,
     providerCredentials: providerCredentials ?? this.providerCredentials,
@@ -1078,6 +1173,7 @@ After this introduction, this file will be automatically deleted.
     await _migrateToMultiAgent();
     _migrateApiKeysToProviderCredentials();
     _migrateOpenRouterDiscoveryModelIds();
+    _migrateLiveModelsOutOfPrimarySlot();
     // IDENTITY.md is the authoritative source — sync name/emoji into AgentProfile
     await syncAgentIdentitiesFromWorkspace();
     debugPrint(
@@ -1213,6 +1309,84 @@ After this introduction, this file will be automatically deleted.
       _config = _config.copyWith(modelList: updated);
       debugPrint(
         '[ConfigManager] Migrated OpenRouter discovery model ids (stripped erroneous openrouter/ prefix)',
+      );
+    }
+  }
+
+  /// Ensures defaults and agent profiles never point at Live-only models for REST;
+  /// drops unreferenced Live-only rows from [modelList].
+  void _migrateLiveModelsOutOfPrimarySlot() {
+    String? firstChatModelForProvider(String provider) {
+      for (final m in _config.modelList) {
+        if (m.provider == provider && !m.isLiveOnly) return m.modelName;
+      }
+      return null;
+    }
+
+    String? firstChatModelGlobal() {
+      for (final m in _config.modelList) {
+        if (!m.isLiveOnly) return m.modelName;
+      }
+      return null;
+    }
+
+    /// Returns replacement [ModelEntry.modelName] if [name] is Live-only, else null.
+    String? remapIfLiveOnly(String name) {
+      final entry = _config.getModel(name);
+      if (entry == null || !entry.isLiveOnly) return null;
+      return firstChatModelForProvider(entry.provider) ??
+          firstChatModelGlobal();
+    }
+
+    var changed = false;
+    var newDefaults = _config.agents.defaults;
+
+    final defaultReplacement = remapIfLiveOnly(newDefaults.modelName);
+    if (defaultReplacement != null) {
+      newDefaults = newDefaults.copyWith(modelName: defaultReplacement);
+      changed = true;
+    }
+
+    final newProfiles = _config.agentProfiles.map((a) {
+      final r = remapIfLiveOnly(a.modelName);
+      if (r != null) {
+        changed = true;
+        return a.copyWith(modelName: r);
+      }
+      return a;
+    }).toList();
+
+    final referencedNames = <String>{
+      newDefaults.modelName,
+      ...newProfiles.map((a) => a.modelName),
+    };
+
+    final pruned = _config.modelList.where((m) {
+      if (!m.isLiveOnly) return true;
+      return referencedNames.contains(m.modelName);
+    }).toList();
+    if (pruned.length != _config.modelList.length) {
+      changed = true;
+    }
+
+    // Clear invalid live voice override (wrong provider or not a Live catalog id).
+    final override = newDefaults.liveVoiceModelId;
+    if (override != null && override.isNotEmpty) {
+      final cat = ModelCatalog.tryGetModelFlexible(override);
+      if (cat == null || !cat.isLiveModel) {
+        newDefaults = newDefaults.copyWith(clearLiveVoiceModelId: true);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      _config = _config.copyWith(
+        modelList: pruned,
+        agentProfiles: newProfiles,
+        agents: _config.agents.copyWith(defaults: newDefaults),
+      );
+      debugPrint(
+        '[ConfigManager] Migrated Live-only models out of primary agent slots',
       );
     }
   }

@@ -698,6 +698,50 @@ class AppLocalizationsHi extends AppLocalizations {
       'डिफ़ॉल्ट मॉडल उन एजेंटों द्वारा उपयोग किया जाता है जो अपना खुद का निर्दिष्ट नहीं करते।';
 
   @override
+  String get voiceCallModelSection => 'Voice call (Live)';
+
+  @override
+  String get voiceCallModelDescription =>
+      'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.';
+
+  @override
+  String get voiceCallModelLabel => 'Live model';
+
+  @override
+  String get voiceCallModelAutomatic => 'Automatic';
+
+  @override
+  String get preferLiveVoiceBootstrapTitle => 'Bootstrap in voice call';
+
+  @override
+  String get preferLiveVoiceBootstrapSubtitle =>
+      'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).';
+
+  @override
+  String get liveVoiceNameLabel => 'Voice';
+
+  @override
+  String get firstHatchModeChoiceTitle => 'आप कैसे शुरू करना चाहेंगे?';
+
+  @override
+  String get firstHatchModeChoiceBody =>
+      'आप अपने सहायक से टेक्स्ट चैट कर सकते हैं या छोटी कॉल जैसी आवाज़ वाली बातचीत शुरू कर सकते हैं। जो आपको आसान लगे वह चुनें।';
+
+  @override
+  String get firstHatchModeChoiceChatButton => 'चैट में लिखें';
+
+  @override
+  String get firstHatchModeChoiceVoiceButton => 'आवाज़ से बात करें';
+
+  @override
+  String get liveVoiceBargeInHint =>
+      'Speak after the assistant stops (echo was interrupting them mid-speech).';
+
+  @override
+  String get cannotAddLiveModelAsChat =>
+      'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
   String get holdToSetAsDefault =>
       'डिफ़ॉल्ट के रूप में सेट करने के लिए दबाकर रखें';
 

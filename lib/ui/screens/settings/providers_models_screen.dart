@@ -10,6 +10,40 @@ import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/services/analytics_service.dart';
 import 'package:flutterclaw/ui/widgets/provider_brand_icon.dart';
 
+/// Gemini Live prebuilt voices with their personality descriptions.
+const Map<String, String> kLiveVoices = {
+  'Puck': 'Upbeat',
+  'Charon': 'Informational',
+  'Kore': 'Firm',
+  'Fenrir': 'Excitable',
+  'Aoede': 'Breezy',
+  'Leda': 'Youthful',
+  'Orus': 'Firm',
+  'Autonoe': 'Bright',
+  'Enceladus': 'Breathy',
+  'Iapetus': 'Clear',
+  'Umbriel': 'Easy-going',
+  'Algieba': 'Smooth',
+  'Despina': 'Smooth',
+  'Erinome': 'Clear',
+  'Algenib': 'Gravelly',
+  'Rasalgethi': 'Informational',
+  'Laomedeia': 'Upbeat',
+  'Achernar': 'Soft',
+  'Alnilam': 'Firm',
+  'Schedar': 'Even',
+  'Gacrux': 'Mature',
+  'Pulcherrima': 'Forward',
+  'Achird': 'Friendly',
+  'Zubenelgenubi': 'Casual',
+  'Vindemiatrix': 'Gentle',
+  'Sadachbia': 'Lively',
+  'Sadaltager': 'Knowledgeable',
+  'Sulafat': 'Warm',
+  'Zephyr': 'Bright',
+  'Shimmer': 'Clear',
+};
+
 /// Providers & Models settings sub-screen.
 class ProvidersModelsScreen extends ConsumerStatefulWidget {
   const ProvidersModelsScreen({super.key});
@@ -151,9 +185,15 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
               ),
             )
           else
-            ...config.modelList.asMap().entries.map((entry) {
-              final index = entry.key;
-              final m = entry.value;
+            ...config.modelList
+                .where((m) => !m.isLiveOnly)
+                .map((m) {
+              final index = config.modelList.indexWhere(
+                (e) =>
+                    e.modelName == m.modelName &&
+                    e.model == m.model &&
+                    e.provider == m.provider,
+              );
               final isDefault = m.modelName == config.agents.defaults.modelName;
               final provider = ModelCatalog.getProvider(m.provider);
               final isAuth = config.isProviderAuthenticated(m.provider) ||
@@ -272,6 +312,118 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
               );
             }),
 
+          if (_liveVoiceOptions(config).isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _SectionLabel(title: context.l10n.voiceCallModelSection),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                context.l10n.voiceCallModelDescription,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Card(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: DropdownButtonFormField<String?>(
+                  value: _resolvedLiveVoiceSelection(config),
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    labelText: context.l10n.voiceCallModelLabel,
+                  ),
+                  items: [
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text(context.l10n.voiceCallModelAutomatic),
+                    ),
+                    ..._liveVoiceOptions(config).map(
+                      (cm) => DropdownMenuItem<String?>(
+                        value: cm.id,
+                        child: Text(
+                          '${ModelCatalog.getProvider(cm.providerId)?.displayName ?? cm.providerId} — ${cm.displayName}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) async {
+                    final cm = ref.read(configManagerProvider);
+                    final d = cm.config.agents.defaults;
+                    final next = v == null
+                        ? d.copyWith(clearLiveVoiceModelId: true)
+                        : d.copyWith(liveVoiceModelId: v);
+                    cm.update(cm.config.copyWith(
+                      agents: cm.config.agents.copyWith(defaults: next),
+                    ));
+                    await cm.save();
+                    setState(() {});
+                  },
+                ),
+              ),
+            ),
+            SwitchListTile(
+              title: Text(context.l10n.preferLiveVoiceBootstrapTitle),
+              subtitle: Text(
+                context.l10n.preferLiveVoiceBootstrapSubtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              value: config.agents.defaults.preferLiveVoiceBootstrap,
+              onChanged: (v) async {
+                final cm = ref.read(configManagerProvider);
+                final next = cm.config.agents.defaults
+                    .copyWith(preferLiveVoiceBootstrap: v);
+                cm.update(cm.config.copyWith(
+                  agents: cm.config.agents.copyWith(defaults: next),
+                ));
+                await cm.save();
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: 4),
+            Card(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: DropdownButtonFormField<String>(
+                  value: kLiveVoices.containsKey(
+                          config.agents.defaults.liveVoiceName)
+                      ? config.agents.defaults.liveVoiceName
+                      : 'Puck',
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    labelText: context.l10n.liveVoiceNameLabel,
+                  ),
+                  items: kLiveVoices.entries
+                      .map(
+                        (e) => DropdownMenuItem<String>(
+                          value: e.key,
+                          child: Text('${e.key} — ${e.value}'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) async {
+                    if (v == null) return;
+                    final cm = ref.read(configManagerProvider);
+                    final next = cm.config.agents.defaults
+                        .copyWith(liveVoiceName: v);
+                    cm.update(cm.config.copyWith(
+                      agents: cm.config.agents.copyWith(defaults: next),
+                    ));
+                    await cm.save();
+                    setState(() {});
+                  },
+                ),
+              ),
+            ),
+          ],
+
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: OutlinedButton.icon(
@@ -288,6 +440,27 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
         ],
       ),
     );
+  }
+
+  /// Dropdown value: null, or stored id only if still among [ _liveVoiceOptions ].
+  String? _resolvedLiveVoiceSelection(FlutterClawConfig config) {
+    final cur = config.agents.defaults.liveVoiceModelId;
+    if (cur == null || cur.isEmpty) return null;
+    final ids = _liveVoiceOptions(config).map((m) => m.id).toSet();
+    return ids.contains(cur) ? cur : null;
+  }
+
+  /// Live catalog models for providers the user has authenticated (deduped by id).
+  List<CatalogModel> _liveVoiceOptions(FlutterClawConfig config) {
+    final seen = <String>{};
+    final out = <CatalogModel>[];
+    for (final pid in config.providerCredentials.keys) {
+      if (!config.isProviderAuthenticated(pid)) continue;
+      for (final m in ModelCatalog.liveCatalogModelsForProvider(pid)) {
+        if (seen.add(m.id)) out.add(m);
+      }
+    }
+    return out;
   }
 
   void _showAddProviderFlow(BuildContext context) {
@@ -710,8 +883,9 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
     }
 
     configManager.update(config.copyWith(
-      agents: AgentsConfig(
-          defaults: AgentsDefaults(modelName: modelName)),
+      agents: config.agents.copyWith(
+        defaults: config.agents.defaults.copyWith(modelName: modelName),
+      ),
     ));
 
     if (updateAgents && agentsToUpdate.isNotEmpty) {
@@ -1088,7 +1262,7 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
                 style: theme.textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            ...ModelCatalog.availableModelsForProvider(_selectedProviderId!)
+            ...ModelCatalog.chatCatalogModelsForProvider(_selectedProviderId!)
                 .map((m) => _ModelChip(
                       model: m,
                       isSelected:
@@ -1321,10 +1495,18 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
   void _addModel() async {
     final configManager = ref.read(configManagerProvider);
     final provider = ModelCatalog.getProvider(_selectedProviderId!);
-    final catalogModel = ModelCatalog.models
-        .where((m) => m.id == _selectedModelId)
-        .firstOrNull;
+    final catalogModel =
+        ModelCatalog.tryGetModelFlexible(_selectedModelId ?? '');
     final config = configManager.config;
+
+    if (ModelCatalog.isLiveCatalogId(_selectedModelId ?? '')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.cannotAddLiveModelAsChat)),
+        );
+      }
+      return;
+    }
 
     if (config.modelList.any((m) => m.model == _selectedModelId)) {
       if (mounted) {
@@ -1391,7 +1573,10 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
           .map((a) => a.copyWith(modelName: modelEntry.modelName))
           .toList();
       configManager.update(configManager.config.copyWith(
-        agents: AgentsConfig(defaults: AgentsDefaults(modelName: modelEntry.modelName)),
+        agents: configManager.config.agents.copyWith(
+          defaults: configManager.config.agents.defaults
+              .copyWith(modelName: modelEntry.modelName),
+        ),
         agentProfiles: profiles,
       ));
       await configManager.save();
@@ -1476,7 +1661,10 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
       var cfg = configManager.config;
       if (result.setAsDefault) {
         cfg = cfg.copyWith(
-          agents: AgentsConfig(defaults: AgentsDefaults(modelName: modelEntry.modelName)),
+          agents: cfg.agents.copyWith(
+            defaults: cfg.agents.defaults
+                .copyWith(modelName: modelEntry.modelName),
+          ),
         );
       }
       if (result.updateAgents) {
@@ -1632,6 +1820,10 @@ class _ModelChip extends StatelessWidget {
                         const SizedBox(width: 8),
                         _FreeBadge(),
                       ],
+                      if (model.supportsLive) ...[
+                        const SizedBox(width: 6),
+                        _LiveBadge(),
+                      ],
                     ]),
                     const SizedBox(height: 3),
                     _ModelCapabilityIcons(model: model),
@@ -1649,6 +1841,35 @@ class _ModelChip extends StatelessWidget {
             ]),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LiveBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+      decoration: BoxDecoration(
+        color: Colors.deepPurple.shade100,
+        borderRadius: BorderRadius.circular(AppTokens.radiusPill),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.spatial_audio, size: 9, color: Colors.deepPurple.shade800),
+          const SizedBox(width: 3),
+          Text(
+            'LIVE',
+            style: TextStyle(
+              color: Colors.deepPurple.shade800,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1692,6 +1913,10 @@ class _ModelCapabilityIcons extends StatelessWidget {
       if (model.supportsAudio) ...[
         const SizedBox(width: 5),
         Icon(Icons.mic_outlined, size: 13, color: Colors.orange.shade400),
+      ],
+      if (model.supportsLive) ...[
+        const SizedBox(width: 5),
+        Icon(Icons.spatial_audio, size: 13, color: Colors.deepPurple.shade400),
       ],
     ]);
   }

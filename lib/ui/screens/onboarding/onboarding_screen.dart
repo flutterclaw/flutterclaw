@@ -121,15 +121,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       // Gateway uses defaults (host:port:autoStart=true); user can adjust in Settings.
       // Channels keep existing config — user configures them from the Channels screen.
-      final newConfig = configManager.config.copyWith(
+      var newConfig = configManager.config.copyWith(
         modelList: [modelEntry],
         providerCredentials: {_selectedProviderId!: credential},
-        agents: AgentsConfig(
-          defaults: AgentsDefaults(modelName: modelEntry.modelName),
+        agents: configManager.config.agents.copyWith(
+          defaults: configManager.config.agents.defaults.copyWith(
+            modelName: modelEntry.modelName,
+          ),
         ),
         agentProfiles: updatedProfiles,
         onboardingCompleted: true,
       );
+
+      final offerFirstHatchModeChoice =
+          ModelCatalog.providerHasLiveVoiceModel(_selectedProviderId!) &&
+          newConfig.isProviderAuthenticated(_selectedProviderId!);
+      if (offerFirstHatchModeChoice) {
+        newConfig = newConfig.copyWith(pendingFirstHatchModePrompt: true);
+      }
 
       configManager.update(newConfig);
       await configManager.save();
@@ -182,9 +191,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isStarting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.errorGeneric(e.toString()))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.errorGeneric(e.toString()))),
+      );
     }
   }
 

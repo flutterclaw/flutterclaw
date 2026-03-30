@@ -699,6 +699,50 @@ class AppLocalizationsVi extends AppLocalizations {
       'Mô hình mặc định được sử dụng bởi các tác nhân không chỉ định mô hình riêng.';
 
   @override
+  String get voiceCallModelSection => 'Voice call (Live)';
+
+  @override
+  String get voiceCallModelDescription =>
+      'Used only when you tap the call button. Chat, agents, and background tasks use your normal model.';
+
+  @override
+  String get voiceCallModelLabel => 'Live model';
+
+  @override
+  String get voiceCallModelAutomatic => 'Automatic';
+
+  @override
+  String get preferLiveVoiceBootstrapTitle => 'Bootstrap in voice call';
+
+  @override
+  String get preferLiveVoiceBootstrapSubtitle =>
+      'On a new empty chat with BOOTSTRAP.md, start a voice call instead of a silent text hatch (when Live is available).';
+
+  @override
+  String get liveVoiceNameLabel => 'Voice';
+
+  @override
+  String get firstHatchModeChoiceTitle => 'Bạn muốn bắt đầu thế nào?';
+
+  @override
+  String get firstHatchModeChoiceBody =>
+      'Bạn có thể nhắn chữ với trợ lý hoặc bắt đầu trò chuyện bằng giọng nói như một cuộc gọi ngắn. Hãy chọn cách bạn thấy dễ nhất.';
+
+  @override
+  String get firstHatchModeChoiceChatButton => 'Nhắn trong chat';
+
+  @override
+  String get firstHatchModeChoiceVoiceButton => 'Nói chuyện bằng giọng nói';
+
+  @override
+  String get liveVoiceBargeInHint =>
+      'Speak after the assistant stops (echo was interrupting them mid-speech).';
+
+  @override
+  String get cannotAddLiveModelAsChat =>
+      'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
   String get holdToSetAsDefault => 'Giữ để đặt làm mặc định';
 
   @override
