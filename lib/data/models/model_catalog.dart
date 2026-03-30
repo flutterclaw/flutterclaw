@@ -63,6 +63,9 @@ class CatalogModel {
   /// hasn't set an explicit level. 'medium' is a good default per Anthropic.
   final String defaultEffort;
 
+  /// True when this model uses the Gemini Live API (real-time WebSocket audio).
+  final bool supportsLive;
+
   const CatalogModel({
     required this.id,
     required this.displayName,
@@ -78,11 +81,13 @@ class CatalogModel {
     this.supportsAdaptiveThinking = false,
     this.supportsExtendedThinking = false,
     this.defaultEffort = 'medium',
+    this.supportsLive = false,
   });
 
   bool get supportsVision => input.contains('image');
   bool get supportsAudio => input.contains('audio');
   bool get hasPricing => inputPriceUsdPerMillion > 0 || outputPriceUsdPerMillion > 0;
+  bool get isLiveModel => supportsLive;
 
   /// Compute USD cost for a set of token counts.
   double computeCostUsd({
@@ -542,6 +547,26 @@ class ModelCatalog {
       contextWindow: 1048576,
       description: 'Fastest, most cost-efficient Gemini 3 multimodal',
       input: ['text', 'image', 'audio'],
+    ),
+    CatalogModel(
+      id: 'gemini-3.1-flash-live-preview',
+      displayName: 'Gemini 3.1 Flash Live',
+      providerId: 'google',
+      isFree: false,
+      contextWindow: 128000,
+      description: 'Real-time voice — Live API (preview, may require allowlist)',
+      input: ['text', 'audio', 'image'],
+      supportsLive: true,
+    ),
+    CatalogModel(
+      id: 'gemini-2.5-flash-preview-native-audio-dialog',
+      displayName: 'Gemini 2.5 Flash Live',
+      providerId: 'google',
+      isFree: false,
+      contextWindow: 1000000,
+      description: 'Real-time voice — Live API (stable preview)',
+      input: ['text', 'audio', 'image'],
+      supportsLive: true,
     ),
 
     // DeepSeek (OpenAI-compatible)

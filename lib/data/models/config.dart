@@ -74,6 +74,11 @@ class ModelEntry {
   bool get supportsVision => input?.contains('image') ?? false;
   bool get supportsAudio => input?.contains('audio') ?? false;
 
+  /// True when this model uses the Gemini Live API (WebSocket-only).
+  /// These models cannot be used for standard REST chat completions.
+  bool get supportsLive =>
+      provider == 'google' && model.toLowerCase().contains('live');
+
   String get vendor => model.contains('/') ? model.split('/').first : 'openai';
   String get modelId =>
       model.contains('/') ? model.split('/').skip(1).join('/') : model;
