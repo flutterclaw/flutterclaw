@@ -349,6 +349,7 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
   registry.register(ListDirTool(wsPath));
   registry.register(AppendFileTool(wsPath));
   registry.register(WebSearchTool(config: configManager.config));
+  registry.register(WebImageSearchTool(config: configManager.config));
   // Late reference so the callback can access the browser's current user agent
   // (the closure is defined inside the constructor, before the variable is assigned).
   late final HeadlessBrowserTool headlessBrowser;
@@ -458,7 +459,7 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
     SessionStatusTool((key) async {
       final sessions = sessionManager.listSessions();
       final meta = sessions
-          .where((s) => s.key == (key ?? 'webchat:default'))
+          .where((s) => s.key == (key ?? ref.read(activeSessionKeyProvider)))
           .firstOrNull;
       if (meta == null) return null;
       return {
@@ -595,6 +596,7 @@ final toolRegistryProvider = Provider<ToolRegistry>((ref) {
     ref.invalidate(activeAgentProvider);
     ref.invalidate(activeWorkspacePathProvider);
     ref.invalidate(activeModelSupportsVisionProvider);
+    ref.invalidate(activeModelSupportsLiveProvider);
   }
 
   registry.register(
@@ -2573,10 +2575,16 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
             for (var i = updated.length - 1; i >= 0; i--) {
               if (updated[i].isToolStatus && updated[i].isStreaming == true) {
                 found = true;
-                print('[ChatNotifier] → marking pill at i=$i as done');
+                // Prefer the toolResultText already set by a CLEAR chunk (the
+                // authoritative JSON from executeStream) over event.toolResult
+                // which may have been modified by truncation middleware.
+                // Fall back to event.toolResult if no CLEAR chunk arrived.
+                final existing = updated[i].toolResultText;
+                final useExisting = existing != null && existing.isNotEmpty;
+                print('[ChatNotifier] → marking pill at i=$i as done, useExisting=$useExisting existing=${existing?.length}');
                 updated[i] = updated[i].copyWith(
                   isStreaming: false,
-                  toolResultText: event.toolResult,
+                  toolResultText: useExisting ? existing : event.toolResult,
                 );
                 break;
               }
