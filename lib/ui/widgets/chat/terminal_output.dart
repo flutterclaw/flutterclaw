@@ -102,36 +102,33 @@ class _TerminalOutputState extends State<TerminalOutput> {
           final newExitCode = (json['exit_code'] as int?) ?? 0;
           final timedOut = json['timed_out'] == true;
 
-          if (_heightMode != _TerminalHeightMode.compact) {
-            debugPrint('[TermOut] JSON branch: has content, preserving streamed content');
-            // Streaming content already visible with full ANSI rendering —
-            // just update exit code in header, don't touch xterm buffer.
-          } else if (stdout.isNotEmpty || stderr.isNotEmpty) {
-            debugPrint('[TermOut] JSON branch: history load, stdout=${stdout.length} stderr=${stderr.length}');
-            // History load: no streaming happened, render from stripped JSON.
-            _terminal.buffer.clear();
-            _terminal.setCursor(0, 0);
-            if (stdout.isNotEmpty) _terminal.write(_normalizeForXterm(stdout));
-            if (stderr.isNotEmpty) _terminal.write('\x1b[31m${_normalizeForXterm(stderr)}\x1b[0m');
+          final stdoutTrimmed = stdout.trim();
+          final stderrTrimmed = stderr.trim();
+          debugPrint('[TermOut] JSON: heightMode=$_heightMode stdoutLen=${stdout.length} stdoutTrimLen=${stdoutTrimmed.length} stderr=${stderr.length} exit=$newExitCode timedOut=$timedOut');
+          debugPrint('[TermOut] JSON stdout preview: "${stdoutTrimmed.substring(0, stdoutTrimmed.length.clamp(0, 80))}"');
+
+          // Always replace xterm content with the authoritative clean output
+          // from the CLEAR JSON. This eliminates shell noise (prompt echoes,
+          // cd wrapper lines, boot probe tail) that leaked into streaming view.
+          _terminal.buffer.clear();
+          _terminal.setCursor(0, 0);
+          if (stdoutTrimmed.isNotEmpty || stderrTrimmed.isNotEmpty) {
+            if (stdoutTrimmed.isNotEmpty) _terminal.write(_normalizeForXterm(stdoutTrimmed));
+            if (stderrTrimmed.isNotEmpty) _terminal.write('\x1b[31m${_normalizeForXterm(stderrTrimmed)}\x1b[0m');
             _setHeightMode(_TerminalHeightMode.standard);
           } else if (timedOut) {
-            debugPrint('[TermOut] JSON branch: timed out');
-            _terminal.buffer.clear();
-            _terminal.setCursor(0, 0);
             _terminal.write(
                 '\x1b[33mCommand timed out (>${(json['timeout_ms'] ?? 30000) ~/ 1000}s).\r\n'
                 'Try using a longer timeout for network operations.\x1b[0m');
             _setHeightMode(_TerminalHeightMode.standard);
           } else {
-            debugPrint('[TermOut] JSON branch: no output, exitCode=$newExitCode');
-            // No streaming content and no captured output — show minimal hint.
-            _terminal.buffer.clear();
-            _terminal.setCursor(0, 0);
+            debugPrint('[TermOut] JSON: truly no output, exitCode=$newExitCode');
             if (newExitCode == 0) {
               _terminal.write('\x1b[2m(no output)\x1b[0m');
             } else {
               _terminal.write('\x1b[31m(exit code: $newExitCode)\x1b[0m');
             }
+            _setHeightMode(_TerminalHeightMode.standard);
           }
 
           if (newExitCode != _exitCode) {
@@ -154,6 +151,12 @@ class _TerminalOutputState extends State<TerminalOutput> {
       final delta = text.substring(_lastOutput.length);
       if (delta.isNotEmpty && delta.trim().isNotEmpty) {
         debugPrint('[TermOut] streaming delta len=${delta.length} (total=${text.length})');
+        // First real content after compact (waiting) state: clear the
+        // "Running..." placeholder before writing actual output.
+        if (_heightMode == _TerminalHeightMode.compact) {
+          _terminal.buffer.clear();
+          _terminal.setCursor(0, 0);
+        }
         _terminal.write(_normalizeForXterm(delta));
         _setHeightMode(_TerminalHeightMode.standard);
       }
@@ -340,41 +343,111 @@ class _TerminalOutputState extends State<TerminalOutput> {
               ],
             ),
           ),
-          // Terminal body — xterm emulator
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            height: terminalHeight,
-            child: TerminalView(
-              _terminal,
-              readOnly: !widget.isStreaming,
-              autofocus: false,
-              theme: TerminalTheme(
-                cursor: terminalBg,
-                selection: const Color(0x40FFFFFF),
-                foreground: const Color(0xFFCCCCCC),
-                background: terminalBg,
-                black: const Color(0xFF000000),
-                red: const Color(0xFFFF5F56),
-                green: const Color(0xFF27C93F),
-                yellow: const Color(0xFFFFBD2E),
-                blue: const Color(0xFF6CA0DC),
-                magenta: const Color(0xFFC678DD),
-                cyan: const Color(0xFF56B6C2),
-                white: const Color(0xFFCCCCCC),
-                brightBlack: const Color(0xFF666666),
-                brightRed: const Color(0xFFFF6E67),
-                brightGreen: const Color(0xFF5AF78E),
-                brightYellow: const Color(0xFFF4F99D),
-                brightBlue: const Color(0xFFCAA9FA),
-                brightMagenta: const Color(0xFFFF92D0),
-                brightCyan: const Color(0xFF9AEDFE),
-                brightWhite: const Color(0xFFFFFFFF),
-                searchHitBackground: const Color(0x40FFFF00),
-                searchHitBackgroundCurrent: const Color(0x80FFFF00),
-                searchHitForeground: const Color(0xFFFFFFFF),
+          // Terminal body — loading placeholder or xterm emulator.
+          // When streaming with no output yet, show a prominent waiting state
+          // so the user can see the agent is actively working.
+          if (widget.isStreaming && _heightMode == _TerminalHeightMode.compact)
+            _WaitingBody(bg: terminalBg)
+          else
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              height: terminalHeight,
+              child: TerminalView(
+                _terminal,
+                readOnly: !widget.isStreaming,
+                autofocus: false,
+                theme: TerminalTheme(
+                  cursor: terminalBg,
+                  selection: const Color(0x40FFFFFF),
+                  foreground: const Color(0xFFCCCCCC),
+                  background: terminalBg,
+                  black: const Color(0xFF000000),
+                  red: const Color(0xFFFF5F56),
+                  green: const Color(0xFF27C93F),
+                  yellow: const Color(0xFFFFBD2E),
+                  blue: const Color(0xFF6CA0DC),
+                  magenta: const Color(0xFFC678DD),
+                  cyan: const Color(0xFF56B6C2),
+                  white: const Color(0xFFCCCCCC),
+                  brightBlack: const Color(0xFF666666),
+                  brightRed: const Color(0xFFFF6E67),
+                  brightGreen: const Color(0xFF5AF78E),
+                  brightYellow: const Color(0xFFF4F99D),
+                  brightBlue: const Color(0xFFCAA9FA),
+                  brightMagenta: const Color(0xFFFF92D0),
+                  brightCyan: const Color(0xFF9AEDFE),
+                  brightWhite: const Color(0xFFFFFFFF),
+                  searchHitBackground: const Color(0x40FFFF00),
+                  searchHitBackgroundCurrent: const Color(0x80FFFF00),
+                  searchHitForeground: const Color(0xFFFFFFFF),
+                ),
+                textStyle: const TerminalStyle(fontSize: 13),
               ),
-              textStyle: const TerminalStyle(fontSize: 13),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Animated "waiting for output" body shown inside TerminalOutput while a
+/// command is running but hasn't produced any output yet.
+class _WaitingBody extends StatefulWidget {
+  final Color bg;
+  const _WaitingBody({required this.bg});
+
+  @override
+  State<_WaitingBody> createState() => _WaitingBodyState();
+}
+
+class _WaitingBodyState extends State<_WaitingBody>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      color: widget.bg,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          FadeTransition(
+            opacity: _fade,
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: const BoxDecoration(
+                color: Color(0xFF27C93F),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Text(
+            'Running…',
+            style: TextStyle(
+              color: Color(0xFF888888),
+              fontSize: 12,
+              fontFamily: 'monospace',
             ),
           ),
         ],
