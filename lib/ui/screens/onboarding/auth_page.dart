@@ -405,9 +405,15 @@ class _AuthPageState extends State<AuthPage> {
         // Bedrock: auth mode selector
         if (_isBedrock) ...[
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'bearer', label: Text('Bearer Token')),
-              ButtonSegment(value: 'sigv4', label: Text('Access Keys')),
+            segments: [
+              ButtonSegment(
+                value: 'bearer',
+                label: Text(context.l10n.authBearerTokenLabel),
+              ),
+              ButtonSegment(
+                value: 'sigv4',
+                label: Text(context.l10n.authAccessKeysLabel),
+              ),
             ],
             selected: {_awsAuthMode},
             onSelectionChanged: (v) {
@@ -431,7 +437,7 @@ class _AuthPageState extends State<AuthPage> {
           decoration: InputDecoration(
             labelText: _isBedrock
                 ? (_awsAuthMode == 'bearer'
-                    ? 'Bearer Token'
+                    ? context.l10n.authBearerTokenLabel
                     : 'AWS Access Key ID')
                 : context.l10n.apiKey,
             border: const OutlineInputBorder(),
@@ -598,7 +604,8 @@ class _AuthPageState extends State<AuthPage> {
           ),
           if (_discoveredModels.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('${_discoveredModels.length} models found',
+            Text(
+                context.l10n.authModelsFoundCount(_discoveredModels.length),
                 style: theme.textTheme.labelSmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(height: 4),
@@ -619,7 +626,8 @@ class _AuthPageState extends State<AuthPage> {
                 onPressed: () {
                   setState(() => _useCustomModel = true);
                 },
-                child: Text('+ ${_discoveredModels.length - 20} more — enter ID manually'),
+                child: Text(context.l10n
+                    .authModelsFoundMoreManual(_discoveredModels.length - 20)),
               ),
           ],
         ],

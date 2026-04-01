@@ -739,8 +739,124 @@ class AppLocalizationsVi extends AppLocalizations {
       'Hãy nói sau khi trợ lý dừng lại (tiếng vọng từng làm ngắt họ giữa câu).';
 
   @override
+  String get liveVoiceFallbackTitle => 'Trực tiếp';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Kết thúc cuộc trò chuyện';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Đang kết nối…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Đang chạy…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Đang nói…';
+
+  @override
+  String get liveVoiceStatusListening => 'Đang nghe…';
+
+  @override
+  String get liveVoiceBadge => 'TRỰC TIẾP';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Mô hình này chỉ dành cho cuộc gọi thoại. Hãy chọn một mô hình chat từ danh sách.';
+
+  @override
+  String get authBearerTokenLabel => 'Token Bearer';
+
+  @override
+  String get authAccessKeysLabel => 'Khóa truy cập';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return 'Tìm thấy $count mô hình';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count nữa — nhập ID thủ công';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'Quét QR / mã vạch';
+
+  @override
+  String get oauthSignInTitle => 'Đăng nhập';
+
+  @override
+  String get browserOverlayDone => 'Xong';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Lỗi khởi tạo: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Thông tin đăng nhập';
+
+  @override
+  String get credentialsIntroBody =>
+      'Thêm nhiều khóa API cho mỗi nhà cung cấp. FlutterClaw luân chuyển tự động và làm nguội khóa khi đạt giới hạn.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'Chưa cấu hình nhà cung cấp nào.\nVào Cài đặt → Nhà cung cấp & mô hình để thêm.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Thêm khóa';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Không có khóa phụ — dùng khóa từ Nhà cung cấp & mô hình.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'Thêm khóa $provider';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Nhãn (vd. \"Khóa công việc\")';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'Khóa API';
+
+  @override
+  String get securitySettingsTitle => 'Bảo mật';
+
+  @override
+  String get securitySettingsIntro =>
+      'Điều khiển kiểm tra bảo mật chống thao tác nguy hiểm. Áp dụng cho phiên hiện tại.';
+
+  @override
+  String get securitySectionToolExecution => 'THỰC THI CÔNG CỤ';
+
+  @override
+  String get securityPatternDetectionTitle => 'Phát hiện mẫu bảo mật';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Chặn mẫu nguy hiểm: shell injection, path traversal, eval/exec, XSS, giải tuần tự hóa.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Kiểm tra bảo mật đã tắt. Gọi công cụ không qua xác thực. Bật lại khi xong.';
+
+  @override
+  String get securitySectionHowItWorks => 'CÁCH HOẠT ĐỘNG';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Khi lệnh gọi khớp mẫu nguy hiểm, nó bị chặn và tác nhân được biết lý do.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Dùng /unsafe trong chat để cho phép một lần lệnh gọi bị chặn, sau đó kiểm tra bật lại.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Tắt \"Phát hiện mẫu bảo mật\" tại đây để tắt kiểm tra cả phiên.';
 
   @override
   String get holdToSetAsDefault => 'Giữ để đặt làm mặc định';

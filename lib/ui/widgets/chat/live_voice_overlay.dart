@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/core/agent/live_agent_loop.dart';
 import 'package:flutterclaw/generated/app_localizations.dart';
+import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/services/call_sfx_service.dart';
 import 'package:flutterclaw/ui/theme/tokens.dart';
 import 'package:just_audio/just_audio.dart';
@@ -586,6 +587,7 @@ class _LiveVoiceOverlayState extends ConsumerState<LiveVoiceOverlay>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final agent = ref.watch(activeAgentProvider);
     final ringColor = _getRingColor(theme);
     final isDark = theme.brightness == Brightness.dark;
@@ -628,7 +630,7 @@ class _LiveVoiceOverlayState extends ConsumerState<LiveVoiceOverlay>
                 ),
                 SizedBox(
                   height: _kLiveHeaderHeight,
-                  child: _buildHeader(theme, agent, ringColor),
+                  child: _buildHeader(theme, agent, ringColor, l10n),
                 ),
                 SizedBox(
                   height: _kLiveHudHeight,
@@ -639,7 +641,7 @@ class _LiveVoiceOverlayState extends ConsumerState<LiveVoiceOverlay>
                       AppTokens.spacingMD,
                       AppTokens.spacingSM,
                     ),
-                    child: _buildCompactHud(theme, agent),
+                    child: _buildCompactHud(theme, agent, l10n),
                   ),
                 ),
               ],
@@ -650,9 +652,16 @@ class _LiveVoiceOverlayState extends ConsumerState<LiveVoiceOverlay>
     );
   }
 
-  Widget _buildHeader(ThemeData theme, dynamic agent, Color ringColor) {
+  Widget _buildHeader(
+    ThemeData theme,
+    dynamic agent,
+    Color ringColor,
+    AppLocalizations l10n,
+  ) {
     final agentName =
-        (agent != null && (agent.name as String).isNotEmpty) ? agent.name as String : 'Live';
+        (agent != null && (agent.name as String).isNotEmpty)
+            ? agent.name as String
+            : l10n.liveVoiceFallbackTitle;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTokens.spacingMD),
       child: Row(
@@ -663,7 +672,12 @@ class _LiveVoiceOverlayState extends ConsumerState<LiveVoiceOverlay>
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: AppTokens.spacingSM),
-          _LiveBadge(theme: theme, color: ringColor, controller: _ring1Controller),
+          _LiveBadge(
+            theme: theme,
+            color: ringColor,
+            controller: _ring1Controller,
+            label: l10n.liveVoiceBadge,
+          ),
           const Spacer(),
           IconButton(
             onPressed: _endSession,
@@ -673,14 +687,18 @@ class _LiveVoiceOverlayState extends ConsumerState<LiveVoiceOverlay>
               foregroundColor: theme.colorScheme.onErrorContainer,
             ),
             icon: const Icon(Icons.call_end),
-            tooltip: 'End conversation',
+            tooltip: l10n.liveVoiceEndConversationTooltip,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCompactHud(ThemeData theme, dynamic agent) {
+  Widget _buildCompactHud(
+    ThemeData theme,
+    dynamic agent,
+    AppLocalizations l10n,
+  ) {
     final agentEmoji =
         (agent != null && (agent.emoji as String).isNotEmpty) ? agent.emoji as String : '🎙';
 
@@ -721,12 +739,12 @@ class _LiveVoiceOverlayState extends ConsumerState<LiveVoiceOverlay>
     }
 
     final statusText = _isConnecting
-        ? 'Connecting…'
+        ? l10n.liveVoiceStatusConnecting
         : _activeTool != null
-            ? 'Running…'
+            ? l10n.liveVoiceStatusRunning
             : _modelSpeaking
-                ? 'Speaking…'
-                : 'Listening…';
+                ? l10n.liveVoiceStatusSpeaking
+                : l10n.liveVoiceStatusListening;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -805,7 +823,7 @@ class _LiveVoiceOverlayState extends ConsumerState<LiveVoiceOverlay>
               if (_modelSpeaking && !_isConnecting) ...[
                 const SizedBox(height: 2),
                 Text(
-                  AppLocalizations.of(context)!.liveVoiceBargeInHint,
+                  l10n.liveVoiceBargeInHint,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(
@@ -881,10 +899,12 @@ class _InMemoryWavSource extends StreamAudioSource {
 class _LiveBadge extends AnimatedWidget {
   final ThemeData theme;
   final Color color;
+  final String label;
 
   const _LiveBadge({
     required this.theme,
     required this.color,
+    required this.label,
     required AnimationController controller,
   }) : super(listenable: controller);
 
@@ -917,7 +937,7 @@ class _LiveBadge extends AnimatedWidget {
           Icon(Icons.spatial_audio, size: 12, color: color),
           const SizedBox(width: 3),
           Text(
-            'LIVE',
+            label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w700,

@@ -1220,9 +1220,162 @@
   "@liveVoiceBargeInHint": {
     "description": "Shown under Speaking in live voice overlay: voice barge-in"
   },
+  "liveVoiceFallbackTitle": "Live",
+  "@liveVoiceFallbackTitle": {
+    "description": "Header title when agent has no name during live voice call"
+  },
+  "liveVoiceEndConversationTooltip": "End conversation",
+  "@liveVoiceEndConversationTooltip": {
+    "description": "Tooltip for hang-up in live voice overlay"
+  },
+  "liveVoiceStatusConnecting": "Connecting…",
+  "@liveVoiceStatusConnecting": {
+    "description": "Live voice HUD status while connecting"
+  },
+  "liveVoiceStatusRunning": "Running…",
+  "@liveVoiceStatusRunning": {
+    "description": "Live voice HUD status while a tool runs"
+  },
+  "liveVoiceStatusSpeaking": "Speaking…",
+  "@liveVoiceStatusSpeaking": {
+    "description": "Live voice HUD status while model outputs audio"
+  },
+  "liveVoiceStatusListening": "Listening…",
+  "@liveVoiceStatusListening": {
+    "description": "Live voice HUD status while listening to user"
+  },
+  "liveVoiceBadge": "LIVE",
+  "@liveVoiceBadge": {
+    "description": "Short badge label in live voice header"
+  },
   "cannotAddLiveModelAsChat": "This model is for voice calls only. Choose a chat model from the list.",
   "@cannotAddLiveModelAsChat": {
     "description": "Snack when user tries to add a Live-only model as primary"
+  },
+
+  "authBearerTokenLabel": "Bearer Token",
+  "@authBearerTokenLabel": {
+    "description": "Auth segment / field label for bearer token (e.g. Bedrock)"
+  },
+  "authAccessKeysLabel": "Access Keys",
+  "@authAccessKeysLabel": {
+    "description": "Auth segment / field label for SigV4 access keys"
+  },
+  "authModelsFoundCount": "{count} models found",
+  "@authModelsFoundCount": {
+    "description": "Shown after model discovery on auth onboarding",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "authModelsFoundMoreManual": "+ {count} more — enter ID manually",
+  "@authModelsFoundMoreManual": {
+    "description": "Overflow chip when more than 20 models discovered",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scanQrBarcodeTitle": "Scan QR / Barcode",
+  "@scanQrBarcodeTitle": {
+    "description": "App bar title for QR scanner tool"
+  },
+  "oauthSignInTitle": "Sign In",
+  "@oauthSignInTitle": {
+    "description": "App bar title for OAuth in-app browser"
+  },
+  "browserOverlayDone": "Done",
+  "@browserOverlayDone": {
+    "description": "Browser overlay toolbar done button"
+  },
+  "appInitializationError": "Initialization error: {error}",
+  "@appInitializationError": {
+    "description": "Shown when app bootstrap fails",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "credentialsScreenTitle": "Credentials",
+  "@credentialsScreenTitle": {
+    "description": "Credentials settings screen title"
+  },
+  "credentialsIntroBody": "Add multiple API keys per provider. FlutterClaw rotates between them automatically, cooling down keys that hit rate limits.",
+  "@credentialsIntroBody": {
+    "description": "Credentials screen intro paragraph"
+  },
+  "credentialsNoProvidersBody": "No providers configured.\nGo to Settings → Providers & Models to add one.",
+  "@credentialsNoProvidersBody": {
+    "description": "Empty state when no providers exist"
+  },
+  "credentialsAddKeyTooltip": "Add key",
+  "@credentialsAddKeyTooltip": {
+    "description": "Tooltip on add-key icon in credentials list"
+  },
+  "credentialsNoExtraKeysMessage": "No extra keys — using the key from Providers & Models.",
+  "@credentialsNoExtraKeysMessage": {
+    "description": "When provider has no rotated keys"
+  },
+  "credentialsAddProviderKeyTitle": "Add {provider} key",
+  "@credentialsAddProviderKeyTitle": {
+    "description": "Add API key dialog title",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      }
+    }
+  },
+  "credentialsKeyLabelHint": "Label (e.g. \"Work key\")",
+  "@credentialsKeyLabelHint": {
+    "description": "Optional display name for a stored key"
+  },
+  "credentialsApiKeyFieldLabel": "API key",
+  "@credentialsApiKeyFieldLabel": {
+    "description": "Obscured API key field label"
+  },
+  "securitySettingsTitle": "Security",
+  "@securitySettingsTitle": {
+    "description": "Security settings screen title"
+  },
+  "securitySettingsIntro": "Control security checks that protect against dangerous operations. These settings apply to the current session.",
+  "@securitySettingsIntro": {
+    "description": "Security settings intro paragraph"
+  },
+  "securitySectionToolExecution": "TOOL EXECUTION",
+  "@securitySectionToolExecution": {
+    "description": "Section header in security settings"
+  },
+  "securityPatternDetectionTitle": "Security pattern detection",
+  "@securityPatternDetectionTitle": {
+    "description": "Toggle title for unsafe pattern blocking"
+  },
+  "securityPatternDetectionSubtitle": "Blocks dangerous patterns: shell injection, path traversal, eval/exec, XSS, deserialization.",
+  "@securityPatternDetectionSubtitle": {
+    "description": "Subtitle under security pattern toggle"
+  },
+  "securityUnsafeModeBanner": "Security checks are disabled. All tool calls will execute without safety validation. Re-enable when done.",
+  "@securityUnsafeModeBanner": {
+    "description": "Banner when unsafe mode is on"
+  },
+  "securitySectionHowItWorks": "HOW IT WORKS",
+  "@securitySectionHowItWorks": {
+    "description": "Section header in security settings"
+  },
+  "securityHowItWorksBlocked": "When a tool call matches a dangerous pattern it is blocked and the agent is told why.",
+  "@securityHowItWorksBlocked": {
+    "description": "How-it-works bullet"
+  },
+  "securityHowItWorksUnsafeCmd": "Use /unsafe in chat for a one-shot override that allows a single blocked call, then re-enables checks.",
+  "@securityHowItWorksUnsafeCmd": {
+    "description": "How-it-works bullet for /unsafe"
+  },
+  "securityHowItWorksToggleSession": "Toggle \"Security pattern detection\" off here to disable checks for the whole session.",
+  "@securityHowItWorksToggleSession": {
+    "description": "How-it-works bullet for settings toggle"
   },
 
   "holdToSetAsDefault": "Hold to set as default",

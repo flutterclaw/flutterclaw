@@ -742,8 +742,124 @@ class AppLocalizationsRu extends AppLocalizations {
       'Говорите после того, как ассистент закончит (эхо раньше прерывало их посреди речи).';
 
   @override
+  String get liveVoiceFallbackTitle => 'Эфир';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Завершить разговор';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Подключение…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Выполняется…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Говорит…';
+
+  @override
+  String get liveVoiceStatusListening => 'Слушает…';
+
+  @override
+  String get liveVoiceBadge => 'ЭФИР';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Эта модель предназначена только для голосовых звонков. Выберите чат-модель из списка.';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer-токен';
+
+  @override
+  String get authAccessKeysLabel => 'Ключи доступа';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return 'Найдено моделей: $count';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return 'Ещё $count — введите ID вручную';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'Сканировать QR / штрихкод';
+
+  @override
+  String get oauthSignInTitle => 'Вход';
+
+  @override
+  String get browserOverlayDone => 'Готово';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Ошибка инициализации: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Учётные данные';
+
+  @override
+  String get credentialsIntroBody =>
+      'Добавьте несколько API-ключей на провайдера. FlutterClaw чередует их и охлаждает при лимитах.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'Провайдеры не настроены.\nПерейдите в Настройки → Провайдеры и модели, чтобы добавить.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Добавить ключ';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Дополнительных ключей нет — используется ключ из раздела Провайдеры и модели.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'Добавить ключ $provider';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Метка (например «Рабочий ключ»)';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API-ключ';
+
+  @override
+  String get securitySettingsTitle => 'Безопасность';
+
+  @override
+  String get securitySettingsIntro =>
+      'Управление проверками безопасности от опасных операций. Действуют в текущей сессии.';
+
+  @override
+  String get securitySectionToolExecution => 'ВЫПОЛНЕНИЕ ИНСТРУМЕНТОВ';
+
+  @override
+  String get securityPatternDetectionTitle => 'Обнаружение опасных шаблонов';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Блокирует опасные шаблоны: инъекция в shell, path traversal, eval/exec, XSS, десериализация.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Проверки безопасности отключены. Вызовы инструментов без валидации. Включите снова после работы.';
+
+  @override
+  String get securitySectionHowItWorks => 'КАК ЭТО РАБОТАЕТ';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Если вызов совпадает с опасным шаблоном, он блокируется, агенту сообщается причина.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Команда /unsafe в чате — разовое разрешение заблокированного вызова, затем проверки снова включаются.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Отключите здесь «Обнаружение опасных шаблонов», чтобы выключить проверки на всю сессию.';
 
   @override
   String get holdToSetAsDefault => 'Удерживайте для установки по умолчанию';

@@ -743,8 +743,124 @@ class AppLocalizationsNl extends AppLocalizations {
       'Spreek nadat de assistent klaar is (echo onderbrak hen eerder midden in hun zin).';
 
   @override
+  String get liveVoiceFallbackTitle => 'Live';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Gesprek beëindigen';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Verbinden…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Bezig…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Spreekt…';
+
+  @override
+  String get liveVoiceStatusListening => 'Luistert…';
+
+  @override
+  String get liveVoiceBadge => 'LIVE';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Dit model is alleen voor spraakoproepen. Kies een chatmodel uit de lijst.';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer-token';
+
+  @override
+  String get authAccessKeysLabel => 'Toegangssleutels';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '$count modellen gevonden';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count meer — voer ID handmatig in';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'QR / streepjescode scannen';
+
+  @override
+  String get oauthSignInTitle => 'Inloggen';
+
+  @override
+  String get browserOverlayDone => 'Gereed';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Initialisatiefout: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Inloggegevens';
+
+  @override
+  String get credentialsIntroBody =>
+      'Voeg meerdere API-sleutels per provider toe. FlutterClaw wisselt automatisch en koelt sleutels af bij ratelimits.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'Geen providers geconfigureerd.\nGa naar Instellingen → Providers en modellen om er een toe te voegen.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Sleutel toevoegen';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Geen extra sleutels — de sleutel uit Providers en modellen wordt gebruikt.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return '$provider-sleutel toevoegen';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Label (bijv. \"Werksleutel\")';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API-sleutel';
+
+  @override
+  String get securitySettingsTitle => 'Beveiliging';
+
+  @override
+  String get securitySettingsIntro =>
+      'Beheer beveiligingscontroles tegen gevaarlijke acties. Ze gelden voor de huidige sessie.';
+
+  @override
+  String get securitySectionToolExecution => 'TOOL-UITVOERING';
+
+  @override
+  String get securityPatternDetectionTitle => 'Detectie van onveilige patronen';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Blokkeert gevaarlijke patronen: shell-injectie, path traversal, eval/exec, XSS, deserialisatie.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Beveiligingscontroles uit. Toolaanroepen worden zonder validatie uitgevoerd. Schakel ze daarna weer in.';
+
+  @override
+  String get securitySectionHowItWorks => 'HOE HET WERKT';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Als een aanroep overeenkomt met een gevaarlijk patroon, wordt deze geblokkeerd en krijgt de agent de reden.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Gebruik /unsafe in de chat voor een eenmalige uitzondering voor een geblokkeerde aanroep; daarna zijn controles weer actief.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Schakel hier \"Detectie van onveilige patronen\" uit om controles voor de hele sessie uit te zetten.';
 
   @override
   String get holdToSetAsDefault =>

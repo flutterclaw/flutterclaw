@@ -106,7 +106,10 @@ class _AppRoot extends ConsumerWidget {
         body: Center(
           child: Padding(
             padding: EdgeInsets.all(32),
-            child: Text('Initialization error: $e', textAlign: TextAlign.center),
+            child: Text(
+              context.l10n.appInitializationError('$e'),
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       ),

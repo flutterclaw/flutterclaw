@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/data/models/auth_profile.dart';
+import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/services/auth_profile_service.dart';
 
 class CredentialsScreen extends ConsumerStatefulWidget {
@@ -23,10 +24,10 @@ class _CredentialsScreenState extends ConsumerState<CredentialsScreen> {
     final profilesAsync = ref.watch(authProfileServiceProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Credentials')),
+      appBar: AppBar(title: Text(context.l10n.credentialsScreenTitle)),
       body: profilesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text(context.l10n.errorGeneric('$e'))),
         data: (svc) => _buildBody(context, theme, colors, svc),
       ),
     );
@@ -45,8 +46,7 @@ class _CredentialsScreenState extends ConsumerState<CredentialsScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          'Add multiple API keys per provider. FlutterClaw rotates between them '
-          'automatically, cooling down keys that hit rate limits.',
+          context.l10n.credentialsIntroBody,
           style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
         ),
         const SizedBox(height: 16),
@@ -63,7 +63,7 @@ class _CredentialsScreenState extends ConsumerState<CredentialsScreen> {
             child: Padding(
               padding: const EdgeInsets.all(32),
               child: Text(
-                'No providers configured.\nGo to Settings → Providers & Models to add one.',
+                context.l10n.credentialsNoProvidersBody,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colors.onSurfaceVariant,
@@ -108,7 +108,7 @@ class _ProviderSection extends StatelessWidget {
             ),
             trailing: IconButton(
               icon: const Icon(Icons.add),
-              tooltip: 'Add key',
+              tooltip: context.l10n.credentialsAddKeyTooltip,
               onPressed: () => _showAddDialog(context),
             ),
           ),
@@ -116,7 +116,7 @@ class _ProviderSection extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
-                'No extra keys — using the key from Providers & Models.',
+                context.l10n.credentialsNoExtraKeysMessage,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
@@ -139,37 +139,43 @@ class _ProviderSection extends StatelessWidget {
     final keyCtrl = TextEditingController();
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Add $provider key'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Label (e.g. "Work key")',
-                border: OutlineInputBorder(),
+      builder: (ctx) {
+        final l10n = ctx.l10n;
+        return AlertDialog(
+          title: Text(l10n.credentialsAddProviderKeyTitle(provider)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: l10n.credentialsKeyLabelHint,
+                  border: const OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: keyCtrl,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: l10n.credentialsApiKeyFieldLabel,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: keyCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'API key',
-                border: OutlineInputBorder(),
-              ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.add),
             ),
           ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+        );
+      },
     );
     if (result == true && keyCtrl.text.trim().isNotEmpty) {
       await svc.addProfile(

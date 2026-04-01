@@ -748,8 +748,124 @@ class AppLocalizationsFr extends AppLocalizations {
       'Parlez quand l’assistant a terminé (l’écho les interrompait en plein discours).';
 
   @override
+  String get liveVoiceFallbackTitle => 'En direct';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Terminer la conversation';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Connexion…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Exécution…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Parle…';
+
+  @override
+  String get liveVoiceStatusListening => 'Écoute…';
+
+  @override
+  String get liveVoiceBadge => 'DIRECT';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Ce modèle est réservé aux appels vocaux. Choisissez un modèle de chat dans la liste.';
+
+  @override
+  String get authBearerTokenLabel => 'Jeton Bearer';
+
+  @override
+  String get authAccessKeysLabel => 'Clés d’accès';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '$count modèles trouvés';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count de plus — saisissez l’ID manuellement';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'Scanner QR / code-barres';
+
+  @override
+  String get oauthSignInTitle => 'Connexion';
+
+  @override
+  String get browserOverlayDone => 'Terminé';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Erreur d’initialisation : $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Identifiants';
+
+  @override
+  String get credentialsIntroBody =>
+      'Ajoutez plusieurs clés API par fournisseur. FlutterClaw les fait tourner automatiquement et met en pause celles qui atteignent les limites.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'Aucun fournisseur configuré.\nAllez dans Réglages → Fournisseurs et modèles pour en ajouter un.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Ajouter une clé';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Pas de clés supplémentaires — utilisation de la clé définie dans Fournisseurs et modèles.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'Ajouter une clé $provider';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Libellé (ex. « Clé pro »)';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'Clé API';
+
+  @override
+  String get securitySettingsTitle => 'Sécurité';
+
+  @override
+  String get securitySettingsIntro =>
+      'Contrôlez les vérifications de sécurité contre les opérations dangereuses. Elles s’appliquent à la session en cours.';
+
+  @override
+  String get securitySectionToolExecution => 'EXÉCUTION DES OUTILS';
+
+  @override
+  String get securityPatternDetectionTitle => 'Détection de motifs de sécurité';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Bloque les motifs dangereux : injection shell, traversée de chemins, eval/exec, XSS, désérialisation.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Les vérifications de sécurité sont désactivées. Les appels d’outils s’exécuteront sans validation. Réactivez-les ensuite.';
+
+  @override
+  String get securitySectionHowItWorks => 'FONCTIONNEMENT';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Lorsqu’un appel correspond à un motif dangereux, il est bloqué et l’agent en est informé.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Utilisez /unsafe dans le chat pour une exception ponctuelle autorisant un appel bloqué, puis les vérifications reprennent.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Désactivez ici « Détection de motifs de sécurité » pour désactiver les vérifications pour toute la session.';
 
   @override
   String get holdToSetAsDefault => 'Maintenez pour définir par défaut';

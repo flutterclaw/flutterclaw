@@ -740,8 +740,125 @@ class AppLocalizationsPl extends AppLocalizations {
       'Mów, gdy asystent skończy (echo przerywało im wcześniej w trakcie mówienia).';
 
   @override
+  String get liveVoiceFallbackTitle => 'Na żywo';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Zakończ rozmowę';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Łączenie…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Działa…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Mówi…';
+
+  @override
+  String get liveVoiceStatusListening => 'Nasłuch…';
+
+  @override
+  String get liveVoiceBadge => 'NA ŻYWO';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Ten model jest tylko do rozmów głosowych. Wybierz model czatu z listy.';
+
+  @override
+  String get authBearerTokenLabel => 'Token Bearer';
+
+  @override
+  String get authAccessKeysLabel => 'Klucze dostępu';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return 'Znaleziono $count modeli';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count więcej — wpisz ID ręcznie';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'Skanuj QR / kod kreskowy';
+
+  @override
+  String get oauthSignInTitle => 'Zaloguj się';
+
+  @override
+  String get browserOverlayDone => 'Gotowe';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Błąd inicjalizacji: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Dane logowania';
+
+  @override
+  String get credentialsIntroBody =>
+      'Dodaj wiele kluczy API na dostawcę. FlutterClaw rotuje je automatycznie i chłodzi te przy limitach.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'Brak skonfigurowanych dostawców.\nPrzejdź do Ustawienia → Dostawcy i modele, aby dodać.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Dodaj klucz';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Brak dodatkowych kluczy — używany jest klucz z Dostawcy i modele.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'Dodaj klucz $provider';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Etykieta (np. „Klucz służbowy”)';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'Klucz API';
+
+  @override
+  String get securitySettingsTitle => 'Bezpieczeństwo';
+
+  @override
+  String get securitySettingsIntro =>
+      'Steruj sprawdzaniem bezpieczeństwa przed niebezpiecznymi operacjami. Dotyczy bieżącej sesji.';
+
+  @override
+  String get securitySectionToolExecution => 'WYKONYWANIE NARZĘDZI';
+
+  @override
+  String get securityPatternDetectionTitle =>
+      'Wykrywanie niebezpiecznych wzorców';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Blokuje niebezpieczne wzorce: wstrzyknięcie powłoki, path traversal, eval/exec, XSS, deserializacja.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Sprawdzanie bezpieczeństwa wyłączone. Wywołania narzędzi bez walidacji. Włącz ponownie po zakończeniu.';
+
+  @override
+  String get securitySectionHowItWorks => 'JAK TO DZIAŁA';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Gdy wywołanie pasuje do niebezpiecznego wzorca, jest blokowane, a agent dostaje powód.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Użyj /unsafe na czacie, by jednorazowo dopuścić zablokowane wywołanie, potem kontrole wracają.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Wyłącz tutaj „Wykrywanie niebezpiecznych wzorców”, by wyłączyć kontrole na całą sesję.';
 
   @override
   String get holdToSetAsDefault => 'Przytrzymaj, aby ustawić jako domyślny';

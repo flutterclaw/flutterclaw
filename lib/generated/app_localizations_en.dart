@@ -734,8 +734,124 @@ class AppLocalizationsEn extends AppLocalizations {
       'Speak after the assistant stops (echo was interrupting them mid-speech).';
 
   @override
+  String get liveVoiceFallbackTitle => 'Live';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'End conversation';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Connecting…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Running…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Speaking…';
+
+  @override
+  String get liveVoiceStatusListening => 'Listening…';
+
+  @override
+  String get liveVoiceBadge => 'LIVE';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'This model is for voice calls only. Choose a chat model from the list.';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer Token';
+
+  @override
+  String get authAccessKeysLabel => 'Access Keys';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '$count models found';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count more — enter ID manually';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'Scan QR / Barcode';
+
+  @override
+  String get oauthSignInTitle => 'Sign In';
+
+  @override
+  String get browserOverlayDone => 'Done';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Initialization error: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Credentials';
+
+  @override
+  String get credentialsIntroBody =>
+      'Add multiple API keys per provider. FlutterClaw rotates between them automatically, cooling down keys that hit rate limits.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'No providers configured.\nGo to Settings → Providers & Models to add one.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Add key';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'No extra keys — using the key from Providers & Models.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'Add $provider key';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Label (e.g. \"Work key\")';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API key';
+
+  @override
+  String get securitySettingsTitle => 'Security';
+
+  @override
+  String get securitySettingsIntro =>
+      'Control security checks that protect against dangerous operations. These settings apply to the current session.';
+
+  @override
+  String get securitySectionToolExecution => 'TOOL EXECUTION';
+
+  @override
+  String get securityPatternDetectionTitle => 'Security pattern detection';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Blocks dangerous patterns: shell injection, path traversal, eval/exec, XSS, deserialization.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Security checks are disabled. All tool calls will execute without safety validation. Re-enable when done.';
+
+  @override
+  String get securitySectionHowItWorks => 'HOW IT WORKS';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'When a tool call matches a dangerous pattern it is blocked and the agent is told why.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Use /unsafe in chat for a one-shot override that allows a single blocked call, then re-enables checks.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Toggle \"Security pattern detection\" off here to disable checks for the whole session.';
 
   @override
   String get holdToSetAsDefault => 'Hold to set as default';

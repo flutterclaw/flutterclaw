@@ -9,6 +9,7 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutterclaw/l10n/l10n_extension.dart';
 
 /// Full-screen visible browser for user interaction.
 ///
@@ -94,7 +95,7 @@ class _BrowserOverlayState extends State<BrowserOverlay> {
           TextButton.icon(
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(Icons.check_circle_outline),
-            label: const Text('Done'),
+            label: Text(context.l10n.browserOverlayDone),
           ),
         ],
         bottom: _loading

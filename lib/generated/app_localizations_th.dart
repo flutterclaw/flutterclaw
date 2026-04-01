@@ -731,8 +731,124 @@ class AppLocalizationsTh extends AppLocalizations {
       'พูดหลังจากผู้ช่วยหยุด (เสียงสะท้อนเคยทำให้ขัดจังหวะระหว่างพูด)';
 
   @override
+  String get liveVoiceFallbackTitle => 'สด';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'จบการสนทนา';
+
+  @override
+  String get liveVoiceStatusConnecting => 'กำลังเชื่อมต่อ…';
+
+  @override
+  String get liveVoiceStatusRunning => 'กำลังทำงาน…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'กำลังพูด…';
+
+  @override
+  String get liveVoiceStatusListening => 'กำลังฟัง…';
+
+  @override
+  String get liveVoiceBadge => 'สด';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'โมเดลนี้ใช้สำหรับการโทรด้วยเสียงเท่านั้น โปรดเลือกโมเดลแชทจากรายการ';
+
+  @override
+  String get authBearerTokenLabel => 'โทเค็น Bearer';
+
+  @override
+  String get authAccessKeysLabel => 'คีย์การเข้าถึง';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return 'พบ $count โมเดล';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return 'อีก $count รายการ — ป้อน ID ด้วยตนเอง';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'สแกน QR / บาร์โค้ด';
+
+  @override
+  String get oauthSignInTitle => 'ลงชื่อเข้าใช้';
+
+  @override
+  String get browserOverlayDone => 'เสร็จ';
+
+  @override
+  String appInitializationError(String error) {
+    return 'ข้อผิดพลาดการเริ่มต้น: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'ข้อมูลประจำตัว';
+
+  @override
+  String get credentialsIntroBody =>
+      'เพิ่มคีย์ API หลายอันต่อผู้ให้บริการ FlutterClaw สลับอัตโนมัติและคูลดาวน์เมื่อโดนเรตลิมิต';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'ยังไม่ได้ตั้งค่าผู้ให้บริการ\nไปที่ การตั้งค่า → ผู้ให้บริการและโมเดล เพื่อเพิ่ม';
+
+  @override
+  String get credentialsAddKeyTooltip => 'เพิ่มคีย์';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'ไม่มีคีย์เสริม — ใช้คีย์จากผู้ให้บริการและโมเดล';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'เพิ่มคีย์ $provider';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'ป้ายกำกับ (เช่น \"คีย์งาน\")';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'คีย์ API';
+
+  @override
+  String get securitySettingsTitle => 'ความปลอดภัย';
+
+  @override
+  String get securitySettingsIntro =>
+      'ควบคุมการตรวจสอบความปลอดภัยต่อการทำงานที่อันตราย ใช้กับเซสชันปัจจุบัน';
+
+  @override
+  String get securitySectionToolExecution => 'การเรียกใช้เครื่องมือ';
+
+  @override
+  String get securityPatternDetectionTitle => 'การตรวจจับรูปแบบความปลอดภัย';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'บล็อกรูปแบบอันตราย: shell injection, path traversal, eval/exec, XSS, deserialization';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'ปิดการตรวจสอบความปลอดภัย การเรียกเครื่องมือจะไม่ผ่านการตรวจ เปิดใหม่เมื่อเสร็จ';
+
+  @override
+  String get securitySectionHowItWorks => 'วิธีทำงาน';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'เมื่อการเรียกตรงกับรูปแบบอันตราย จะถูกบล็อกและแจ้งเหตุผลให้เอเจนต์';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'ใช้ /unsafe ในแชทเพื่อยกเว้นครั้งเดียวสำหรับการเรียกที่ถูกบล็อก แล้วเปิดการตรวจอีกครั้ง';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'ปิด \"การตรวจจับรูปแบบความปลอดภัย\" ที่นี่เพื่อปิดการตรวจทั้งเซสชัน';
 
   @override
   String get holdToSetAsDefault => 'กดค้างเพื่อตั้งเป็นค่าเริ่มต้น';

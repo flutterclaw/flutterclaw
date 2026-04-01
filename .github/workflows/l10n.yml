@@ -1,0 +1,26 @@
+name: l10n
+
+on:
+  push:
+    paths:
+      - "lib/l10n/**"
+      - "scripts/check_l10n_keys.py"
+      - "l10n.yaml"
+      - ".github/workflows/l10n.yml"
+  pull_request:
+    paths:
+      - "lib/l10n/**"
+      - "scripts/check_l10n_keys.py"
+      - "l10n.yaml"
+      - ".github/workflows/l10n.yml"
+
+jobs:
+  arb-key-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check ARB key parity vs app_en.arb
+        run: python3 scripts/check_l10n_keys.py

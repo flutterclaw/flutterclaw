@@ -738,8 +738,124 @@ class AppLocalizationsHi extends AppLocalizations {
       'सहायक के रुकने के बाद बोलें (इको की वजह से वे बीच में कट जाते थे)।';
 
   @override
+  String get liveVoiceFallbackTitle => 'लाइव';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'बातचीत समाप्त करें';
+
+  @override
+  String get liveVoiceStatusConnecting => 'कनेक्ट हो रहा है…';
+
+  @override
+  String get liveVoiceStatusRunning => 'चल रहा है…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'बोल रहा है…';
+
+  @override
+  String get liveVoiceStatusListening => 'सुन रहा है…';
+
+  @override
+  String get liveVoiceBadge => 'लाइव';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'यह मॉडल केवल आवाज़ कॉल के लिए है। सूची से एक चैट मॉडल चुनें।';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer टोकन';
+
+  @override
+  String get authAccessKeysLabel => 'एक्सेस कुंजियाँ';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '$count मॉडल मिले';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count और — ID मैन्युअल दर्ज करें';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'QR / बारकोड स्कैन करें';
+
+  @override
+  String get oauthSignInTitle => 'साइन इन';
+
+  @override
+  String get browserOverlayDone => 'हो गया';
+
+  @override
+  String appInitializationError(String error) {
+    return 'प्रारंभ त्रुटि: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'क्रेडेंशियल';
+
+  @override
+  String get credentialsIntroBody =>
+      'प्रति प्रदाता कई API कुंजियाँ जोड़ें। FlutterClaw उन्हें स्वचालित रूप से घुमाता है और दर सीमा पर ठंडा करता है।';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'कोई प्रदाता कॉन्फ़िगर नहीं।\nजोड़ने के लिए सेटिंग्स → प्रदाता और मॉडल पर जाएँ।';
+
+  @override
+  String get credentialsAddKeyTooltip => 'कुंजी जोड़ें';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'कोई अतिरिक्त कुंजी नहीं — प्रदाता और मॉडल की कुंजी उपयोग हो रही है।';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return '$provider कुंजी जोड़ें';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'लेबल (जैसे \"कार्य कुंजी\")';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API कुंजी';
+
+  @override
+  String get securitySettingsTitle => 'सुरक्षा';
+
+  @override
+  String get securitySettingsIntro =>
+      'खतरनाक कार्रवाइयों के खिलाफ सुरक्षा जाँच नियंत्रित करें। वे वर्तमान सत्र पर लागू होती हैं।';
+
+  @override
+  String get securitySectionToolExecution => 'टूल निष्पादन';
+
+  @override
+  String get securityPatternDetectionTitle => 'सुरक्षा पैटर्न पहचान';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'खतरनाक पैटर्न अवरुद्ध: शेल इंजेक्शन, पथ ट्रैवर्सल, eval/exec, XSS, डिसीरियलाइज़ेशन।';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'सुरक्षा जाँच बंद। टूल कॉल बिना सत्यापन चलेंगे। समाप्त पर पुनः सक्षम करें।';
+
+  @override
+  String get securitySectionHowItWorks => 'यह कैसे काम करता है';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'जब कॉल खतरनाक पैटर्न से मेल खाती है तो अवरुद्ध होती है और एजेंट को कारण बताया जाता है।';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'चैट में /unsafe से एक बार अवरुद्ध कॉल की अनुमति, फिर जाँच पुनः चालू।';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'पूरे सत्र के लिए जाँच बंद करने हेतु यहाँ \"सुरक्षा पैटर्न पहचान\" बंद करें।';
 
   @override
   String get holdToSetAsDefault =>

@@ -743,8 +743,124 @@ class AppLocalizationsTr extends AppLocalizations {
       'Asistan durduktan sonra konuşun (eko, konuşmanın ortasında onları kesiyordu).';
 
   @override
+  String get liveVoiceFallbackTitle => 'Canlı';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Görüşmeyi bitir';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Bağlanıyor…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Çalışıyor…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Konuşuyor…';
+
+  @override
+  String get liveVoiceStatusListening => 'Dinliyor…';
+
+  @override
+  String get liveVoiceBadge => 'CANLI';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Bu model yalnızca sesli aramalar içindir. Listeden bir sohbet modeli seçin.';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer jetonu';
+
+  @override
+  String get authAccessKeysLabel => 'Erişim anahtarları';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '$count model bulundu';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count tane daha — kimliği elle girin';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'QR / barkod tara';
+
+  @override
+  String get oauthSignInTitle => 'Giriş yap';
+
+  @override
+  String get browserOverlayDone => 'Bitti';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Başlatma hatası: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Kimlik bilgileri';
+
+  @override
+  String get credentialsIntroBody =>
+      'Sağlayıcı başına birden çok API anahtarı ekleyin. FlutterClaw bunları döndürür, limitte olanları soğutur.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'Yapılandırılmış sağlayıcı yok.\nEklemek için Ayarlar → Sağlayıcılar ve modellere gidin.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Anahtar ekle';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Ek anahtar yok — Sağlayıcılar ve modellerdeki anahtar kullanılıyor.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return '$provider anahtarı ekle';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Etiket (ör. \"İş anahtarı\")';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API anahtarı';
+
+  @override
+  String get securitySettingsTitle => 'Güvenlik';
+
+  @override
+  String get securitySettingsIntro =>
+      'Tehlikeli işlemlere karşı güvenlik kontrollerini yönetin. Geçerli oturum için geçerlidir.';
+
+  @override
+  String get securitySectionToolExecution => 'ARAÇ YÜRÜTME';
+
+  @override
+  String get securityPatternDetectionTitle => 'Güvenlik deseni algılama';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Tehlikeli desenleri engeller: shell enjeksiyonu, path traversal, eval/exec, XSS, serileştirme.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Güvenlik kontrolleri kapalı. Araç çağrıları doğrulama olmadan çalışır. Bitince yeniden açın.';
+
+  @override
+  String get securitySectionHowItWorks => 'NASIL ÇALIŞIR';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Bir çağrı tehlikeli bir desenle eşleşirse engellenir ve aracıya neden bildirilir.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Sohbette /unsafe ile tek seferlik istisna tanıyın, sonra kontroller yeniden açılır.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Tüm oturum için kontrolleri kapatmak için burada \"Güvenlik deseni algılama\"yı kapatın.';
 
   @override
   String get holdToSetAsDefault =>

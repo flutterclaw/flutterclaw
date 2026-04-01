@@ -10,7 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-import '../app.dart';
+import 'package:flutterclaw/app.dart';
+import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'registry.dart';
 
 /// Scan QR codes and barcodes using the device camera.
@@ -154,7 +155,7 @@ class _QrScannerScreenState extends State<_QrScannerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Scan QR / Barcode'),
+        title: Text(context.l10n.scanQrBarcodeTitle),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),

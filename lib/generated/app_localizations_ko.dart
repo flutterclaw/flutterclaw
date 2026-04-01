@@ -724,8 +724,122 @@ class AppLocalizationsKo extends AppLocalizations {
       '어시스턴트가 멈춘 뒤에 말하세요(에코 때문에 말하는 도중에 끊기던 문제가 있었어요).';
 
   @override
+  String get liveVoiceFallbackTitle => '라이브';
+
+  @override
+  String get liveVoiceEndConversationTooltip => '통화 종료';
+
+  @override
+  String get liveVoiceStatusConnecting => '연결 중…';
+
+  @override
+  String get liveVoiceStatusRunning => '실행 중…';
+
+  @override
+  String get liveVoiceStatusSpeaking => '말하는 중…';
+
+  @override
+  String get liveVoiceStatusListening => '듣는 중…';
+
+  @override
+  String get liveVoiceBadge => 'LIVE';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       '이 모델은 음성 통화 전용입니다. 목록에서 채팅 모델을 선택하세요.';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer 토큰';
+
+  @override
+  String get authAccessKeysLabel => '액세스 키';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '모델 $count개 발견';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count개 더 — ID를 직접 입력하세요';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'QR / 바코드 스캔';
+
+  @override
+  String get oauthSignInTitle => '로그인';
+
+  @override
+  String get browserOverlayDone => '완료';
+
+  @override
+  String appInitializationError(String error) {
+    return '초기화 오류: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => '자격 증명';
+
+  @override
+  String get credentialsIntroBody =>
+      '공급자마다 여러 API 키를 추가하세요. FlutterClaw가 자동으로 순환하고 한도에 걸린 키는 쿨다운합니다.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      '구성된 공급자가 없습니다.\n설정 → 공급자 및 모델에서 추가하세요.';
+
+  @override
+  String get credentialsAddKeyTooltip => '키 추가';
+
+  @override
+  String get credentialsNoExtraKeysMessage => '추가 키 없음 — 공급자 및 모델의 키를 사용 중입니다.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return '$provider 키 추가';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => '라벨(예: \"업무용 키\")';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API 키';
+
+  @override
+  String get securitySettingsTitle => '보안';
+
+  @override
+  String get securitySettingsIntro => '위험한 작업에 대한 보안 검사를 제어합니다. 현재 세션에 적용됩니다.';
+
+  @override
+  String get securitySectionToolExecution => '도구 실행';
+
+  @override
+  String get securityPatternDetectionTitle => '보안 패턴 감지';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      '위험한 패턴 차단: 셸 인젝션, 경로 순회, eval/exec, XSS, 역직렬화.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      '보안 검사가 꺼져 있습니다. 도구 호출이 검증 없이 실행됩니다. 끝나면 다시 켜세요.';
+
+  @override
+  String get securitySectionHowItWorks => '작동 방식';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      '도구 호출이 위험한 패턴과 일치하면 차단되고 에이전트에게 이유가 전달됩니다.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      '채팅에서 /unsafe로 차단된 호출을 한 번 허용한 뒤 검사가 다시 켜집니다.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      '여기서 \"보안 패턴 감지\"를 끄면 세션 전체에서 검사가 비활성화됩니다.';
 
   @override
   String get holdToSetAsDefault => '길게 눌러 기본값으로 설정';

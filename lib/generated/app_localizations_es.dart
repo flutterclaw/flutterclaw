@@ -745,8 +745,125 @@ class AppLocalizationsEs extends AppLocalizations {
       'Habla cuando el asistente termine (el eco los interrumpía a mitad de frase).';
 
   @override
+  String get liveVoiceFallbackTitle => 'En vivo';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Finalizar conversación';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Conectando…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Ejecutando…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Hablando…';
+
+  @override
+  String get liveVoiceStatusListening => 'Escuchando…';
+
+  @override
+  String get liveVoiceBadge => 'EN VIVO';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Este modelo es solo para llamadas de voz. Elige un modelo de chat de la lista.';
+
+  @override
+  String get authBearerTokenLabel => 'Token Bearer';
+
+  @override
+  String get authAccessKeysLabel => 'Claves de acceso';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '$count modelos encontrados';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count más — introduce el ID manualmente';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'Escanear QR / código de barras';
+
+  @override
+  String get oauthSignInTitle => 'Iniciar sesión';
+
+  @override
+  String get browserOverlayDone => 'Listo';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Error de inicialización: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Credenciales';
+
+  @override
+  String get credentialsIntroBody =>
+      'Añade varias claves API por proveedor. FlutterClaw las rota automáticamente y enfría las que alcanzan límites de uso.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'No hay proveedores configurados.\nVe a Ajustes → Proveedores y modelos para añadir uno.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Añadir clave';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Sin claves extra — se usa la clave de Proveedores y modelos.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'Añadir clave de $provider';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Etiqueta (p. ej. «Clave del trabajo»)';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'Clave API';
+
+  @override
+  String get securitySettingsTitle => 'Seguridad';
+
+  @override
+  String get securitySettingsIntro =>
+      'Controla las comprobaciones de seguridad frente a operaciones peligrosas. Se aplican a la sesión actual.';
+
+  @override
+  String get securitySectionToolExecution => 'EJECUCIÓN DE HERRAMIENTAS';
+
+  @override
+  String get securityPatternDetectionTitle =>
+      'Detección de patrones de seguridad';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Bloquea patrones peligrosos: inyección de shell, path traversal, eval/exec, XSS, deserialización.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Las comprobaciones de seguridad están desactivadas. Las llamadas a herramientas se ejecutarán sin validación. Reactívalas al terminar.';
+
+  @override
+  String get securitySectionHowItWorks => 'CÓMO FUNCIONA';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Si una llamada coincide con un patrón peligroso, se bloquea y se informa al agente del motivo.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Usa /unsafe en el chat para una excepción puntual que permite una llamada bloqueada y luego reactiva las comprobaciones.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Desactiva aquí «Detección de patrones de seguridad» para deshabilitar las comprobaciones en toda la sesión.';
 
   @override
   String get holdToSetAsDefault =>

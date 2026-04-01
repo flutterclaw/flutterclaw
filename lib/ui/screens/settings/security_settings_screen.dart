@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/core/app_providers.dart';
+import 'package:flutterclaw/l10n/l10n_extension.dart';
 
 class SecuritySettingsScreen extends ConsumerWidget {
   const SecuritySettingsScreen({super.key});
@@ -11,16 +12,16 @@ class SecuritySettingsScreen extends ConsumerWidget {
     final colors = theme.colorScheme;
     final unsafeOn = ref.watch(unsafeModeProvider);
 
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('Security')),
+      appBar: AppBar(title: Text(l10n.securitySettingsTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Text(
-              'Control security checks that protect against dangerous '
-              'operations. These settings apply to the current session.',
+              l10n.securitySettingsIntro,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colors.onSurfaceVariant,
               ),
@@ -30,7 +31,7 @@ class SecuritySettingsScreen extends ConsumerWidget {
           // ── Security checks section ───────────────────────────────────
           _SectionHeader(
             icon: Icons.security_outlined,
-            label: 'TOOL EXECUTION',
+            label: l10n.securitySectionToolExecution,
             color: colors.primary,
           ),
           const SizedBox(height: 8),
@@ -42,10 +43,9 @@ class SecuritySettingsScreen extends ConsumerWidget {
                     Icons.security,
                     color: unsafeOn ? colors.error : colors.primary,
                   ),
-                  title: const Text('Security pattern detection'),
+                  title: Text(l10n.securityPatternDetectionTitle),
                   subtitle: Text(
-                    'Blocks dangerous patterns: shell injection, path '
-                    'traversal, eval/exec, XSS, deserialization.',
+                    l10n.securityPatternDetectionSubtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
@@ -74,8 +74,7 @@ class SecuritySettingsScreen extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Security checks are disabled. All tool calls will '
-                      'execute without safety validation. Re-enable when done.',
+                      l10n.securityUnsafeModeBanner,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colors.onErrorContainer,
                         fontWeight: FontWeight.w500,
@@ -92,7 +91,7 @@ class SecuritySettingsScreen extends ConsumerWidget {
           // ── One-shot override section ─────────────────────────────────
           _SectionHeader(
             icon: Icons.info_outline,
-            label: 'HOW IT WORKS',
+            label: l10n.securitySectionHowItWorks,
             color: colors.primary,
           ),
           const SizedBox(height: 8),
@@ -104,20 +103,17 @@ class SecuritySettingsScreen extends ConsumerWidget {
                 children: [
                   _HowItWorksRow(
                     icon: Icons.block_outlined,
-                    text: 'When a tool call matches a dangerous pattern it is '
-                        'blocked and the agent is told why.',
+                    text: l10n.securityHowItWorksBlocked,
                   ),
                   const SizedBox(height: 10),
                   _HowItWorksRow(
                     icon: Icons.looks_one_outlined,
-                    text: 'Use /unsafe in chat for a one-shot override that '
-                        'allows a single blocked call, then re-enables checks.',
+                    text: l10n.securityHowItWorksUnsafeCmd,
                   ),
                   const SizedBox(height: 10),
                   _HowItWorksRow(
                     icon: Icons.lock_open_outlined,
-                    text: 'Toggle "Security pattern detection" off here to '
-                        'disable checks for the whole session.',
+                    text: l10n.securityHowItWorksToggleSession,
                   ),
                 ],
               ),

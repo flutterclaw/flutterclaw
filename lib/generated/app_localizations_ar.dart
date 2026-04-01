@@ -730,8 +730,124 @@ class AppLocalizationsAr extends AppLocalizations {
       'تحدث بعد أن يتوقف المساعد (كان الصدى يقاطعهم أثناء الكلام).';
 
   @override
+  String get liveVoiceFallbackTitle => 'مباشر';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'إنهاء المحادثة';
+
+  @override
+  String get liveVoiceStatusConnecting => 'جارٍ الاتصال…';
+
+  @override
+  String get liveVoiceStatusRunning => 'قيد التشغيل…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'يتحدث…';
+
+  @override
+  String get liveVoiceStatusListening => 'يستمع…';
+
+  @override
+  String get liveVoiceBadge => 'مباشر';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'هذا النموذج مخصص للمكالمات الصوتية فقط. اختر نموذج دردشة من القائمة.';
+
+  @override
+  String get authBearerTokenLabel => 'رمز Bearer';
+
+  @override
+  String get authAccessKeysLabel => 'مفاتيح الوصول';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return 'تم العثور على $count نموذجًا';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count إضافية — أدخل المعرّف يدويًا';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'مسح QR / الباركود';
+
+  @override
+  String get oauthSignInTitle => 'تسجيل الدخول';
+
+  @override
+  String get browserOverlayDone => 'تم';
+
+  @override
+  String appInitializationError(String error) {
+    return 'خطأ في التهيئة: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'بيانات الاعتماد';
+
+  @override
+  String get credentialsIntroBody =>
+      'أضف عدة مفاتيح API لكل مزود. يدوّر FlutterClaw بينها تلقائيًا ويبرد المفاتيح عند حدود المعدل.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'لا يوجد مزودون مُعدّون.\nانتقل إلى الإعدادات ← المزودون والنماذج لإضافة واحد.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'إضافة مفتاح';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'لا مفاتيح إضافية — يُستخدم المفتاح من المزودون والنماذج.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'إضافة مفتاح $provider';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'التسمية (مثل \"مفتاح العمل\")';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'مفتاح API';
+
+  @override
+  String get securitySettingsTitle => 'الأمان';
+
+  @override
+  String get securitySettingsIntro =>
+      'تحكّم في فحوص الأمان ضد العمليات الخطيرة. تُطبَّق على الجلسة الحالية.';
+
+  @override
+  String get securitySectionToolExecution => 'تنفيذ الأدوات';
+
+  @override
+  String get securityPatternDetectionTitle => 'اكتشاف أنماط أمنية';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'يحظر أنماطًا خطيرة: حقن الصدفة، تجاوز المسار، eval/exec، XSS، إلغاء التسلسل.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'فحوص الأمان معطّلة. ستُنفَّذ استدعاءات الأدوات دون تحقق. أعد التفعيل عند الانتهاء.';
+
+  @override
+  String get securitySectionHowItWorks => 'كيف يعمل';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'عندما يطابق الاستدعاء نمطًا خطيرًا يُحظر ويُعلَم الوكيل بالسبب.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'استخدم /unsafe في الدردشة لاستثناء لمرة واحدة لاستدعاء محظور، ثم تُعاد الفحوص.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'عطّل هنا \"اكتشاف أنماط أمنية\" لتعطيل الفحوص للجلسة بأكملها.';
 
   @override
   String get holdToSetAsDefault => 'اضغط مطولاً للتعيين كافتراضي';

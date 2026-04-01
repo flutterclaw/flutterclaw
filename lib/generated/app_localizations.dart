@@ -1448,11 +1448,209 @@ abstract class AppLocalizations {
   /// **'Speak after the assistant stops (echo was interrupting them mid-speech).'**
   String get liveVoiceBargeInHint;
 
+  /// Header title when agent has no name during live voice call
+  ///
+  /// In en, this message translates to:
+  /// **'Live'**
+  String get liveVoiceFallbackTitle;
+
+  /// Tooltip for hang-up in live voice overlay
+  ///
+  /// In en, this message translates to:
+  /// **'End conversation'**
+  String get liveVoiceEndConversationTooltip;
+
+  /// Live voice HUD status while connecting
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get liveVoiceStatusConnecting;
+
+  /// Live voice HUD status while a tool runs
+  ///
+  /// In en, this message translates to:
+  /// **'Running…'**
+  String get liveVoiceStatusRunning;
+
+  /// Live voice HUD status while model outputs audio
+  ///
+  /// In en, this message translates to:
+  /// **'Speaking…'**
+  String get liveVoiceStatusSpeaking;
+
+  /// Live voice HUD status while listening to user
+  ///
+  /// In en, this message translates to:
+  /// **'Listening…'**
+  String get liveVoiceStatusListening;
+
+  /// Short badge label in live voice header
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get liveVoiceBadge;
+
   /// Snack when user tries to add a Live-only model as primary
   ///
   /// In en, this message translates to:
   /// **'This model is for voice calls only. Choose a chat model from the list.'**
   String get cannotAddLiveModelAsChat;
+
+  /// Auth segment / field label for bearer token (e.g. Bedrock)
+  ///
+  /// In en, this message translates to:
+  /// **'Bearer Token'**
+  String get authBearerTokenLabel;
+
+  /// Auth segment / field label for SigV4 access keys
+  ///
+  /// In en, this message translates to:
+  /// **'Access Keys'**
+  String get authAccessKeysLabel;
+
+  /// Shown after model discovery on auth onboarding
+  ///
+  /// In en, this message translates to:
+  /// **'{count} models found'**
+  String authModelsFoundCount(int count);
+
+  /// Overflow chip when more than 20 models discovered
+  ///
+  /// In en, this message translates to:
+  /// **'+ {count} more — enter ID manually'**
+  String authModelsFoundMoreManual(int count);
+
+  /// App bar title for QR scanner tool
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR / Barcode'**
+  String get scanQrBarcodeTitle;
+
+  /// App bar title for OAuth in-app browser
+  ///
+  /// In en, this message translates to:
+  /// **'Sign In'**
+  String get oauthSignInTitle;
+
+  /// Browser overlay toolbar done button
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get browserOverlayDone;
+
+  /// Shown when app bootstrap fails
+  ///
+  /// In en, this message translates to:
+  /// **'Initialization error: {error}'**
+  String appInitializationError(String error);
+
+  /// Credentials settings screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials'**
+  String get credentialsScreenTitle;
+
+  /// Credentials screen intro paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'Add multiple API keys per provider. FlutterClaw rotates between them automatically, cooling down keys that hit rate limits.'**
+  String get credentialsIntroBody;
+
+  /// Empty state when no providers exist
+  ///
+  /// In en, this message translates to:
+  /// **'No providers configured.\nGo to Settings → Providers & Models to add one.'**
+  String get credentialsNoProvidersBody;
+
+  /// Tooltip on add-key icon in credentials list
+  ///
+  /// In en, this message translates to:
+  /// **'Add key'**
+  String get credentialsAddKeyTooltip;
+
+  /// When provider has no rotated keys
+  ///
+  /// In en, this message translates to:
+  /// **'No extra keys — using the key from Providers & Models.'**
+  String get credentialsNoExtraKeysMessage;
+
+  /// Add API key dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Add {provider} key'**
+  String credentialsAddProviderKeyTitle(String provider);
+
+  /// Optional display name for a stored key
+  ///
+  /// In en, this message translates to:
+  /// **'Label (e.g. \"Work key\")'**
+  String get credentialsKeyLabelHint;
+
+  /// Obscured API key field label
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get credentialsApiKeyFieldLabel;
+
+  /// Security settings screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get securitySettingsTitle;
+
+  /// Security settings intro paragraph
+  ///
+  /// In en, this message translates to:
+  /// **'Control security checks that protect against dangerous operations. These settings apply to the current session.'**
+  String get securitySettingsIntro;
+
+  /// Section header in security settings
+  ///
+  /// In en, this message translates to:
+  /// **'TOOL EXECUTION'**
+  String get securitySectionToolExecution;
+
+  /// Toggle title for unsafe pattern blocking
+  ///
+  /// In en, this message translates to:
+  /// **'Security pattern detection'**
+  String get securityPatternDetectionTitle;
+
+  /// Subtitle under security pattern toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Blocks dangerous patterns: shell injection, path traversal, eval/exec, XSS, deserialization.'**
+  String get securityPatternDetectionSubtitle;
+
+  /// Banner when unsafe mode is on
+  ///
+  /// In en, this message translates to:
+  /// **'Security checks are disabled. All tool calls will execute without safety validation. Re-enable when done.'**
+  String get securityUnsafeModeBanner;
+
+  /// Section header in security settings
+  ///
+  /// In en, this message translates to:
+  /// **'HOW IT WORKS'**
+  String get securitySectionHowItWorks;
+
+  /// How-it-works bullet
+  ///
+  /// In en, this message translates to:
+  /// **'When a tool call matches a dangerous pattern it is blocked and the agent is told why.'**
+  String get securityHowItWorksBlocked;
+
+  /// How-it-works bullet for /unsafe
+  ///
+  /// In en, this message translates to:
+  /// **'Use /unsafe in chat for a one-shot override that allows a single blocked call, then re-enables checks.'**
+  String get securityHowItWorksUnsafeCmd;
+
+  /// How-it-works bullet for settings toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle \"Security pattern detection\" off here to disable checks for the whole session.'**
+  String get securityHowItWorksToggleSession;
 
   /// Tooltip for model long-press
   ///

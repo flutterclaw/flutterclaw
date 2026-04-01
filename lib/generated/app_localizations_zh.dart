@@ -720,7 +720,117 @@ class AppLocalizationsZh extends AppLocalizations {
   String get liveVoiceBargeInHint => '请在助手说完后再开口（回声会让你在他们说话时打断他们）。';
 
   @override
+  String get liveVoiceFallbackTitle => '直播';
+
+  @override
+  String get liveVoiceEndConversationTooltip => '结束通话';
+
+  @override
+  String get liveVoiceStatusConnecting => '正在连接…';
+
+  @override
+  String get liveVoiceStatusRunning => '运行中…';
+
+  @override
+  String get liveVoiceStatusSpeaking => '正在说话…';
+
+  @override
+  String get liveVoiceStatusListening => '正在聆听…';
+
+  @override
+  String get liveVoiceBadge => '直播';
+
+  @override
   String get cannotAddLiveModelAsChat => '此模型仅用于语音通话。请从列表中选择聊天模型。';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer 令牌';
+
+  @override
+  String get authAccessKeysLabel => '访问密钥';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '找到 $count 个模型';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '另有 $count 个 — 请手动输入 ID';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => '扫描二维码 / 条码';
+
+  @override
+  String get oauthSignInTitle => '登录';
+
+  @override
+  String get browserOverlayDone => '完成';
+
+  @override
+  String appInitializationError(String error) {
+    return '初始化错误：$error';
+  }
+
+  @override
+  String get credentialsScreenTitle => '凭据';
+
+  @override
+  String get credentialsIntroBody =>
+      '为每个提供商添加多个 API 密钥。FlutterClaw 会自动轮换，并对触发速率限制的密钥进行冷却。';
+
+  @override
+  String get credentialsNoProvidersBody => '尚未配置提供商。\n请前往「设置 → 提供商与模型」添加。';
+
+  @override
+  String get credentialsAddKeyTooltip => '添加密钥';
+
+  @override
+  String get credentialsNoExtraKeysMessage => '无额外密钥 — 使用「提供商与模型」中的密钥。';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return '添加 $provider 密钥';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => '标签（例如「工作密钥」）';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API 密钥';
+
+  @override
+  String get securitySettingsTitle => '安全';
+
+  @override
+  String get securitySettingsIntro => '控制针对危险操作的安全检查。仅适用于当前会话。';
+
+  @override
+  String get securitySectionToolExecution => '工具执行';
+
+  @override
+  String get securityPatternDetectionTitle => '安全模式检测';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      '阻止危险模式：shell 注入、路径遍历、eval/exec、XSS、反序列化。';
+
+  @override
+  String get securityUnsafeModeBanner => '安全检查已关闭。工具调用将不经验证执行。用完后请重新开启。';
+
+  @override
+  String get securitySectionHowItWorks => '工作原理';
+
+  @override
+  String get securityHowItWorksBlocked => '当调用匹配危险模式时会被阻止，并告知智能体原因。';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      '在聊天中使用 /unsafe 可一次性放行被阻止的调用，随后检查会恢复。';
+
+  @override
+  String get securityHowItWorksToggleSession => '在此关闭「安全模式检测」可禁用整个会话的检查。';
 
   @override
   String get holdToSetAsDefault => '长按设为默认';

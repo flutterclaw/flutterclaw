@@ -14,7 +14,8 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 
-import '../app.dart';
+import 'package:flutterclaw/app.dart';
+import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'secure_key_store.dart';
 
 final _log = Logger('flutterclaw.oauth');
@@ -302,7 +303,7 @@ class _OAuthBrowserScreenState extends State<_OAuthBrowserScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sign In'),
+        title: Text(context.l10n.oauthSignInTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(null),

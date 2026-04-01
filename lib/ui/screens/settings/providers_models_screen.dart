@@ -523,9 +523,15 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
             const SizedBox(height: 20),
             if (isBedrock) ...[
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'bearer', label: Text('Bearer Token')),
-                  ButtonSegment(value: 'sigv4', label: Text('Access Keys')),
+                segments: [
+                  ButtonSegment(
+                    value: 'bearer',
+                    label: Text(context.l10n.authBearerTokenLabel),
+                  ),
+                  ButtonSegment(
+                    value: 'sigv4',
+                    label: Text(context.l10n.authAccessKeysLabel),
+                  ),
                 ],
                 selected: {editAuthMode},
                 onSelectionChanged: (v) => setSheetState(() {
@@ -542,7 +548,7 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
               decoration: InputDecoration(
                 labelText: isBedrock
                     ? (editAuthMode == 'bearer'
-                        ? 'Bearer Token'
+                        ? context.l10n.authBearerTokenLabel
                         : 'AWS Access Key ID')
                     : context.l10n.apiKey,
                 border: const OutlineInputBorder(),
@@ -1067,9 +1073,15 @@ class _AddProviderScreenState extends State<_AddProviderScreen> {
             }),
             if (isBedrock) ...[
               SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'bearer', label: Text('Bearer Token')),
-                  ButtonSegment(value: 'sigv4', label: Text('Access Keys')),
+                segments: [
+                  ButtonSegment(
+                    value: 'bearer',
+                    label: Text(context.l10n.authBearerTokenLabel),
+                  ),
+                  ButtonSegment(
+                    value: 'sigv4',
+                    label: Text(context.l10n.authAccessKeysLabel),
+                  ),
                 ],
                 selected: {_awsAuthMode},
                 onSelectionChanged: (v) => setState(() {
@@ -1087,7 +1099,7 @@ class _AddProviderScreenState extends State<_AddProviderScreen> {
               decoration: InputDecoration(
                 labelText: isBedrock
                     ? (_awsAuthMode == 'bearer'
-                        ? 'Bearer Token'
+                        ? context.l10n.authBearerTokenLabel
                         : 'AWS Access Key ID')
                     : context.l10n.apiKey,
                 border: const OutlineInputBorder(),
@@ -1385,9 +1397,15 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
               }),
               if (isModelBedrock) ...[
                 SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'bearer', label: Text('Bearer Token')),
-                    ButtonSegment(value: 'sigv4', label: Text('Access Keys')),
+                  segments: [
+                    ButtonSegment(
+                      value: 'bearer',
+                      label: Text(context.l10n.authBearerTokenLabel),
+                    ),
+                    ButtonSegment(
+                      value: 'sigv4',
+                      label: Text(context.l10n.authAccessKeysLabel),
+                    ),
                   ],
                   selected: {_modelAwsAuthMode},
                   onSelectionChanged: (v) => setState(() {
@@ -1405,7 +1423,7 @@ class _AddModelScreenState extends ConsumerState<_AddModelScreen> {
                 decoration: InputDecoration(
                   labelText: isModelBedrock
                       ? (_modelAwsAuthMode == 'bearer'
-                          ? 'Bearer Token'
+                          ? context.l10n.authBearerTokenLabel
                           : 'AWS Access Key ID')
                       : context.l10n.apiKey,
                   border: const OutlineInputBorder(),

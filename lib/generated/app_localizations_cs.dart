@@ -738,8 +738,124 @@ class AppLocalizationsCs extends AppLocalizations {
       'Mluvte až když asistent domluví (ozvěna je dřív přerušovala uprostřed řeči).';
 
   @override
+  String get liveVoiceFallbackTitle => 'Živě';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Ukončit hovor';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Připojování…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Probíhá…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Mluví…';
+
+  @override
+  String get liveVoiceStatusListening => 'Naslouchá…';
+
+  @override
+  String get liveVoiceBadge => 'ŽIVĚ';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Tento model je jen pro hlasové hovory. Vyberte chatovací model ze seznamu.';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer token';
+
+  @override
+  String get authAccessKeysLabel => 'Přístupové klíče';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return 'Nalezeno $count modelů';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count dalších — zadejte ID ručně';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'Naskenovat QR / čárový kód';
+
+  @override
+  String get oauthSignInTitle => 'Přihlásit se';
+
+  @override
+  String get browserOverlayDone => 'Hotovo';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Chyba inicializace: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Přihlašovací údaje';
+
+  @override
+  String get credentialsIntroBody =>
+      'Přidejte více API klíčů na poskytovatele. FlutterClaw je střídá a při limitech je dočasně vyřadí.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'Žádní poskytovatelé.\nPřejděte do Nastavení → Poskytovatelé a modely a přidejte jednoho.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Přidat klíč';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Žádné další klíče — používá se klíč z Poskytovatelé a modely.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return 'Přidat klíč $provider';
+  }
+
+  @override
+  String get credentialsKeyLabelHint => 'Štítek (např. „Pracovní klíč“)';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API klíč';
+
+  @override
+  String get securitySettingsTitle => 'Zabezpečení';
+
+  @override
+  String get securitySettingsIntro =>
+      'Ovládejte kontroly proti nebezpečným operacím. Platí pro aktuální relaci.';
+
+  @override
+  String get securitySectionToolExecution => 'PROVOZENÍ NÁSTROJŮ';
+
+  @override
+  String get securityPatternDetectionTitle => 'Detekce bezpečnostních vzorů';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Blokuje nebezpečné vzory: shell injection, path traversal, eval/exec, XSS, deserializace.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Kontroly zabezpečení jsou vypnuté. Volání nástrojů bez validace. Po dokončení znovu zapněte.';
+
+  @override
+  String get securitySectionHowItWorks => 'JAK TO FUNGUJE';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Shoduje-li se volání s nebezpečným vzorem, je zablokováno a agent se dozví důvod.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'V chatu použijte /unsafe pro jednorázovou výjimku u zablokovaného volání, pak se kontroly obnoví.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Vypněte zde „Detekce bezpečnostních vzorů“, abyste kontroly vypnuli pro celou relaci.';
 
   @override
   String get holdToSetAsDefault => 'Podržte pro nastavení jako výchozí';

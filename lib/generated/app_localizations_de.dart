@@ -745,8 +745,125 @@ class AppLocalizationsDe extends AppLocalizations {
       'Sprechen Sie, nachdem der Assistent fertig ist (Echo hat sie zuvor mitten im Sprechen unterbrochen).';
 
   @override
+  String get liveVoiceFallbackTitle => 'Live';
+
+  @override
+  String get liveVoiceEndConversationTooltip => 'Gespräch beenden';
+
+  @override
+  String get liveVoiceStatusConnecting => 'Verbinden…';
+
+  @override
+  String get liveVoiceStatusRunning => 'Läuft…';
+
+  @override
+  String get liveVoiceStatusSpeaking => 'Spricht…';
+
+  @override
+  String get liveVoiceStatusListening => 'Hört zu…';
+
+  @override
+  String get liveVoiceBadge => 'LIVE';
+
+  @override
   String get cannotAddLiveModelAsChat =>
       'Dieses Modell ist nur für Sprachanrufe. Wählen Sie ein Chat-Modell aus der Liste.';
+
+  @override
+  String get authBearerTokenLabel => 'Bearer-Token';
+
+  @override
+  String get authAccessKeysLabel => 'Zugriffsschlüssel';
+
+  @override
+  String authModelsFoundCount(int count) {
+    return '$count Modelle gefunden';
+  }
+
+  @override
+  String authModelsFoundMoreManual(int count) {
+    return '+ $count weitere — ID manuell eingeben';
+  }
+
+  @override
+  String get scanQrBarcodeTitle => 'QR / Barcode scannen';
+
+  @override
+  String get oauthSignInTitle => 'Anmelden';
+
+  @override
+  String get browserOverlayDone => 'Fertig';
+
+  @override
+  String appInitializationError(String error) {
+    return 'Initialisierungsfehler: $error';
+  }
+
+  @override
+  String get credentialsScreenTitle => 'Zugangsdaten';
+
+  @override
+  String get credentialsIntroBody =>
+      'Fügen Sie mehrere API-Schlüssel pro Anbieter hinzu. FlutterClaw wechselt automatisch und kühlt Schlüssel bei Ratenlimits ab.';
+
+  @override
+  String get credentialsNoProvidersBody =>
+      'Keine Anbieter konfiguriert.\nGehen Sie zu Einstellungen → Anbieter & Modelle, um einen hinzuzufügen.';
+
+  @override
+  String get credentialsAddKeyTooltip => 'Schlüssel hinzufügen';
+
+  @override
+  String get credentialsNoExtraKeysMessage =>
+      'Keine zusätzlichen Schlüssel — es wird der Schlüssel aus Anbieter & Modelle verwendet.';
+
+  @override
+  String credentialsAddProviderKeyTitle(String provider) {
+    return '$provider-Schlüssel hinzufügen';
+  }
+
+  @override
+  String get credentialsKeyLabelHint =>
+      'Bezeichnung (z. B. „Arbeitsschlüssel“)';
+
+  @override
+  String get credentialsApiKeyFieldLabel => 'API-Schlüssel';
+
+  @override
+  String get securitySettingsTitle => 'Sicherheit';
+
+  @override
+  String get securitySettingsIntro =>
+      'Steuern Sie Sicherheitsprüfungen gegen gefährliche Vorgänge. Sie gelten für die aktuelle Sitzung.';
+
+  @override
+  String get securitySectionToolExecution => 'TOOL-AUSFÜHRUNG';
+
+  @override
+  String get securityPatternDetectionTitle => 'Erkennung gefährlicher Muster';
+
+  @override
+  String get securityPatternDetectionSubtitle =>
+      'Blockiert gefährliche Muster: Shell-Injection, Pfad-Traversal, eval/exec, XSS, Deserialisierung.';
+
+  @override
+  String get securityUnsafeModeBanner =>
+      'Sicherheitsprüfungen sind aus. Tool-Aufrufe laufen ohne Validierung. Bitte danach wieder aktivieren.';
+
+  @override
+  String get securitySectionHowItWorks => 'SO FUNKTIONIERT ES';
+
+  @override
+  String get securityHowItWorksBlocked =>
+      'Passt ein Tool-Aufruf zu einem gefährlichen Muster, wird er blockiert und dem Agenten der Grund mitgeteilt.';
+
+  @override
+  String get securityHowItWorksUnsafeCmd =>
+      'Nutzen Sie /unsafe im Chat für eine einmalige Ausnahme für einen blockierten Aufruf; danach gelten die Prüfungen wieder.';
+
+  @override
+  String get securityHowItWorksToggleSession =>
+      'Schalten Sie hier „Erkennung gefährlicher Muster“ aus, um Prüfungen für die ganze Sitzung zu deaktivieren.';
 
   @override
   String get holdToSetAsDefault =>
