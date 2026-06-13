@@ -36,34 +36,45 @@ class ChannelBrandIcon extends StatelessWidget {
     required this.channelType,
     required this.size,
     this.iconColor,
+    this.semanticLabel,
   });
 
   final String channelType;
   final double size;
   final Color? iconColor;
 
+  /// Accessibility label read by screen readers. Defaults to the channel type name.
+  final String? semanticLabel;
+
   @override
   Widget build(BuildContext context) {
-    final color =
-        iconColor ?? Theme.of(context).colorScheme.onSurface;
+    final color = iconColor ?? Theme.of(context).colorScheme.onSurface;
     final asset = channelLogoAsset(channelType);
     final fallback = channelFallbackIcon(channelType);
+    final label = semanticLabel ?? channelType;
+
     if (asset == null || asset.isEmpty) {
-      return Icon(fallback, size: size, color: color);
+      return Semantics(
+        label: label,
+        child: Icon(fallback, size: size, color: color),
+      );
     }
     final pad = size * 0.14;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Padding(
-        padding: EdgeInsets.all(pad),
-        child: SvgPicture.asset(
-          asset,
-          fit: BoxFit.contain,
-          alignment: Alignment.center,
-          colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-          errorBuilder: (context, error, stackTrace) =>
-              Icon(fallback, size: size, color: color),
+    return Semantics(
+      label: label,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Padding(
+          padding: EdgeInsets.all(pad),
+          child: SvgPicture.asset(
+            asset,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+            errorBuilder: (context, error, stackTrace) =>
+                Icon(fallback, size: size, color: color),
+          ),
         ),
       ),
     );

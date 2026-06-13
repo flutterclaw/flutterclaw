@@ -7,6 +7,7 @@ import "package:flutterclaw/channels/whatsapp.dart";
 import "package:flutterclaw/channels/channel_interface.dart";
 import "package:flutterclaw/core/app_providers.dart";
 import "package:flutterclaw/l10n/l10n_extension.dart";
+import "package:flutterclaw/services/channel_validation.dart";
 import "package:flutterclaw/services/pairing_service.dart";
 import "package:flutterclaw/data/models/config.dart";
 import "package:flutterclaw/ui/widgets/security_method_card.dart";
@@ -23,6 +24,7 @@ class _WhatsAppConfigScreenState extends ConsumerState<WhatsAppConfigScreen> {
   late bool _selfChatMode;
   Map<String, String> _approvedDevices = {};
   bool _isLoading = false;
+  bool _testing = false;
   String? _qrCode;
   StreamSubscription<String>? _qrSub;
   StreamSubscription<WAConnectionStatus>? _connSub;
@@ -306,6 +308,27 @@ class _WhatsAppConfigScreenState extends ConsumerState<WhatsAppConfigScreen> {
     }
   }
 
+  Future<void> _testConnection() async {
+    setState(() => _testing = true);
+    try {
+      final adapter = ref.read(channelRouterProvider).adapterFor('whatsapp');
+      final isConnected = adapter?.isConnected ?? false;
+      final error = await ChannelValidation.whatsappConnection(
+        isConnected: isConnected,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error == null
+              ? context.l10n.connectedStatus
+              : context.l10n.connectionFailed(error)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -538,6 +561,20 @@ class _WhatsAppConfigScreenState extends ConsumerState<WhatsAppConfigScreen> {
               ),
             const SizedBox(height: 24),
           ],
+
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _testing ? null : _testConnection,
+            icon: _testing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.check_circle_outline),
+            label: Text(context.l10n.testConnection),
+          ),
+          const SizedBox(height: 16),
 
           Card(
             color: colors.primaryContainer.withValues(alpha: 0.3),

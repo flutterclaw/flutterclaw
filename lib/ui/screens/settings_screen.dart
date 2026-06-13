@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/core/package_info_provider.dart';
@@ -7,9 +8,10 @@ import 'package:flutterclaw/ui/screens/settings/about_screen.dart';
 import 'package:flutterclaw/ui/screens/settings/gateway_screen.dart';
 import 'package:flutterclaw/ui/screens/settings/mcp_servers_screen.dart';
 import 'package:flutterclaw/ui/screens/settings/providers_models_screen.dart';
-import 'package:flutterclaw/ui/screens/settings/credentials_screen.dart';
 import 'package:flutterclaw/ui/screens/settings/security_settings_screen.dart';
 import 'package:flutterclaw/ui/screens/settings/tool_policies_screen.dart';
+import 'package:flutterclaw/ui/widgets/persistent_banner.dart';
+import 'package:flutterclaw/ui/theme/tokens.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -19,34 +21,56 @@ class SettingsScreen extends ConsumerWidget {
     final config = ref.watch(configManagerProvider).config;
     final hasModels = config.modelList.isNotEmpty;
     final colors = Theme.of(context).colorScheme;
+    final health = ref.watch(healthCheckResultsProvider).asData?.value;
+    final providerHealthIssue = health?.providerErrors.isNotEmpty ?? false;
+
+    final gatewayDown = ref.watch(gatewayStateProvider).state == 'error';
+    final showBanner = providerHealthIssue || gatewayDown;
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.settings)),
-      body: ListView(
+      body: Column(
         children: [
-          _SettingsTile(
-            icon: Icons.key_outlined,
-            title: 'Credentials',
-            subtitle: 'Multi-key rotation per provider',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CredentialsScreen()),
+          if (showBanner)
+            PersistentBanner(
+              message: providerHealthIssue
+                  ? context.l10n.providerKeyInvalidTapToFix
+                  : context.l10n.errorStartingGateway,
+              type: PersistentBannerType.error,
+              actionLabel: providerHealthIssue ? context.l10n.configure : context.l10n.retry,
+              onAction: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => providerHealthIssue
+                      ? const ProvidersModelsScreen()
+                      : const GatewayScreen(),
+                ),
+              ),
             ),
-          ),
+          Expanded(
+            child: ListView(
+              children: [
           _SettingsTile(
+            index: 0,
             icon: Icons.hub_outlined,
             title: context.l10n.providersAndModels,
-            subtitle: hasModels
-                ? context.l10n.modelsConfiguredCount(config.modelList.length)
-                : context.l10n.noModelsConfigured,
-            subtitleColor: hasModels ? null : colors.error,
+            subtitle: providerHealthIssue
+                ? context.l10n.providerKeyInvalidTapToFix
+                : hasModels
+                    ? context.l10n.modelsConfiguredCount(config.modelList.length)
+                    : context.l10n.noModelsConfigured,
+            subtitleColor: providerHealthIssue
+                ? colors.error
+                : hasModels
+                    ? null
+                    : colors.error,
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                  builder: (_) => const ProvidersModelsScreen()),
+              MaterialPageRoute(builder: (_) => const ProvidersModelsScreen()),
             ),
           ),
           _SettingsTile(
+            index: 1,
             icon: Icons.router_outlined,
             title: context.l10n.gateway,
             subtitle: config.gateway.autoStart
@@ -58,15 +82,14 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           _SettingsTile(
+            index: 2,
             icon: Icons.extension_outlined,
-            title: 'MCP Servers',
+            title: context.l10n.mcpServersTitle,
             subtitle: () {
               final servers = config.mcpServers;
-              if (servers.isEmpty) return 'No servers configured';
+              if (servers.isEmpty) return context.l10n.mcpServersSubtitleEmpty;
               final enabled = servers.where((s) => s.enabled).length;
-              return enabled == 0
-                  ? '${servers.length} servers, none active'
-                  : '$enabled of ${servers.length} servers active';
+              return context.l10n.mcpServersSubtitleActive(enabled, servers.length);
             }(),
             onTap: () => Navigator.push(
               context,
@@ -74,6 +97,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           _SettingsTile(
+            index: 3,
             icon: Icons.shield_outlined,
             title: context.l10n.toolPolicies,
             subtitle: config.tools.disabled.isEmpty
@@ -81,34 +105,32 @@ class SettingsScreen extends ConsumerWidget {
                 : context.l10n.toolsDisabledCount(config.tools.disabled.length),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                  builder: (_) => const ToolPoliciesScreen()),
+              MaterialPageRoute(builder: (_) => const ToolPoliciesScreen()),
             ),
           ),
           _SettingsTile(
+            index: 4,
             icon: Icons.lock_outlined,
-            title: 'Security',
+            title: context.l10n.securitySettingsTitle,
             subtitle: ref.watch(unsafeModeProvider)
-                ? 'Security checks disabled ⚠️'
-                : 'Security checks active',
-            subtitleColor: ref.watch(unsafeModeProvider)
-                ? colors.error
-                : null,
+                ? context.l10n.securityChecksDisabled
+                : context.l10n.securityChecksActive,
+            subtitleColor: ref.watch(unsafeModeProvider) ? colors.error : null,
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                  builder: (_) => const SecuritySettingsScreen()),
+              MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
             ),
           ),
           _SettingsTile(
+            index: 5,
             icon: Icons.info_outline,
             title: context.l10n.about,
             subtitle: ref.watch(packageInfoProvider).when(
                   data: (info) => context.l10n.appVersionSubtitle(
-                        context.l10n.appTitle,
-                        info.version,
-                        info.buildNumber,
-                      ),
+                    context.l10n.appTitle,
+                    info.version,
+                    info.buildNumber,
+                  ),
                   loading: () => context.l10n.appTitle,
                   error: (_, _) => context.l10n.appTitle,
                 ),
@@ -116,6 +138,9 @@ class SettingsScreen extends ConsumerWidget {
               context,
               MaterialPageRoute(builder: (_) => const AboutScreen()),
             ),
+          ),
+        ],
+      ),
           ),
         ],
       ),
@@ -130,6 +155,7 @@ class _SettingsTile extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.subtitleColor,
+    this.index = 0,
   });
 
   final IconData icon;
@@ -137,21 +163,24 @@ class _SettingsTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
   final Color? subtitleColor;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.spacingXL,
+        vertical: AppTokens.spacingXS,
+      ),
       leading: Container(
-        width: 40,
-        height: 40,
+        width: AppTokens.touchTargetSM,
+        height: AppTokens.touchTargetSM,
         decoration: BoxDecoration(
           color: theme.colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMD),
         ),
-        child: Icon(icon, color: theme.colorScheme.primary, size: 20),
+        child: Icon(icon, color: theme.colorScheme.primary, size: AppTokens.iconMD),
       ),
       title: Text(title,
           style: theme.textTheme.titleSmall
@@ -164,6 +193,18 @@ class _SettingsTile extends StatelessWidget {
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
-    );
+    )
+        .animate()
+        .fadeIn(
+          delay: Duration(milliseconds: index * 50),
+          duration: AppTokens.durationNormal,
+          curve: Curves.easeOutCubic,
+        )
+        .slideY(
+          begin: 0.06,
+          delay: Duration(milliseconds: index * 50),
+          duration: AppTokens.durationNormal,
+          curve: Curves.easeOutCubic,
+        );
   }
 }

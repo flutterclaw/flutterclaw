@@ -23,6 +23,7 @@ import 'package:flutterclaw/core/agent/chat_commands.dart';
 import 'package:flutterclaw/core/agent/message_queue.dart';
 import 'package:flutterclaw/core/providers/provider_interface.dart';
 import 'package:flutterclaw/services/cron_service.dart';
+import 'package:flutterclaw/services/health_check_service.dart';
 import 'package:flutterclaw/services/heartbeat_runner.dart';
 import 'package:flutterclaw/services/pairing_service.dart';
 import 'package:flutterclaw/services/hook_runner.dart';
@@ -3614,5 +3615,37 @@ class LiveSessionNotifier extends Notifier<LiveSessionState> {
     await _agentLoop?.stop();
     _agentLoop = null;
     await ref.read(geminiLiveServiceProvider).disconnect();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Passive health checks (provider keys + channel credentials)
+// ---------------------------------------------------------------------------
+
+final healthCheckServiceProvider =
+    Provider<HealthCheckService>((ref) => const HealthCheckService());
+
+final healthCheckResultsProvider =
+    AsyncNotifierProvider<HealthCheckNotifier, HealthCheckResults>(
+  HealthCheckNotifier.new,
+);
+
+class HealthCheckNotifier extends AsyncNotifier<HealthCheckResults> {
+  @override
+  Future<HealthCheckResults> build() async {
+    return const HealthCheckResults();
+  }
+
+  Future<void> refresh({Map<String, bool>? channelConnected}) async {
+    final config = ref.read(configManagerProvider).config;
+    final gatewayRunning = ref.read(gatewayStateProvider).isRunning;
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      return ref.read(healthCheckServiceProvider).run(
+            config: config,
+            gatewayRunning: gatewayRunning,
+            channelConnected: channelConnected ?? const {},
+          );
+    });
   }
 }

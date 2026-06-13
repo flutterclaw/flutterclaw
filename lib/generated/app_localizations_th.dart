@@ -1957,90 +1957,90 @@ class AppLocalizationsTh extends AppLocalizations {
   String get cancelLink => 'ยกเลิกการเชื่อมต่อ';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'ค้นหาโมเดล';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'ไม่มีโมเดลที่ตรงกับการค้นหา';
 
   @override
   String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+      'คุณสามารถใช้ข้อความค้นหาเป็น ID โมเดลที่กำหนดเอง';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'ใช้โมเดล';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'โมเดลที่ใช้ได้';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'โมเดลไม่พร้อมใช้งาน';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model ไม่พร้อมใช้งานแล้ว เปลี่ยนโมเดลในการตั้งค่า';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'เปลี่ยนโมเดล';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'ป้ายกำกับ (ไม่บังคับ)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'เช่น งาน ส่วนตัว';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'เลือกคีย์ API';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'การตรวจสอบล้มเหลว: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'บันทึกต่อไป';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'ช่องทางตัดการเชื่อมต่อ';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'บันทึกแล้ว แต่เชื่อมต่อช่องทางไม่สำเร็จ: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'ข้อผิดพลาด: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'เริ่มการสนทนาใหม่?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'จะสิ้นสุดเซสชันปัจจุบันและเริ่มใหม่ บันทึกก่อนหน้ายังอยู่ในดิสก์';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'เริ่มใหม่';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'กำลังลองใหม่...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted => 'บีบอัดการสนทนาเพื่อปล่อยบริบท';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'ไม่สามารถบีบอัดการสนทนานี้';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'ผู้ใช้ที่อนุญาต';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'รายการอนุญาตว่าง — ใครก็ตามที่ส่งข้อความถึงบอทนี้สามารถคุยกับเอเจนต์ได้';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'ID ผู้ใช้หรือหมายเลขโทรศัพท์';
 
   @override
   String get llmErrorPayloadTooLarge =>
@@ -2121,12 +2121,106 @@ class AppLocalizationsTh extends AppLocalizations {
       'An error occurred while communicating with the provider. Try again.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'ค้นหาโมเดล';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'รีเฟรชรายการโมเดล';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'โมเดลนี้ไม่อยู่ในรายการผู้ให้บริการ อาจใช้งานได้หาก ID ถูกต้อง';
+
+  @override
+  String get savedNotConnectedStatus => 'บันทึกแล้ว — ยังไม่เชื่อมต่อ';
+
+  @override
+  String get savedNotConnectedHint => 'เปิดการตั้งค่าและลองเชื่อมต่ออีกครั้ง';
+
+  @override
+  String get gatewayRunsLocally => 'ทำงานส่วนตัวบนอุปกรณ์ของคุณ';
+
+  @override
+  String get gatewaySettingsLink => 'การตั้งค่าเกตเวย์';
+
+  @override
+  String get mcpServersTitle => 'เครื่องมือภายนอก (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'เชื่อมต่อเครื่องมือและบริการภายนอก';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$enabled จาก $total ใช้งาน';
+  }
+
+  @override
+  String get securityChecksActive => 'การตรวจสอบความปลอดภัยเปิด';
+
+  @override
+  String get securityChecksDisabled => 'การตรวจสอบความปลอดภัยปิด';
+
+  @override
+  String get keyRotationAdvanced => 'การหมุนคีย์ (ขั้นสูง)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'สวิตช์เหล่านี้สำหรับเครื่องมือที่เกี่ยวกับความเป็นส่วนตัว อื่นๆ จัดการอัตโนมัติหรือผ่านเครื่องมือภายนอก (MCP)';
+
+  @override
+  String get toolPoliciesMcpLink => 'จัดการเครื่องมือภายนอก';
+
+  @override
+  String get providerKeyInvalidTapToFix =>
+      'คีย์ API ไม่ถูกต้อง — แตะเพื่อแก้ไข';
+
+  @override
+  String get sessionChatLabel => 'แชท';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'ID เซสชัน: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'สลับเอเจนต์หรือเซสชัน';
+
+  @override
+  String get agentsSection => 'เอเจนต์';
+
+  @override
+  String get errorNoBalance => 'ยอดเงินไม่เพียงพอ';
+
+  @override
+  String get errorAccessDenied => 'ปฏิเสธการเข้าถึง';
+
+  @override
+  String get errorModelNotFound => 'ไม่พบโมเดล';
+
+  @override
+  String get errorRateLimitReached => 'ถึงขีดจำกัดอัตรา';
+
+  @override
+  String get errorServiceUnavailable => 'บริการไม่พร้อมใช้งาน';
+
+  @override
+  String get errorConnection => 'ข้อผิดพลาดการเชื่อมต่อ';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'พัก ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count ข้อผิดพลาด';
+  }
+
+  @override
+  String get whatsappNotConnected => 'ไม่เชื่อมต่อ — สแกน QR เพื่อเชื่อม';
+
+  @override
+  String get channelHealthIssue => 'ปัญหาการเชื่อมต่อ — แตะเพื่อแก้ไข';
+
+  @override
+  String get testConnectionFirst => 'ทดสอบการเชื่อมต่อก่อนบันทึก';
 }

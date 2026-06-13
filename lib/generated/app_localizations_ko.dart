@@ -1907,176 +1907,256 @@ class AppLocalizationsKo extends AppLocalizations {
   String get cancelLink => '연결 취소';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => '모델 검색';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => '검색과 일치하는 모델이 없습니다';
 
   @override
-  String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+  String get useCustomIdHint => '검색 텍스트를 사용자 지정 모델 ID로 사용할 수 있습니다';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => '모델 사용';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => '개 모델 사용 가능';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => '모델을 사용할 수 없음';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model을(를) 더 이상 사용할 수 없습니다. 설정에서 모델을 변경하세요.';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => '모델 변경';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => '레이블(선택)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => '예: 업무, 개인';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'API 키 선택';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return '유효성 검사 실패: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => '그래도 저장';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => '채널 연결 끊김';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return '저장됐지만 채널 연결 실패: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return '오류: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => '새 대화를 시작할까요?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      '현재 세션이 종료되고 새 세션이 시작됩니다. 이전 기록은 디스크에 보관됩니다.';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => '새로 시작';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => '재시도 중...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted => '컨텍스트 확보를 위해 대화를 압축했습니다';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => '이 대화를 압축할 수 없습니다';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => '허용된 사용자';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      '허용 목록이 비어 있습니다 — 이 봇에 메시지를 보낸 누구나 에이전트와 대화할 수 있습니다.';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => '사용자 ID 또는 전화번호';
 
   @override
   String get llmErrorPayloadTooLarge =>
-      'The request is too large for the provider (HTTP 413, \"Payload Too Large\"). This usually happens with very long history, images or base64 attachments. Try a new conversation, send fewer attachments or shorten the context.';
+      '요청이 제공업체 한도를 초과했습니다 (HTTP 413). 긴 기록, 이미지, base64 첨부 때문일 수 있습니다. 새 대화를 시도하거나 컨텍스트를 줄이세요.';
 
   @override
-  String get llmErrorPayloadTooLargeTitle => 'Request too large';
+  String get llmErrorPayloadTooLargeTitle => '요청이 너무 큼';
 
   @override
-  String get llmErrorViewDocs => 'View error documentation';
+  String get llmErrorViewDocs => '오류 문서 보기';
 
   @override
   String get llmErrorOpenRouterPrivacy =>
-      'OpenRouter has no endpoints available for this model under your account\'s data and privacy policy. Open https://openrouter.ai/settings/privacy in a browser (sign in), review which providers and data types you allow, save the changes and try again. You can also pick another model.';
+      'OpenRouter에 계정 데이터 정책에 따라 이 모델에 사용 가능한 엔드포인트가 없습니다. https://openrouter.ai/settings/privacy 를 열어 허용된 제공업체를 확인하고 다시 시도하세요.';
 
   @override
-  String get llmErrorOpenRouterPrivacyTitle => 'Data policy (OpenRouter)';
+  String get llmErrorOpenRouterPrivacyTitle => '데이터 정책 (OpenRouter)';
 
   @override
-  String get llmErrorOpenPrivacySettings => 'Open privacy settings';
+  String get llmErrorOpenPrivacySettings => '개인정보 설정 열기';
 
   @override
-  String get llmError401 =>
-      'The API key is invalid or missing. Check your configuration in Settings > Providers and models.';
+  String get llmError401 => 'API 키가 잘못되었거나 없습니다. 설정 > 제공업체 및 모델을 확인하세요.';
 
   @override
-  String get llmError402 =>
-      'Your account has insufficient balance or requires a paid plan to use this model. Check your plan on the provider\'s site.';
+  String get llmError402 => '잔액이 부족하거나 유료 플랜이 필요합니다.';
 
   @override
-  String get llmError403 =>
-      'You don\'t have permission to access this model. You may need to enable it in your provider account.';
+  String get llmError403 => '이 모델에 대한 권한이 없습니다.';
 
   @override
-  String get llmError404 =>
-      'The requested model was not found. Verify the model name is correct in Settings.';
+  String get llmError404 => '요청한 모델을 찾을 수 없습니다. 설정에서 이름을 확인하세요.';
 
   @override
-  String get llmError413 =>
-      'The request exceeds the maximum allowed size (HTTP 413). Reduce the history, attachments or images in the message.';
+  String get llmError413 => '요청이 최대 크기를 초과했습니다 (HTTP 413).';
 
   @override
-  String get llmError429 =>
-      'Too many requests. The provider has temporarily limited your access. Wait a moment and try again.';
+  String get llmError429 => '요청이 너무 많습니다. 일시적으로 제한되었습니다.';
 
   @override
-  String get llmError500 =>
-      'The provider\'s server had an internal error. Try again in a few minutes.';
+  String get llmError500 => '제공업체 서버 내부 오류입니다. 몇 분 후 다시 시도하세요.';
 
   @override
-  String get llmError503 =>
-      'The provider\'s service is unavailable right now. Try again in a few minutes.';
+  String get llmError503 => '제공업체 서비스를 현재 사용할 수 없습니다.';
 
   @override
-  String get llmError529 =>
-      'The provider is overloaded. Try again in a few minutes.';
+  String get llmError529 => '제공업체가 과부하 상태입니다. 몇 분 후 다시 시도하세요.';
 
   @override
   String llmError400(String raw) {
-    return 'The provider rejected the request (400): $raw';
+    return '제공업체가 요청을 거부했습니다 (400): $raw';
   }
 
   @override
-  String get llmErrorNetwork =>
-      'Could not connect to the provider. Check your internet connection.';
+  String get llmErrorNetwork => '제공업체에 연결할 수 없습니다. 인터넷 연결을 확인하세요.';
 
   @override
-  String get llmErrorTimeout =>
-      'The request took too long and timed out. Try again.';
+  String get llmErrorTimeout => '요청 시간이 초과되었습니다. 다시 시도하세요.';
 
   @override
   String llmErrorWithStatus(int statusCode, String raw) {
-    return 'The provider responded with an error ($statusCode): $raw';
+    return '제공업체가 오류를 반환했습니다 ($statusCode): $raw';
   }
 
   @override
-  String get llmErrorUnknown =>
-      'An error occurred while communicating with the provider. Try again.';
+  String get llmErrorUnknown => '제공업체와 통신 중 오류가 발생했습니다.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => '모델 찾기';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => '모델 목록 새로고침';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      '이 모델은 제공업체 목록에 없습니다. ID가 맞으면 작동할 수 있습니다.';
+
+  @override
+  String get savedNotConnectedStatus => '저장됨 — 연결 안 됨';
+
+  @override
+  String get savedNotConnectedHint => '설정을 열고 다시 연결해 보세요';
+
+  @override
+  String get gatewayRunsLocally => '기기에서 비공개로 실행';
+
+  @override
+  String get gatewaySettingsLink => '게이트웨이 설정';
+
+  @override
+  String get mcpServersTitle => '외부 도구 (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => '외부 도구 및 서비스 연결';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$total개 중 $enabled개 활성';
+  }
+
+  @override
+  String get securityChecksActive => '보안 검사 활성';
+
+  @override
+  String get securityChecksDisabled => '보안 검사 비활성';
+
+  @override
+  String get keyRotationAdvanced => '키 로테이션(고급)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      '이 스위치는 개인정보 관련 도구용입니다. 나머지는 자동 또는 외부 도구(MCP)로 관리됩니다.';
+
+  @override
+  String get toolPoliciesMcpLink => '외부 도구 관리';
+
+  @override
+  String get providerKeyInvalidTapToFix => '잘못된 API 키 — 탭하여 수정';
+
+  @override
+  String get sessionChatLabel => '채팅';
+
+  @override
+  String sessionDetailKey(String key) {
+    return '세션 ID: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => '에이전트 또는 세션 전환';
+
+  @override
+  String get agentsSection => '에이전트';
+
+  @override
+  String get errorNoBalance => '잔액 부족';
+
+  @override
+  String get errorAccessDenied => '액세스 거부';
+
+  @override
+  String get errorModelNotFound => '모델을 찾을 수 없음';
+
+  @override
+  String get errorRateLimitReached => '요청 한도 도달';
+
+  @override
+  String get errorServiceUnavailable => '서비스 사용 불가';
+
+  @override
+  String get errorConnection => '연결 오류';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return '대기 중 ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '오류 $count건';
+  }
+
+  @override
+  String get whatsappNotConnected => '연결 안 됨 — QR 스캔하여 연결';
+
+  @override
+  String get channelHealthIssue => '연결 문제 — 탭하여 수정';
+
+  @override
+  String get testConnectionFirst => '저장 전 연결 테스트';
 }

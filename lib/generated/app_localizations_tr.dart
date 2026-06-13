@@ -1990,90 +1990,90 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cancelLink => 'Bağlantıyı iptal et';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'Modelleri ara';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'Aramanızla eşleşen model yok';
 
   @override
   String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+      'Arama metnini özel model kimliği olarak kullanabilirsiniz';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'Modeli kullan';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'model mevcut';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'Model kullanılamıyor';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model artık kullanılamıyor. Ayarlardan modeli değiştirin.';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'Modeli değiştir';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'Etiket (isteğe bağlı)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'örn. iş, kişisel';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'API anahtarı seç';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'Doğrulama başarısız: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'Yine de kaydet';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'Kanal bağlantısı kesildi';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'Kaydedildi, ancak kanal bağlanamadı: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'Hata: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'Yeni sohbet başlatılsın mı?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'Bu, mevcut oturumu sonlandırır ve yeni bir oturum başlatır. Önceki transkript diskte kalır.';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'Yeni başlat';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'Yeniden deneniyor...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted => 'Bağlam açmak için sohbet sıkıştırıldı';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'Bu sohbet sıkıştırılamadı';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'İzin verilen kullanıcılar';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'İzin listesi boş — bu bota mesaj gönderen herkes ajanla konuşabilir.';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'Kullanıcı kimliği veya telefon numarası';
 
   @override
   String get llmErrorPayloadTooLarge =>
@@ -2154,12 +2154,107 @@ class AppLocalizationsTr extends AppLocalizations {
       'An error occurred while communicating with the provider. Try again.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'Modelleri keşfet';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'Model listesini yenile';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'Bu model sağlayıcı listesinde yok. Kimlik doğruysa çalışabilir.';
+
+  @override
+  String get savedNotConnectedStatus => 'Kaydedildi — bağlı değil';
+
+  @override
+  String get savedNotConnectedHint =>
+      'Ayarları açın ve bağlantıyı tekrar deneyin';
+
+  @override
+  String get gatewayRunsLocally => 'Cihazınızda özel olarak çalışır';
+
+  @override
+  String get gatewaySettingsLink => 'Ağ geçidi ayarları';
+
+  @override
+  String get mcpServersTitle => 'Harici araçlar (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'Harici araç ve hizmetleri bağla';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$total içinden $enabled aktif';
+  }
+
+  @override
+  String get securityChecksActive => 'Güvenlik denetimleri etkin';
+
+  @override
+  String get securityChecksDisabled => 'Güvenlik denetimleri devre dışı';
+
+  @override
+  String get keyRotationAdvanced => 'Anahtar rotasyonu (gelişmiş)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'Bu anahtarlar gizlilikle ilgili araçlar içindir. Diğerleri otomatik veya Harici araçlar (MCP) ile yönetilir.';
+
+  @override
+  String get toolPoliciesMcpLink => 'Harici araçları yönet';
+
+  @override
+  String get providerKeyInvalidTapToFix =>
+      'Geçersiz API anahtarı — düzeltmek için dokunun';
+
+  @override
+  String get sessionChatLabel => 'Sohbet';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'Oturum kimliği: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'Ajan veya oturum değiştir';
+
+  @override
+  String get agentsSection => 'Ajanlar';
+
+  @override
+  String get errorNoBalance => 'Yetersiz bakiye';
+
+  @override
+  String get errorAccessDenied => 'Erişim reddedildi';
+
+  @override
+  String get errorModelNotFound => 'Model bulunamadı';
+
+  @override
+  String get errorRateLimitReached => 'Hız sınırına ulaşıldı';
+
+  @override
+  String get errorServiceUnavailable => 'Hizmet kullanılamıyor';
+
+  @override
+  String get errorConnection => 'Bağlantı hatası';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'Bekleme ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count hata';
+  }
+
+  @override
+  String get whatsappNotConnected => 'Bağlı değil — bağlamak için QR tarayın';
+
+  @override
+  String get channelHealthIssue => 'Bağlantı sorunu — düzeltmek için dokunun';
+
+  @override
+  String get testConnectionFirst => 'Kaydetmeden önce bağlantıyı test edin';
 }

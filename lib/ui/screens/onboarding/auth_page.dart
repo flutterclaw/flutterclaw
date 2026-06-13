@@ -109,7 +109,7 @@ class _AuthPageState extends State<AuthPage> {
     _debounce?.cancel();
     final key = _apiKeyController.text.trim();
     if (key.isNotEmpty) {
-      _debounce = Timer(const Duration(milliseconds: 800), _validate);
+      _debounce = Timer(const Duration(milliseconds: 500), _validate);
     }
   }
 

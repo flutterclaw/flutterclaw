@@ -1986,90 +1986,91 @@ class AppLocalizationsCs extends AppLocalizations {
   String get cancelLink => 'Zrušit propojení';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'Hledat modely';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'Žádný model neodpovídá hledání';
 
   @override
   String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+      'Můžete použít hledaný text jako vlastní ID modelu';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'Použít model';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'dostupných modelů';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'Model není k dispozici';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model již není k dispozici. Změňte model v Nastavení.';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'Změnit model';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'Štítek (volitelné)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'např. práce, osobní';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'Vybrat API klíč';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'Ověření selhalo: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'Přesto uložit';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'Kanál odpojen';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'Uloženo, ale kanál se nepodařilo připojit: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'Chyba: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'Zahájit novou konverzaci?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'Ukončí se aktuální relace a začne nová. Předchozí přepis zůstane na disku.';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'Zahájit novou';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'Opakování...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted =>
+      'Konverzace zkomprimována pro uvolnění kontextu';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'Tuto konverzaci se nepodařilo zkomprimovat';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'Povolení uživatelé';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'Seznam povolených je prázdný — kdokoli napíše tomuto botovi, může mluvit s agentem.';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'ID uživatele nebo telefonní číslo';
 
   @override
   String get llmErrorPayloadTooLarge =>
@@ -2150,12 +2151,108 @@ class AppLocalizationsCs extends AppLocalizations {
       'An error occurred while communicating with the provider. Try again.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'Objevit modely';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'Obnovit seznam modelů';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'Tento model není v seznamu poskytovatele. Může fungovat, pokud je ID správné.';
+
+  @override
+  String get savedNotConnectedStatus => 'Uloženo — nepřipojeno';
+
+  @override
+  String get savedNotConnectedHint =>
+      'Otevřete nastavení a zkuste se znovu připojit';
+
+  @override
+  String get gatewayRunsLocally => 'Běží soukromě na vašem zařízení';
+
+  @override
+  String get gatewaySettingsLink => 'Nastavení brány';
+
+  @override
+  String get mcpServersTitle => 'Externí nástroje (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'Připojit externí nástroje a služby';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$enabled z $total aktivních';
+  }
+
+  @override
+  String get securityChecksActive => 'Bezpečnostní kontroly aktivní';
+
+  @override
+  String get securityChecksDisabled => 'Bezpečnostní kontroly vypnuty';
+
+  @override
+  String get keyRotationAdvanced => 'Rotace klíčů (pokročilé)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'Tyto přepínače se týkají nástrojů citlivých na soukromí. Ostatní jsou spravovány automaticky nebo přes Externí nástroje (MCP).';
+
+  @override
+  String get toolPoliciesMcpLink => 'Spravovat externí nástroje';
+
+  @override
+  String get providerKeyInvalidTapToFix =>
+      'Neplatný API klíč — klepněte pro opravu';
+
+  @override
+  String get sessionChatLabel => 'Chat';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'ID relace: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'Přepnout agenta nebo relaci';
+
+  @override
+  String get agentsSection => 'Agenti';
+
+  @override
+  String get errorNoBalance => 'Nedostatečný zůstatek';
+
+  @override
+  String get errorAccessDenied => 'Přístup odepřen';
+
+  @override
+  String get errorModelNotFound => 'Model nenalezen';
+
+  @override
+  String get errorRateLimitReached => 'Dosažen limit';
+
+  @override
+  String get errorServiceUnavailable => 'Služba nedostupná';
+
+  @override
+  String get errorConnection => 'Chyba připojení';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'Pauza ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count chyb';
+  }
+
+  @override
+  String get whatsappNotConnected =>
+      'Nepřipojeno — naskenujte QR pro propojení';
+
+  @override
+  String get channelHealthIssue => 'Problém s připojením — klepněte pro opravu';
+
+  @override
+  String get testConnectionFirst => 'Před uložením otestujte připojení';
 }

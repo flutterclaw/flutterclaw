@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,9 +9,9 @@ import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/data/models/interactive_reply.dart';
 import 'package:flutterclaw/ui/theme/semantic_colors.dart';
+import 'package:flutterclaw/ui/theme/tokens.dart';
 import 'copyable_code_block.dart';
 import 'terminal_output.dart';
-import 'typing_indicator.dart';
 
 /// A single chat message bubble (user, assistant, tool status, image, or document).
 class MessageBubble extends ConsumerStatefulWidget {
@@ -96,20 +97,23 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                       maxWidth: MediaQuery.of(context).size.width * 0.75,
                     ),
                     margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTokens.spacingLG,
+                      vertical: AppTokens.spacingMD,
+                    ),
                     decoration: BoxDecoration(
                       color: isUser
                           ? colors.primary
                           : colors.surfaceContainerHighest,
                       borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft: Radius.circular(isUser ? 16 : 4),
-                        bottomRight: Radius.circular(isUser ? 4 : 16),
+                        topLeft: const Radius.circular(AppTokens.radiusLG),
+                        topRight: const Radius.circular(AppTokens.radiusLG),
+                        bottomLeft: Radius.circular(isUser ? AppTokens.radiusLG : 4),
+                        bottomRight: Radius.circular(isUser ? 4 : AppTokens.radiusLG),
                       ),
                     ),
                     child: widget.message.isStreaming && widget.message.text.isEmpty
-                        ? const TypingIndicator()
+                        ? _StreamingShimmer(color: colors.surfaceContainerHighest)
                         : isUser
                             ? Text(
                                 widget.message.text,
@@ -651,7 +655,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         ),
                       ),
                       builders: {'pre': CopyableCodeBlockBuilder(context)},
-                      onTapLink: (_, href, __) async {
+                      onTapLink: (_, href, _) async {
                         if (href != null) {
                           final uri = Uri.tryParse(href);
                           if (uri != null) await launchUrl(uri);
@@ -1066,28 +1070,29 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
           : Icons.policy_outlined;
       title = widget.message.errorTitle!;
     } else {
+      final l10n = context.l10n;
       switch (statusCode) {
         case 401:
           icon = Icons.key_off;
-          title = 'Clave API inválida';
+          title = l10n.invalidApiKey;
         case 402:
           icon = Icons.account_balance_wallet_outlined;
-          title = 'Sin saldo';
+          title = l10n.errorNoBalance;
         case 403:
           icon = Icons.block;
-          title = 'Acceso denegado';
+          title = l10n.errorAccessDenied;
         case 404:
           icon = Icons.search_off;
-          title = 'Modelo no encontrado';
+          title = l10n.errorModelNotFound;
         case 429:
           icon = Icons.speed;
-          title = 'Límite de uso alcanzado';
+          title = l10n.errorRateLimitReached;
         case 500 || 502 || 503 || 529:
           icon = Icons.cloud_off;
-          title = 'Servicio no disponible';
+          title = l10n.errorServiceUnavailable;
         default:
           icon = Icons.error_outline;
-          title = 'Error de conexión';
+          title = l10n.errorConnection;
       }
     }
 
@@ -1259,6 +1264,45 @@ class _InteractiveSelectState extends State<_InteractiveSelect> {
         setState(() => _selected = value);
         widget.onSelected(value);
       },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Streaming shimmer — shown while an assistant message is loading its first token
+// ---------------------------------------------------------------------------
+
+class _StreamingShimmer extends StatelessWidget {
+  const _StreamingShimmer({required this.color});
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final shimmerColor = Theme.of(context).colorScheme.outline.withValues(alpha: 0.15);
+
+    Widget line(double width) => Container(
+          width: width,
+          height: 12,
+          decoration: BoxDecoration(
+            color: shimmerColor,
+            borderRadius: BorderRadius.circular(AppTokens.radiusSM),
+          ),
+        )
+            .animate(onPlay: (c) => c.repeat())
+            .shimmer(
+              duration: const Duration(milliseconds: 1100),
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.08),
+              curve: Curves.easeInOutSine,
+            );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        line(140),
+        const SizedBox(height: AppTokens.spacingXS),
+        line(100),
+      ],
     );
   }
 }

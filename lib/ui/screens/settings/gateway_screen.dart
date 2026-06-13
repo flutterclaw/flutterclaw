@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/data/models/config.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
+import 'package:flutterclaw/services/background_service.dart';
+import 'package:flutterclaw/services/ios_gateway_service.dart';
 
 /// Gateway & Heartbeat settings sub-screen.
 class GatewayScreen extends ConsumerStatefulWidget {
@@ -13,17 +17,151 @@ class GatewayScreen extends ConsumerStatefulWidget {
 }
 
 class _GatewayScreenState extends ConsumerState<GatewayScreen> {
+  bool _loading = false;
+
+  String _statusText(GatewayState state) {
+    final l10n = context.l10n;
+    switch (state.state) {
+      case 'starting':
+        return l10n.gatewayStartingStatus;
+      case 'retrying':
+        return l10n.gatewayRetryingStatus;
+      case 'error':
+        return state.lastError ?? l10n.errorStartingGateway;
+      case 'running':
+        return l10n.runningStatus;
+      default:
+        return l10n.stoppedStatus;
+    }
+  }
+
+  Future<void> _toggleGateway(bool running) async {
+    setState(() => _loading = true);
+    try {
+      if (running) {
+        if (Platform.isIOS) {
+          await IosGatewayService.stop();
+        } else {
+          await BackgroundService.stopService();
+        }
+        ref.read(gatewayStateProvider.notifier).setRunning(false);
+      } else {
+        if (Platform.isIOS) {
+          final success = await IosGatewayService.start(
+            configManager: ref.read(configManagerProvider),
+            providerRouter: ref.read(providerRouterProvider),
+            sessionManager: ref.read(sessionManagerProvider),
+            toolRegistry: ref.read(toolRegistryProvider),
+            skillsService: ref.read(skillsServiceProvider),
+          );
+          ref.read(gatewayStateProvider.notifier).setRunning(success);
+        } else {
+          await BackgroundService.startService();
+          ref.read(gatewayStateProvider.notifier).setRunning(true);
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final configManager = ref.watch(configManagerProvider);
     final config = configManager.config;
+    final gatewayState = ref.watch(gatewayStateProvider);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    final statusColor = gatewayState.state == 'error'
+        ? colors.error
+        : gatewayState.isRunning
+            ? Colors.green
+            : colors.onSurfaceVariant;
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.gateway)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Gateway
+          Card(
+            color: gatewayState.state == 'error'
+                ? colors.errorContainer.withValues(alpha: 0.3)
+                : null,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        gatewayState.isRunning
+                            ? Icons.cloud_done
+                            : Icons.cloud_off,
+                        color: statusColor,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.l10n.gateway,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            Text(
+                              _statusText(gatewayState),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: statusColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      FilledButton.tonal(
+                        onPressed: _loading
+                            ? null
+                            : () => _toggleGateway(gatewayState.isRunning),
+                        child: _loading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(
+                                gatewayState.isRunning
+                                    ? context.l10n.stop
+                                    : context.l10n.start,
+                              ),
+                      ),
+                    ],
+                  ),
+                  if (gatewayState.isRunning) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      context.l10n.gatewayRunsLocally,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    if (gatewayState.uptimeSeconds > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          context.l10n.uptimeLabel(_formatUptime(gatewayState.uptimeSeconds)),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             child: Column(
               children: [
@@ -86,7 +224,6 @@ class _GatewayScreenState extends ConsumerState<GatewayScreen> {
 
           const SizedBox(height: 24),
 
-          // Heartbeat
           Text(
             context.l10n.heartbeat,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
@@ -127,6 +264,14 @@ class _GatewayScreenState extends ConsumerState<GatewayScreen> {
         ],
       ),
     );
+  }
+
+  String _formatUptime(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    if (seconds < 3600) return '${seconds ~/ 60}m ${seconds % 60}s';
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    return '${hours}h ${minutes}m';
   }
 
   Future<void> _editToken(

@@ -75,6 +75,12 @@ class ChannelValidation {
     }
   }
 
+  /// Returns an error when WhatsApp is enabled but not connected.
+  static Future<String?> whatsappConnection({required bool isConnected}) async {
+    if (isConnected) return null;
+    return 'Not connected — scan QR to link';
+  }
+
   /// Checks that a signal-cli-rest-api instance is reachable at [apiUrl].
   static Future<String?> signalApi(String apiUrl) async {
     try {

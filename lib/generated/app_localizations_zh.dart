@@ -1892,176 +1892,253 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cancelLink => '取消绑定';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => '搜索模型';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => '没有匹配的模型';
 
   @override
-  String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+  String get useCustomIdHint => '可将搜索文本用作自定义模型 ID';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => '使用模型';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => '个可用模型';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => '模型不可用';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model 已不可用。请在设置中更换模型。';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => '更换模型';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => '标签（可选）';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => '如：工作、个人';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => '选择 API 密钥';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return '验证失败：$error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => '仍然保存';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => '频道已断开';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return '已保存，但频道连接失败：$error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return '错误：$error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => '开始新对话？';
 
   @override
-  String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+  String get newConversationMessage => '将结束当前会话并开始新会话。之前的记录仍保存在磁盘上。';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => '开始新对话';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => '正在重试...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted => '已压缩对话以释放上下文';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => '无法压缩此对话';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => '允许的用户';
 
   @override
-  String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+  String get allowlistEmptyWarning => '允许列表为空 — 任何给此机器人发消息的人都可以与代理对话。';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => '用户 ID 或电话号码';
 
   @override
   String get llmErrorPayloadTooLarge =>
-      'The request is too large for the provider (HTTP 413, \"Payload Too Large\"). This usually happens with very long history, images or base64 attachments. Try a new conversation, send fewer attachments or shorten the context.';
+      '请求对提供商来说过大 (HTTP 413)。通常因历史过长、图片或 base64 附件。请尝试新对话或缩短上下文。';
 
   @override
-  String get llmErrorPayloadTooLargeTitle => 'Request too large';
+  String get llmErrorPayloadTooLargeTitle => '请求过大';
 
   @override
-  String get llmErrorViewDocs => 'View error documentation';
+  String get llmErrorViewDocs => '查看错误文档';
 
   @override
   String get llmErrorOpenRouterPrivacy =>
-      'OpenRouter has no endpoints available for this model under your account\'s data and privacy policy. Open https://openrouter.ai/settings/privacy in a browser (sign in), review which providers and data types you allow, save the changes and try again. You can also pick another model.';
+      '根据您账户的数据政策，OpenRouter 没有此模型的可用端点。请打开 https://openrouter.ai/settings/privacy 检查允许的提供商并重试。';
 
   @override
-  String get llmErrorOpenRouterPrivacyTitle => 'Data policy (OpenRouter)';
+  String get llmErrorOpenRouterPrivacyTitle => '数据政策 (OpenRouter)';
 
   @override
-  String get llmErrorOpenPrivacySettings => 'Open privacy settings';
+  String get llmErrorOpenPrivacySettings => '打开隐私设置';
 
   @override
-  String get llmError401 =>
-      'The API key is invalid or missing. Check your configuration in Settings > Providers and models.';
+  String get llmError401 => 'API 密钥无效或缺失。请检查设置 > 提供商和模型。';
 
   @override
-  String get llmError402 =>
-      'Your account has insufficient balance or requires a paid plan to use this model. Check your plan on the provider\'s site.';
+  String get llmError402 => '账户余额不足或需要付费计划。';
 
   @override
-  String get llmError403 =>
-      'You don\'t have permission to access this model. You may need to enable it in your provider account.';
+  String get llmError403 => '您无权访问此模型。';
 
   @override
-  String get llmError404 =>
-      'The requested model was not found. Verify the model name is correct in Settings.';
+  String get llmError404 => '未找到请求的模型。请在设置中核实名称。';
 
   @override
-  String get llmError413 =>
-      'The request exceeds the maximum allowed size (HTTP 413). Reduce the history, attachments or images in the message.';
+  String get llmError413 => '请求超过最大允许大小 (HTTP 413)。';
 
   @override
-  String get llmError429 =>
-      'Too many requests. The provider has temporarily limited your access. Wait a moment and try again.';
+  String get llmError429 => '请求过多。提供商已暂时限制访问。';
 
   @override
-  String get llmError500 =>
-      'The provider\'s server had an internal error. Try again in a few minutes.';
+  String get llmError500 => '提供商服务器内部错误。请几分钟后重试。';
 
   @override
-  String get llmError503 =>
-      'The provider\'s service is unavailable right now. Try again in a few minutes.';
+  String get llmError503 => '提供商服务当前不可用。';
 
   @override
-  String get llmError529 =>
-      'The provider is overloaded. Try again in a few minutes.';
+  String get llmError529 => '提供商过载。请几分钟后重试。';
 
   @override
   String llmError400(String raw) {
-    return 'The provider rejected the request (400): $raw';
+    return '提供商拒绝了请求 (400): $raw';
   }
 
   @override
-  String get llmErrorNetwork =>
-      'Could not connect to the provider. Check your internet connection.';
+  String get llmErrorNetwork => '无法连接到提供商。请检查网络连接。';
 
   @override
-  String get llmErrorTimeout =>
-      'The request took too long and timed out. Try again.';
+  String get llmErrorTimeout => '请求超时。请重试。';
 
   @override
   String llmErrorWithStatus(int statusCode, String raw) {
-    return 'The provider responded with an error ($statusCode): $raw';
+    return '提供商返回错误 ($statusCode): $raw';
   }
 
   @override
-  String get llmErrorUnknown =>
-      'An error occurred while communicating with the provider. Try again.';
+  String get llmErrorUnknown => '与提供商通信时发生错误。';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => '发现模型';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => '刷新模型列表';
 
   @override
-  String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+  String get modelNotInProviderList => '此模型不在提供商列表中。若 ID 正确可能仍可用。';
+
+  @override
+  String get savedNotConnectedStatus => '已保存 — 未连接';
+
+  @override
+  String get savedNotConnectedHint => '打开设置并重试连接';
+
+  @override
+  String get gatewayRunsLocally => '在您的设备上私有运行';
+
+  @override
+  String get gatewaySettingsLink => '网关设置';
+
+  @override
+  String get mcpServersTitle => '外部工具 (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => '连接外部工具和服务';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$total 个中有 $enabled 个活跃';
+  }
+
+  @override
+  String get securityChecksActive => '安全检查已启用';
+
+  @override
+  String get securityChecksDisabled => '安全检查已禁用';
+
+  @override
+  String get keyRotationAdvanced => '密钥轮换（高级）';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      '这些开关适用于隐私相关工具。其他工具由系统自动管理或通过外部工具 (MCP) 管理。';
+
+  @override
+  String get toolPoliciesMcpLink => '管理外部工具';
+
+  @override
+  String get providerKeyInvalidTapToFix => 'API 密钥无效 — 点击修复';
+
+  @override
+  String get sessionChatLabel => '聊天';
+
+  @override
+  String sessionDetailKey(String key) {
+    return '会话 ID：$key';
+  }
+
+  @override
+  String get switchAgentOrSession => '切换代理或会话';
+
+  @override
+  String get agentsSection => '代理';
+
+  @override
+  String get errorNoBalance => '余额不足';
+
+  @override
+  String get errorAccessDenied => '访问被拒绝';
+
+  @override
+  String get errorModelNotFound => '未找到模型';
+
+  @override
+  String get errorRateLimitReached => '已达速率限制';
+
+  @override
+  String get errorServiceUnavailable => '服务不可用';
+
+  @override
+  String get errorConnection => '连接错误';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return '冷却中 ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count 个错误';
+  }
+
+  @override
+  String get whatsappNotConnected => '未连接 — 扫描二维码绑定';
+
+  @override
+  String get channelHealthIssue => '连接问题 — 点击修复';
+
+  @override
+  String get testConnectionFirst => '保存前先测试连接';
 }

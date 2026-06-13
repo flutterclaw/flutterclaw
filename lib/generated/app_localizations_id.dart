@@ -1975,90 +1975,91 @@ class AppLocalizationsId extends AppLocalizations {
   String get cancelLink => 'Batalkan tautan';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'Cari model';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'Tidak ada model yang cocok dengan pencarian';
 
   @override
   String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+      'Anda dapat menggunakan teks pencarian sebagai ID model kustom';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'Gunakan model';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'model tersedia';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'Model tidak tersedia';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model tidak lagi tersedia. Ubah model di Pengaturan.';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'Ubah model';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'Label (opsional)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'mis. kerja, pribadi';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'Pilih kunci API';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'Validasi gagal: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'Simpan tetap';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'Saluran terputus';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'Disimpan, tetapi saluran gagal terhubung: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'Kesalahan: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'Mulai percakapan baru?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'Ini akan mengakhiri sesi saat ini dan memulai yang baru. Transkrip sebelumnya tetap di disk.';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'Mulai baru';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'Mencoba lagi...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted =>
+      'Percakapan dikompresi untuk membebaskan konteks';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'Tidak dapat mengompresi percakapan ini';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'Pengguna yang diizinkan';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'Daftar izin kosong — siapa pun yang mengirim pesan ke bot ini dapat berbicara dengan agen.';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'ID pengguna atau nomor telepon';
 
   @override
   String get llmErrorPayloadTooLarge =>
@@ -2139,12 +2140,107 @@ class AppLocalizationsId extends AppLocalizations {
       'An error occurred while communicating with the provider. Try again.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'Temukan model';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'Segarkan daftar model';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'Model ini tidak ada di daftar penyedia. Bisa berfungsi jika ID benar.';
+
+  @override
+  String get savedNotConnectedStatus => 'Disimpan — tidak terhubung';
+
+  @override
+  String get savedNotConnectedHint => 'Buka pengaturan dan coba hubungkan lagi';
+
+  @override
+  String get gatewayRunsLocally => 'Berjalan pribadi di perangkat Anda';
+
+  @override
+  String get gatewaySettingsLink => 'Pengaturan gateway';
+
+  @override
+  String get mcpServersTitle => 'Alat eksternal (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'Hubungkan alat dan layanan eksternal';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$enabled dari $total aktif';
+  }
+
+  @override
+  String get securityChecksActive => 'Pemeriksaan keamanan aktif';
+
+  @override
+  String get securityChecksDisabled => 'Pemeriksaan keamanan nonaktif';
+
+  @override
+  String get keyRotationAdvanced => 'Rotasi kunci (lanjutan)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'Tombol ini untuk alat sensitif privasi. Lainnya dikelola otomatis atau via Alat eksternal (MCP).';
+
+  @override
+  String get toolPoliciesMcpLink => 'Kelola alat eksternal';
+
+  @override
+  String get providerKeyInvalidTapToFix =>
+      'Kunci API tidak valid — ketuk untuk memperbaiki';
+
+  @override
+  String get sessionChatLabel => 'Obrolan';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'ID sesi: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'Ganti agen atau sesi';
+
+  @override
+  String get agentsSection => 'Agen';
+
+  @override
+  String get errorNoBalance => 'Saldo tidak cukup';
+
+  @override
+  String get errorAccessDenied => 'Akses ditolak';
+
+  @override
+  String get errorModelNotFound => 'Model tidak ditemukan';
+
+  @override
+  String get errorRateLimitReached => 'Batas laju tercapai';
+
+  @override
+  String get errorServiceUnavailable => 'Layanan tidak tersedia';
+
+  @override
+  String get errorConnection => 'Kesalahan koneksi';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'Jeda ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count kesalahan';
+  }
+
+  @override
+  String get whatsappNotConnected =>
+      'Tidak terhubung — pindai QR untuk menautkan';
+
+  @override
+  String get channelHealthIssue => 'Masalah koneksi — ketuk untuk memperbaiki';
+
+  @override
+  String get testConnectionFirst => 'Uji koneksi sebelum menyimpan';
 }

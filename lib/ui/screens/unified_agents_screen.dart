@@ -1,11 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutterclaw/ui/theme/tokens.dart';
+import 'package:flutterclaw/ui/widgets/empty_state.dart';
 import 'package:flutterclaw/core/agent/session_manager.dart';
 import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/data/models/agent_profile.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
+import 'package:flutterclaw/ui/utils/session_display.dart';
 import 'package:flutterclaw/services/cron_service.dart';
 import 'package:flutterclaw/services/skills_service.dart';
 import 'package:flutterclaw/ui/screens/create_agent_screen.dart';
@@ -93,7 +97,10 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
     if (_loading) {
       return Scaffold(
         appBar: AppBar(title: Text(context.l10n.agents)),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Padding(
+          padding: const EdgeInsets.all(AppTokens.spacingLG),
+          child: EmptyState.loading(),
+        ),
       );
     }
 
@@ -214,41 +221,19 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.agents)),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const CreateAgentScreen(),
-            ),
-          );
-        },
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const CreateAgentScreen()),
+        ),
         icon: const Icon(Icons.add),
         label: Text(context.l10n.createAgent),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.group_outlined,
-                size: 80,
-                color: colors.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                context.l10n.noAgentsYet,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                context.l10n.createYourFirstAgent,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-              ),
-            ],
-          ),
+      body: EmptyState(
+        icon: Icons.group_outlined,
+        title: context.l10n.noAgentsYet,
+        subtitle: context.l10n.createYourFirstAgent,
+        actionLabel: context.l10n.createAgent,
+        onAction: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const CreateAgentScreen()),
         ),
       ),
     );
@@ -433,9 +418,26 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
       );
     }
 
+    final activeAgent = ref.watch(activeAgentProvider);
+    final agents = ref.watch(agentProfilesProvider);
+    final configManager = ref.read(configManagerProvider);
+    final sessionManager = ref.read(sessionManagerProvider);
+
     return Card(
       child: Column(
         children: _sessions.take(5).map((session) {
+          final label = SessionDisplay.title(
+            context.l10n,
+            session.key,
+            meta: session,
+            agents: agents,
+            activeAgent: activeAgent,
+          );
+          final modelName = resolveSessionModelName(
+            session.key,
+            configManager,
+            sessionManager,
+          );
           return ListTile(
             dense: true,
             leading: Icon(
@@ -444,11 +446,11 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
               color: colors.onSurfaceVariant,
             ),
             title: Text(
-              session.key,
+              label,
               style: theme.textTheme.bodyMedium,
             ),
             subtitle: Text(
-              '${context.l10n.messagesCount(session.messageCount)} • ${context.l10n.tokensCount(session.totalTokens)} • ${_timeAgo(session.lastActivity)}',
+              '${SessionDisplay.subtitle(context.l10n, session, modelName)}\n${context.l10n.sessionDetailKey(session.key)}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colors.onSurfaceVariant,
               ),
@@ -461,7 +463,7 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: Text(context.l10n.resetSession),
-                      content: Text(context.l10n.resetSessionConfirm(session.key)),
+                      content: Text(context.l10n.resetSessionConfirm(label)),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
@@ -602,10 +604,6 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
         }).toList(),
       ),
     );
-  }
-
-  Widget _buildSkillsCard(BuildContext context, ThemeData theme, ColorScheme colors) {
-    return _buildSkillsCardWithCallback(context, theme, colors, null);
   }
 
   Widget _buildSkillsCardWithCallback(
@@ -907,17 +905,18 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
               ),
             ),
             const Divider(height: 1),
-            ...agents.map((agent) {
+            ...agents.indexed.map((entry) {
+              final (i, agent) = entry;
               final isActive = agent.id == activeAgent.id;
               return ListTile(
                 leading: Container(
-                  width: 40,
-                  height: 40,
+                  width: AppTokens.touchTargetSM,
+                  height: AppTokens.touchTargetSM,
                   decoration: BoxDecoration(
                     color: isActive
                         ? Theme.of(context).colorScheme.primaryContainer
                         : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusMD),
                   ),
                   child: Center(
                     child: Text(agent.emoji, style: const TextStyle(fontSize: 20)),
@@ -928,11 +927,20 @@ class _UnifiedAgentsScreenState extends ConsumerState<UnifiedAgentsScreen> {
                 trailing: isActive ? const Icon(Icons.check_circle) : null,
                 onTap: () async {
                   Navigator.pop(ctx);
-                  if (!isActive) {
-                    await _switchAgent(agent);
-                  }
+                  if (!isActive) await _switchAgent(agent);
                 },
-              );
+              )
+                  .animate()
+                  .fadeIn(
+                    delay: Duration(milliseconds: i * 40),
+                    duration: AppTokens.durationFast,
+                  )
+                  .slideY(
+                    begin: 0.06,
+                    delay: Duration(milliseconds: i * 40),
+                    duration: AppTokens.durationFast,
+                    curve: Curves.easeOutCubic,
+                  );
             }),
             const Divider(height: 1),
             ListTile(

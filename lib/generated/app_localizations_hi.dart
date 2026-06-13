@@ -1991,90 +1991,90 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cancelLink => 'लिंक रद्द करें';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'मॉडल खोजें';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'आपकी खोज से कोई मॉडल मेल नहीं खाता';
 
   @override
   String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+      'आप खोज पाठ को कस्टम मॉडल ID के रूप में उपयोग कर सकते हैं';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'मॉडल उपयोग करें';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'मॉडल उपलब्ध';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'मॉडल उपलब्ध नहीं';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model अब उपलब्ध नहीं है। सेटिंग्स में मॉडल बदलें।';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'मॉडल बदलें';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'लेबल (वैकल्पिक)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'जैसे: काम, व्यक्तिगत';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'API कुंजी चुनें';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'सत्यापन विफल: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'फिर भी सहेजें';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'चैनल डिस्कनेक्ट';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'सहेजा गया, लेकिन चैनल कनेक्ट नहीं हो सका: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'त्रुटि: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'नई बातचीत शुरू करें?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'यह वर्तमान सत्र समाप्त करेगा और नया शुरू करेगा। पिछला ट्रांसक्रिप्ट डिस्क पर रहेगा।';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'नया शुरू करें';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'पुनः प्रयास...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted => 'संदर्भ खाली करने के लिए बातचीत संकुचित';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'इस बातचीत को संकुचित नहीं किया जा सका';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'अनुमत उपयोगकर्ता';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'अनुमति सूची खाली है — जो भी इस बॉट को संदेश भेजे, एजेंट से बात कर सकता है।';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'उपयोगकर्ता ID या फ़ोन नंबर';
 
   @override
   String get llmErrorPayloadTooLarge =>
@@ -2155,12 +2155,107 @@ class AppLocalizationsHi extends AppLocalizations {
       'An error occurred while communicating with the provider. Try again.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'मॉडल खोजें';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'मॉडल सूची ताज़ा करें';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'यह मॉडल प्रदाता सूची में नहीं है। ID सही हो तो काम कर सकता है।';
+
+  @override
+  String get savedNotConnectedStatus => 'सहेजा — कनेक्ट नहीं';
+
+  @override
+  String get savedNotConnectedHint =>
+      'सेटिंग्स खोलें और कनेक्शन पुनः प्रयास करें';
+
+  @override
+  String get gatewayRunsLocally => 'आपके डिवाइस पर निजी रूप से चलता है';
+
+  @override
+  String get gatewaySettingsLink => 'गेटवे सेटिंग्स';
+
+  @override
+  String get mcpServersTitle => 'बाहरी टूल (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'बाहरी टूल और सेवाएँ कनेक्ट करें';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$total में से $enabled सक्रिय';
+  }
+
+  @override
+  String get securityChecksActive => 'सुरक्षा जाँच सक्रिय';
+
+  @override
+  String get securityChecksDisabled => 'सुरक्षा जाँच निष्क्रिय';
+
+  @override
+  String get keyRotationAdvanced => 'कुंजी रोटेशन (उन्नत)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'ये स्विच गोपनीयता-संवेदनशील टूल के लिए हैं। अन्य स्वचालित या बाहरी टूल (MCP) से प्रबंधित होते हैं।';
+
+  @override
+  String get toolPoliciesMcpLink => 'बाहरी टूल प्रबंधित करें';
+
+  @override
+  String get providerKeyInvalidTapToFix =>
+      'अमान्य API कुंजी — ठीक करने के लिए टैप करें';
+
+  @override
+  String get sessionChatLabel => 'चैट';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'सत्र ID: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'एजेंट या सत्र बदलें';
+
+  @override
+  String get agentsSection => 'एजेंट';
+
+  @override
+  String get errorNoBalance => 'अपर्याप्त शेष';
+
+  @override
+  String get errorAccessDenied => 'पहुँच अस्वीकृत';
+
+  @override
+  String get errorModelNotFound => 'मॉडल नहीं मिला';
+
+  @override
+  String get errorRateLimitReached => 'दर सीमा पहुँची';
+
+  @override
+  String get errorServiceUnavailable => 'सेवा अनुपलब्ध';
+
+  @override
+  String get errorConnection => 'कनेक्शन त्रुटि';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'विराम ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count त्रुटि';
+  }
+
+  @override
+  String get whatsappNotConnected => 'कनेक्ट नहीं — QR स्कैन करके लिंक करें';
+
+  @override
+  String get channelHealthIssue => 'कनेक्शन समस्या — ठीक करने के लिए टैप करें';
+
+  @override
+  String get testConnectionFirst => 'सहेजने से पहले कनेक्शन परीक्षण करें';
 }

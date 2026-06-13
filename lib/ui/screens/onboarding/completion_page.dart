@@ -113,9 +113,15 @@ class CompletionPage extends StatelessWidget {
             title: context.l10n.gateway,
             children: [
               Text(
-                'ws://${summary.gatewayHost}:${summary.gatewayPort}',
+                context.l10n.gatewayRunsLocally,
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                context.l10n.startGatewayWhenLaunches,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
                 ),
               ),
             ],

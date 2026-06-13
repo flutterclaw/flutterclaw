@@ -20,6 +20,49 @@ class _SignalConfigScreenState extends ConsumerState<SignalConfigScreen> {
   late TextEditingController _accountCtrl;
   late List<String> _allowFrom;
   bool _saving = false;
+  bool _testing = false;
+
+  Future<bool> _confirmOpenAllowlist() async {
+    if (_allowFrom.isNotEmpty) return true;
+    if (!mounted) return false;
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.allowedUsersTitle),
+        content: Text(ctx.l10n.allowlistEmptyWarning),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.l10n.saveAnyway),
+          ),
+        ],
+      ),
+    );
+    return proceed == true;
+  }
+
+  Future<void> _testApi() async {
+    final apiUrl = _apiUrlCtrl.text.trim();
+    if (apiUrl.isEmpty) return;
+    setState(() => _testing = true);
+    try {
+      final error = await ChannelValidation.signalApi(apiUrl);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error == null
+              ? context.l10n.connectedStatus
+              : context.l10n.connectionFailed(error)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
 
   @override
   void initState() {
@@ -46,6 +89,7 @@ class _SignalConfigScreenState extends ConsumerState<SignalConfigScreen> {
       );
       return;
     }
+    if (!await _confirmOpenAllowlist()) return;
     setState(() => _saving = true);
     try {
       final validationError = await ChannelValidation.signalApi(apiUrl);
@@ -212,6 +256,18 @@ class _SignalConfigScreenState extends ConsumerState<SignalConfigScreen> {
             entries: _allowFrom,
             onChanged: (entries) => setState(() => _allowFrom = entries),
             hintText: '+12025551234',
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _testing ? null : _testApi,
+            icon: _testing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.check_circle_outline),
+            label: Text(context.l10n.testConnection),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(

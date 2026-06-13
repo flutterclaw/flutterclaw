@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/data/models/config.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
+import 'package:flutterclaw/ui/screens/settings/mcp_servers_screen.dart';
 
 // Helper to get tool info from l10n
 (String, String) _getToolInfo(BuildContext context, String toolName) {
@@ -90,6 +91,34 @@ class _ToolPoliciesScreenState extends ConsumerState<ToolPoliciesScreen> {
               ),
             ),
           ),
+          Card(
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.toolPoliciesOtherToolsNote,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const McpServersScreen(),
+                      ),
+                    ),
+                    child: Text(context.l10n.toolPoliciesMcpLink),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _buildCategory(context, context.l10n.privacySensors, Icons.privacy_tip_outlined,
               _kPrivacyTools, config, configManager),
           const SizedBox(height: 16),

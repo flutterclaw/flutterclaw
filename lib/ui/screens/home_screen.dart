@@ -20,23 +20,52 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   int _currentIndex = 0;
   StreamSubscription<String>? _notifTapSub;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeAutoStartGateway();
       _subscribeToNotificationTaps();
+      _refreshHealth();
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notifTapSub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshHealth();
+    }
+  }
+
+  void _refreshHealth() {
+    final router = ref.read(channelRouterProvider);
+    final connected = <String, bool>{};
+    for (final type in [
+      'telegram',
+      'discord',
+      'slack',
+      'signal',
+      'whatsapp',
+    ]) {
+      final adapter = router.adapterFor(type);
+      connected[type] = adapter?.isConnected ?? false;
+    }
+    ref.read(healthCheckResultsProvider.notifier).refresh(
+          channelConnected: connected,
+        );
   }
 
   /// When the user taps a push notification, switch to the Chat tab and load

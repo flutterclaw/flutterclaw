@@ -1964,90 +1964,91 @@ class AppLocalizationsVi extends AppLocalizations {
   String get cancelLink => 'Hủy liên kết';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'Tìm mô hình';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'Không có mô hình nào khớp với tìm kiếm';
 
   @override
   String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+      'Bạn có thể dùng văn bản tìm kiếm làm ID mô hình tùy chỉnh';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'Dùng mô hình';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'mô hình có sẵn';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'Mô hình không khả dụng';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model không còn khả dụng. Đổi mô hình trong Cài đặt.';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'Đổi mô hình';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'Nhãn (tùy chọn)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'vd. công việc, cá nhân';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'Chọn khóa API';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'Xác minh thất bại: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'Vẫn lưu';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'Kênh đã ngắt kết nối';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'Đã lưu, nhưng kênh không kết nối được: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'Lỗi: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'Bắt đầu cuộc trò chuyện mới?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'Phiên hiện tại sẽ kết thúc và bắt đầu phiên mới. Bản ghi trước vẫn còn trên đĩa.';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'Bắt đầu mới';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'Đang thử lại...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted =>
+      'Cuộc trò chuyện đã được nén để giải phóng ngữ cảnh';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'Không thể nén cuộc trò chuyện này';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'Người dùng được phép';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'Danh sách cho phép trống — bất kỳ ai nhắn bot này đều có thể nói chuyện với tác nhân.';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'ID người dùng hoặc số điện thoại';
 
   @override
   String get llmErrorPayloadTooLarge =>
@@ -2128,12 +2129,106 @@ class AppLocalizationsVi extends AppLocalizations {
       'An error occurred while communicating with the provider. Try again.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'Khám phá mô hình';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'Làm mới danh sách mô hình';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'Mô hình này không có trong danh sách nhà cung cấp. Có thể hoạt động nếu ID đúng.';
+
+  @override
+  String get savedNotConnectedStatus => 'Đã lưu — chưa kết nối';
+
+  @override
+  String get savedNotConnectedHint => 'Mở cài đặt và thử kết nối lại';
+
+  @override
+  String get gatewayRunsLocally => 'Chạy riêng tư trên thiết bị của bạn';
+
+  @override
+  String get gatewaySettingsLink => 'Cài đặt gateway';
+
+  @override
+  String get mcpServersTitle => 'Công cụ bên ngoài (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'Kết nối công cụ và dịch vụ bên ngoài';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$enabled/$total đang hoạt động';
+  }
+
+  @override
+  String get securityChecksActive => 'Kiểm tra bảo mật đang bật';
+
+  @override
+  String get securityChecksDisabled => 'Kiểm tra bảo mật đã tắt';
+
+  @override
+  String get keyRotationAdvanced => 'Luân chuyển khóa (nâng cao)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'Các công tắc này dành cho công cụ nhạy cảm quyền riêng tư. Các công cụ khác được quản lý tự động hoặc qua Công cụ bên ngoài (MCP).';
+
+  @override
+  String get toolPoliciesMcpLink => 'Quản lý công cụ bên ngoài';
+
+  @override
+  String get providerKeyInvalidTapToFix =>
+      'Khóa API không hợp lệ — chạm để sửa';
+
+  @override
+  String get sessionChatLabel => 'Trò chuyện';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'ID phiên: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'Chuyển tác nhân hoặc phiên';
+
+  @override
+  String get agentsSection => 'Tác nhân';
+
+  @override
+  String get errorNoBalance => 'Số dư không đủ';
+
+  @override
+  String get errorAccessDenied => 'Truy cập bị từ chối';
+
+  @override
+  String get errorModelNotFound => 'Không tìm thấy mô hình';
+
+  @override
+  String get errorRateLimitReached => 'Đã đạt giới hạn tốc độ';
+
+  @override
+  String get errorServiceUnavailable => 'Dịch vụ không khả dụng';
+
+  @override
+  String get errorConnection => 'Lỗi kết nối';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'Tạm dừng ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count lỗi';
+  }
+
+  @override
+  String get whatsappNotConnected => 'Chưa kết nối — quét QR để liên kết';
+
+  @override
+  String get channelHealthIssue => 'Sự cố kết nối — chạm để sửa';
+
+  @override
+  String get testConnectionFirst => 'Kiểm tra kết nối trước khi lưu';
 }

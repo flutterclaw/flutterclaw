@@ -1994,176 +1994,268 @@ class AppLocalizationsNl extends AppLocalizations {
   String get cancelLink => 'Koppeling annuleren';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'Modellen zoeken';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'Geen modellen komen overeen met je zoekopdracht';
 
   @override
   String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+      'Je kunt de zoektekst als aangepaste model-ID gebruiken';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'Model gebruiken';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'modellen beschikbaar';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'Model niet beschikbaar';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model is niet meer beschikbaar. Wijzig je model in Instellingen.';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'Model wijzigen';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'Label (optioneel)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'bijv. werk, privé';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'API-sleutel selecteren';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'Validatie mislukt: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'Toch opslaan';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'Kanaal verbroken';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'Opgeslagen, maar kanaal kon niet verbinden: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'Fout: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'Nieuw gesprek starten?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'Dit beëindigt de huidige sessie en start een nieuwe. Het vorige transcript blijft op schijf.';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'Nieuw starten';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'Opnieuw proberen...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted =>
+      'Gesprek gecompacteerd om context vrij te maken';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'Dit gesprek kon niet worden gecompacteerd';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'Toegestane gebruikers';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'De allowlist is leeg — iedereen die deze bot bericht kan met de agent praten.';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'Gebruikers-ID of telefoonnummer';
 
   @override
   String get llmErrorPayloadTooLarge =>
-      'The request is too large for the provider (HTTP 413, \"Payload Too Large\"). This usually happens with very long history, images or base64 attachments. Try a new conversation, send fewer attachments or shorten the context.';
+      'Het verzoek is te groot voor de provider (HTTP 413). Dit gebeurt vaak bij lange geschiedenis, afbeeldingen of base64-bijlagen. Probeer een nieuw gesprek of verkort de context.';
 
   @override
-  String get llmErrorPayloadTooLargeTitle => 'Request too large';
+  String get llmErrorPayloadTooLargeTitle => 'Verzoek te groot';
 
   @override
-  String get llmErrorViewDocs => 'View error documentation';
+  String get llmErrorViewDocs => 'Foutdocumentatie bekijken';
 
   @override
   String get llmErrorOpenRouterPrivacy =>
-      'OpenRouter has no endpoints available for this model under your account\'s data and privacy policy. Open https://openrouter.ai/settings/privacy in a browser (sign in), review which providers and data types you allow, save the changes and try again. You can also pick another model.';
+      'OpenRouter heeft geen beschikbare endpoints voor dit model volgens het gegevensbeleid van je account. Open https://openrouter.ai/settings/privacy, controleer toegestane providers en probeer opnieuw.';
 
   @override
-  String get llmErrorOpenRouterPrivacyTitle => 'Data policy (OpenRouter)';
+  String get llmErrorOpenRouterPrivacyTitle => 'Gegevensbeleid (OpenRouter)';
 
   @override
-  String get llmErrorOpenPrivacySettings => 'Open privacy settings';
+  String get llmErrorOpenPrivacySettings => 'Privacy-instellingen openen';
 
   @override
   String get llmError401 =>
-      'The API key is invalid or missing. Check your configuration in Settings > Providers and models.';
+      'De API-sleutel is ongeldig of ontbreekt. Controleer Instellingen > Providers en modellen.';
 
   @override
-  String get llmError402 =>
-      'Your account has insufficient balance or requires a paid plan to use this model. Check your plan on the provider\'s site.';
+  String get llmError402 => 'Onvoldoende saldo of een betaald plan is vereist.';
 
   @override
-  String get llmError403 =>
-      'You don\'t have permission to access this model. You may need to enable it in your provider account.';
+  String get llmError403 => 'Je hebt geen toegang tot dit model.';
 
   @override
   String get llmError404 =>
-      'The requested model was not found. Verify the model name is correct in Settings.';
+      'Het gevraagde model is niet gevonden. Controleer de naam in Instellingen.';
 
   @override
   String get llmError413 =>
-      'The request exceeds the maximum allowed size (HTTP 413). Reduce the history, attachments or images in the message.';
+      'Het verzoek overschrijdt de maximale grootte (HTTP 413).';
 
   @override
-  String get llmError429 =>
-      'Too many requests. The provider has temporarily limited your access. Wait a moment and try again.';
+  String get llmError429 => 'Te veel verzoeken. Toegang is tijdelijk beperkt.';
 
   @override
   String get llmError500 =>
-      'The provider\'s server had an internal error. Try again in a few minutes.';
+      'Interne serverfout bij de provider. Probeer het over enkele minuten opnieuw.';
 
   @override
   String get llmError503 =>
-      'The provider\'s service is unavailable right now. Try again in a few minutes.';
+      'De service van de provider is momenteel niet beschikbaar.';
 
   @override
   String get llmError529 =>
-      'The provider is overloaded. Try again in a few minutes.';
+      'De provider is overbelast. Probeer het over enige minuten opnieuw.';
 
   @override
   String llmError400(String raw) {
-    return 'The provider rejected the request (400): $raw';
+    return 'De provider weigerde het verzoek (400): $raw';
   }
 
   @override
   String get llmErrorNetwork =>
-      'Could not connect to the provider. Check your internet connection.';
+      'Kan geen verbinding maken met de provider. Controleer je internetverbinding.';
 
   @override
-  String get llmErrorTimeout =>
-      'The request took too long and timed out. Try again.';
+  String get llmErrorTimeout => 'Het verzoek is verlopen. Probeer opnieuw.';
 
   @override
   String llmErrorWithStatus(int statusCode, String raw) {
-    return 'The provider responded with an error ($statusCode): $raw';
+    return 'De provider antwoordde met een fout ($statusCode): $raw';
   }
 
   @override
   String get llmErrorUnknown =>
-      'An error occurred while communicating with the provider. Try again.';
+      'Er is een fout opgetreden bij communicatie met de provider.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'Modellen ontdekken';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'Modellijst vernieuwen';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'Dit model staat niet in de lijst van de provider. Het kan werken als het ID klopt.';
+
+  @override
+  String get savedNotConnectedStatus => 'Opgeslagen — niet verbonden';
+
+  @override
+  String get savedNotConnectedHint =>
+      'Open instellingen en probeer opnieuw te verbinden';
+
+  @override
+  String get gatewayRunsLocally => 'Draait privé op je apparaat';
+
+  @override
+  String get gatewaySettingsLink => 'Gateway-instellingen';
+
+  @override
+  String get mcpServersTitle => 'Externe tools (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'Externe tools en services verbinden';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$enabled van $total actief';
+  }
+
+  @override
+  String get securityChecksActive => 'Beveiligingscontroles actief';
+
+  @override
+  String get securityChecksDisabled => 'Beveiligingscontroles uitgeschakeld';
+
+  @override
+  String get keyRotationAdvanced => 'Sleutelrotatie (geavanceerd)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'Deze schakelaars gelden voor privacygevoelige tools. Andere worden automatisch of via Externe tools (MCP) beheerd.';
+
+  @override
+  String get toolPoliciesMcpLink => 'Externe tools beheren';
+
+  @override
+  String get providerKeyInvalidTapToFix =>
+      'Ongeldige API-sleutel — tik om te herstellen';
+
+  @override
+  String get sessionChatLabel => 'Chat';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'Sessie-ID: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'Agent of sessie wisselen';
+
+  @override
+  String get agentsSection => 'Agenten';
+
+  @override
+  String get errorNoBalance => 'Onvoldoende saldo';
+
+  @override
+  String get errorAccessDenied => 'Toegang geweigerd';
+
+  @override
+  String get errorModelNotFound => 'Model niet gevonden';
+
+  @override
+  String get errorRateLimitReached => 'Limiet bereikt';
+
+  @override
+  String get errorServiceUnavailable => 'Service niet beschikbaar';
+
+  @override
+  String get errorConnection => 'Verbindingsfout';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'Pauze ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count fout(en)';
+  }
+
+  @override
+  String get whatsappNotConnected => 'Niet verbonden — scan QR om te koppelen';
+
+  @override
+  String get channelHealthIssue => 'Verbindingsprobleem — tik om te herstellen';
+
+  @override
+  String get testConnectionFirst => 'Test de verbinding vóór opslaan';
 }

@@ -94,10 +94,12 @@ dependencies:
   mailer: ^6.2.0
   mobile_scanner: ^7.2.0
   csv: ^6.0.0
+  flutter_animate: ^4.5.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  firebase_core_platform_interface: ^6.0.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

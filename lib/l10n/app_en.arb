@@ -2284,7 +2284,7 @@
   "notSetUpStatus": "Not set up",
   "@notSetUpStatus": { "description": "Channel not set up status" },
 
-  "configuredStatus": "Configured",
+  "configuredStatus": "Saved — not connected",
   "@configuredStatus": { "description": "Channel configured status" },
 
   "whatsAppConfigSaved": "WhatsApp configuration saved",
@@ -2858,5 +2858,81 @@
   "@modelNotInProviderList": { "description": "Warning when added model ID is not in the discovered list" },
 
   "validating": "Validating...",
-  "@validating": { "description": "Progress label while validating credentials" }
+  "@validating": { "description": "Progress label while validating credentials" },
+
+  "savedNotConnectedStatus": "Saved — not connected",
+  "@savedNotConnectedStatus": { "description": "Channel saved but adapter not connected" },
+  "savedNotConnectedHint": "Open settings and retry connection",
+  "@savedNotConnectedHint": { "description": "Subtitle when channel is saved but not connected" },
+  "gatewayRunsLocally": "Runs privately on your device",
+  "@gatewayRunsLocally": { "description": "Plain-language gateway description for onboarding" },
+  "gatewaySettingsLink": "Gateway settings",
+  "@gatewaySettingsLink": { "description": "Link from Channels tab to Gateway settings" },
+  "mcpServersTitle": "External tools (MCP)",
+  "@mcpServersTitle": { "description": "Settings tile title for MCP servers" },
+  "mcpServersSubtitleEmpty": "Connect external tools and services",
+  "@mcpServersSubtitleEmpty": { "description": "MCP settings subtitle when none configured" },
+  "mcpServersSubtitleActive": "{enabled} of {total} active",
+  "@mcpServersSubtitleActive": {
+    "description": "MCP settings subtitle when servers exist",
+    "placeholders": {
+      "enabled": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "securitySettingsTitle": "Security",
+  "@securitySettingsTitle": { "description": "Security settings tile title" },
+  "securityChecksActive": "Security checks active",
+  "@securityChecksActive": { "description": "Security settings subtitle when checks enabled" },
+  "securityChecksDisabled": "Security checks disabled",
+  "@securityChecksDisabled": { "description": "Security settings subtitle when unsafe mode on" },
+  "keyRotationAdvanced": "Key rotation (advanced)",
+  "@keyRotationAdvanced": { "description": "Expansion tile for multi-key rotation per provider" },
+  "toolPoliciesOtherToolsNote": "These toggles cover privacy-sensitive tools. Other tools are managed automatically or via External tools (MCP).",
+  "@toolPoliciesOtherToolsNote": { "description": "Clarifies partial tool policy coverage" },
+  "toolPoliciesMcpLink": "Manage external tools",
+  "@toolPoliciesMcpLink": { "description": "Link from tool policies to MCP settings" },
+  "providerKeyInvalidTapToFix": "API key invalid — tap to fix",
+  "@providerKeyInvalidTapToFix": { "description": "Health banner on provider tile" },
+  "sessionChatLabel": "Chat",
+  "@sessionChatLabel": { "description": "Generic chat label in session titles" },
+  "sessionDetailKey": "Session ID: {key}",
+  "@sessionDetailKey": {
+    "description": "Raw session key shown as detail",
+    "placeholders": { "key": { "type": "String" } }
+  },
+  "advancedSettings": "Advanced",
+  "@advancedSettings": { "description": "Advanced settings expansion title" },
+  "switchAgentOrSession": "Switch agent or session",
+  "@switchAgentOrSession": { "description": "Combined agent/session picker title" },
+  "agentsSection": "Agents",
+  "@agentsSection": { "description": "Section header in combined picker" },
+  "errorNoBalance": "No balance",
+  "@errorNoBalance": { "description": "LLM error title for HTTP 402" },
+  "errorAccessDenied": "Access denied",
+  "@errorAccessDenied": { "description": "LLM error title for HTTP 403" },
+  "errorModelNotFound": "Model not found",
+  "@errorModelNotFound": { "description": "LLM error title for HTTP 404" },
+  "errorRateLimitReached": "Rate limit reached",
+  "@errorRateLimitReached": { "description": "LLM error title for HTTP 429" },
+  "errorServiceUnavailable": "Service unavailable",
+  "@errorServiceUnavailable": { "description": "LLM error title for HTTP 5xx" },
+  "errorConnection": "Connection error",
+  "@errorConnection": { "description": "Generic LLM connection error title" },
+  "credentialsCoolingDown": "Cooling down ({reason})",
+  "@credentialsCoolingDown": {
+    "description": "Auth profile cooldown status",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+  "credentialsErrorCount": "{count} error(s)",
+  "@credentialsErrorCount": {
+    "description": "Auth profile error count",
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "whatsappNotConnected": "Not connected — scan QR to link",
+  "@whatsappNotConnected": { "description": "WhatsApp validation when not linked" },
+  "channelHealthIssue": "Connection issue — tap to fix",
+  "@channelHealthIssue": { "description": "Health banner on channel tile" },
+  "testConnectionFirst": "Test connection before saving",
+  "@testConnectionFirst": { "description": "Hint on add provider screen" }
 }

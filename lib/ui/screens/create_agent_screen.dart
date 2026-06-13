@@ -228,7 +228,7 @@ class _CreateAgentScreenState extends ConsumerState<CreateAgentScreen> {
             TextFormField(
               controller: _nameController,
               decoration: InputDecoration(
-                labelText: context.l10n.agentName,
+                labelText: '${context.l10n.agentName} *',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.badge_outlined),
               ),
@@ -269,6 +269,8 @@ class _CreateAgentScreenState extends ConsumerState<CreateAgentScreen> {
               decoration: InputDecoration(
                 labelText: context.l10n.vibe,
                 hintText: context.l10n.vibeHint,
+                helperText: 'Personality and role — shapes how the agent communicates',
+                helperMaxLines: 2,
                 border: const OutlineInputBorder(),
                 prefixIcon: const Padding(
                   padding: EdgeInsets.only(bottom: 40),
@@ -306,7 +308,7 @@ class _CreateAgentScreenState extends ConsumerState<CreateAgentScreen> {
             DropdownButtonFormField<String>(
               value: _selectedModel,
               decoration: InputDecoration(
-                labelText: context.l10n.model,
+                labelText: '${context.l10n.model} *',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.psychology_outlined),
               ),

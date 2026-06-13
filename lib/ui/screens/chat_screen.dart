@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,7 +11,8 @@ import 'package:flutterclaw/core/app_providers.dart';
 import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/ui/screens/settings/providers_models_screen.dart';
 import 'package:flutterclaw/services/analytics_service.dart';
-import 'package:flutterclaw/ui/widgets/agent_switcher_chip.dart';
+import 'package:flutterclaw/ui/theme/tokens.dart';
+import 'package:flutterclaw/ui/widgets/session_switcher_chip.dart';
 import 'package:flutterclaw/ui/widgets/chat/message_bubble.dart';
 import 'package:flutterclaw/ui/widgets/chat/date_separator.dart';
 import 'package:flutterclaw/ui/widgets/chat/input_bar.dart';
@@ -314,6 +316,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   /// Confirms (when there is history) and starts a fresh session, resetting
   /// the persisted transcript — not just the visible messages.
+  void _handleMenuAction(_ChatMenuAction action) {
+    switch (action) {
+      case _ChatMenuAction.newChat:
+        _startNewConversation();
+    }
+  }
+
   Future<void> _startNewConversation() async {
     final hasMessages = ref.read(chatProvider).isNotEmpty;
     if (hasMessages) {
@@ -430,14 +439,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       onTap: () => _focusNode.unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          title: Text(context.l10n.appTitle),
+          title: const AgentSessionSwitcherChip(),
+          titleSpacing: 0,
           actions: [
             const _ThinkingLevelChip(),
-            const SessionSwitcherChip(),
-            IconButton(
-              icon: const Icon(Icons.add_comment_outlined),
-              tooltip: context.l10n.newSession,
-              onPressed: _startNewConversation,
+            PopupMenuButton<_ChatMenuAction>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: 'More',
+              onSelected: _handleMenuAction,
+              itemBuilder: (ctx) => [
+                PopupMenuItem(
+                  value: _ChatMenuAction.newChat,
+                  child: ListTile(
+                    leading: const Icon(Icons.add_comment_outlined),
+                    title: Text(ctx.l10n.newSession),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -520,14 +540,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                           },
                         ),
                   // Scroll-to-bottom FAB
-                  if (!_isNearBottom && messages.isNotEmpty)
+                  if (messages.isNotEmpty)
                     Positioned(
-                      bottom: 8,
-                      right: 12,
-                      child: FloatingActionButton.small(
-                        heroTag: 'scroll_to_bottom',
-                        onPressed: () => _scrollToBottom(force: true),
-                        child: const Icon(Icons.keyboard_arrow_down),
+                      bottom: AppTokens.spacingSM,
+                      right: AppTokens.spacingMD,
+                      child: AnimatedScale(
+                        scale: _isNearBottom ? 0 : 1,
+                        duration: AppTokens.durationFast,
+                        curve: Curves.easeOutCubic,
+                        child: FloatingActionButton.small(
+                          heroTag: 'scroll_to_bottom',
+                          onPressed: () => _scrollToBottom(force: true),
+                          child: const Icon(Icons.keyboard_arrow_down),
+                        ),
                       ),
                     ),
                   // Live voice overlay
@@ -569,6 +594,8 @@ class _ChatEmptyState extends StatelessWidget {
   const _ChatEmptyState({this.agent});
   final dynamic agent; // AgentProfile?
 
+  static const _suggestions = ['What can you do?', '/help', '/status'];
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -577,7 +604,7 @@ class _ChatEmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppTokens.spacingXXL),
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
@@ -588,33 +615,79 @@ class _ChatEmptyState extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(emoji, style: const TextStyle(fontSize: 64)),
-                    const SizedBox(height: 12),
+                    Text(emoji, style: const TextStyle(fontSize: AppTokens.iconHero))
+                        .animate()
+                        .scale(
+                          begin: const Offset(0.7, 0.7),
+                          duration: AppTokens.durationNormal,
+                          curve: Curves.easeOutCubic,
+                        )
+                        .fadeIn(duration: AppTokens.durationNormal),
+                    const SizedBox(height: AppTokens.spacingMD),
                     Text(
                       name,
                       style: theme.textTheme.headlineSmall?.copyWith(
                         color: theme.colorScheme.onSurface,
                         fontWeight: FontWeight.w600,
                       ),
-                    ),
-                    const SizedBox(height: 6),
+                    )
+                        .animate()
+                        .fadeIn(
+                          delay: const Duration(milliseconds: 80),
+                          duration: AppTokens.durationNormal,
+                        )
+                        .slideY(
+                          begin: 0.08,
+                          delay: const Duration(milliseconds: 80),
+                          duration: AppTokens.durationNormal,
+                          curve: Curves.easeOutCubic,
+                        ),
+                    const SizedBox(height: AppTokens.spacingXS),
                     Text(
                       context.l10n.yourPersonalAssistant,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
-                    ),
-                    const SizedBox(height: 24),
+                    )
+                        .animate()
+                        .fadeIn(
+                          delay: const Duration(milliseconds: 130),
+                          duration: AppTokens.durationNormal,
+                        ),
+                    const SizedBox(height: AppTokens.spacingXL),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: AppTokens.spacingSM,
+                      runSpacing: AppTokens.spacingSM,
                       alignment: WrapAlignment.center,
                       children: [
-                        _SuggestionChip(label: 'What can you do?'),
-                        _SuggestionChip(label: '/help'),
-                        _SuggestionChip(label: '/status'),
+                        for (var i = 0; i < _suggestions.length; i++)
+                          _SuggestionChip(label: _suggestions[i])
+                              .animate()
+                              .fadeIn(
+                                delay: Duration(milliseconds: 180 + i * 50),
+                                duration: AppTokens.durationFast,
+                              )
+                              .slideY(
+                                begin: 0.12,
+                                delay: Duration(milliseconds: 180 + i * 50),
+                                duration: AppTokens.durationFast,
+                                curve: Curves.easeOutCubic,
+                              ),
                       ],
                     ),
+                    const SizedBox(height: AppTokens.spacingSM),
+                    Text(
+                      'Try /help for all commands',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: AppTokens.opacityHint),
+                      ),
+                    )
+                        .animate()
+                        .fadeIn(
+                          delay: const Duration(milliseconds: 350),
+                          duration: AppTokens.durationNormal,
+                        ),
                   ],
                 ),
               ),
@@ -787,6 +860,8 @@ class _ThinkingLevelChip extends ConsumerWidget {
     );
   }
 }
+
+enum _ChatMenuAction { newChat }
 
 class _SuggestionChip extends ConsumerWidget {
   const _SuggestionChip({required this.label});

@@ -12,6 +12,7 @@ import "package:flutterclaw/services/pairing_service.dart";
 import "package:flutterclaw/services/channel_validation.dart";
 import "package:flutterclaw/data/models/config.dart";
 import "package:flutterclaw/ui/widgets/security_method_card.dart";
+import "package:flutterclaw/ui/widgets/setup_wizard_scaffold.dart";
 class TelegramConfigScreen extends ConsumerStatefulWidget {
   const TelegramConfigScreen({super.key});
   @override
@@ -26,6 +27,7 @@ class _TelegramConfigScreenState extends ConsumerState<TelegramConfigScreen> {
   /// id → display name
   Map<String, String> _approvedDevices = {};
   bool _isLoading = false;
+  bool _testingToken = false;
 
   @override
   void initState() {
@@ -114,6 +116,25 @@ class _TelegramConfigScreenState extends ConsumerState<TelegramConfigScreen> {
       ),
     );
     return proceed == true;
+  }
+
+  Future<void> _testToken() async {
+    final token = _tokenCtl.text.trim();
+    if (token.isEmpty) return;
+    setState(() => _testingToken = true);
+    try {
+      final error = await ChannelValidation.telegramToken(token);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error == null
+              ? context.l10n.connectedStatus
+              : context.l10n.connectionFailed(error)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _testingToken = false);
+    }
   }
 
   Future<void> _save() async {
@@ -215,262 +236,170 @@ class _TelegramConfigScreenState extends ConsumerState<TelegramConfigScreen> {
     final channelEnabled =
         ref.read(configManagerProvider).config.channels.telegram.enabled;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.telegramConfiguration),
-        actions: [
-          if (channelEnabled)
-            TextButton.icon(
-              onPressed: _isLoading ? null : _disconnect,
-              icon: const Icon(Icons.logout),
-              label: Text(context.l10n.disconnect),
-            ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Bot Token Section
-          Text(context.l10n.botToken, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _tokenCtl,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: context.l10n.botToken,
-              border: const OutlineInputBorder(),
-              hintText: context.l10n.fromBotFatherHint,
-              prefixIcon: const Icon(Icons.key),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.paste),
-                tooltip: context.l10n.paste,
-                onPressed: () async {
-                  final data = await Clipboard.getData(Clipboard.kTextPlain);
-                  if (data?.text != null) _tokenCtl.text = data!.text!;
-                },
+    return SetupWizardScaffold(
+      title: context.l10n.telegramConfiguration,
+      appBarActions: channelEnabled
+          ? [
+              TextButton.icon(
+                onPressed: _isLoading ? null : _disconnect,
+                icon: const Icon(Icons.logout),
+                label: Text(context.l10n.disconnect),
               ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Security Method Section
-          Text(context.l10n.securityMethod, style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-
-          SecurityMethodCard(
-            title: context.l10n.pairingRecommended,
-            description: context.l10n.pairingDescription,
-            icon: Icons.link,
-            isSelected: _dmPolicy == 'pairing',
-            onTap: () => setState(() => _dmPolicy = 'pairing'),
-            color: Colors.blue,
-          ),
-
-          SecurityMethodCard(
-            title: context.l10n.allowlistTitle,
-            description: context.l10n.allowlistDescription,
-            icon: Icons.list_alt,
-            isSelected: _dmPolicy == 'allowlist',
-            onTap: () => setState(() => _dmPolicy = 'allowlist'),
-            color: Colors.green,
-          ),
-
-          SecurityMethodCard(
-            title: context.l10n.openAccess,
-            description: context.l10n.openAccessDescription,
-            icon: Icons.public,
-            isSelected: _dmPolicy == 'open',
-            onTap: () => setState(() => _dmPolicy = 'open'),
-            color: Colors.orange,
-          ),
-
-          SecurityMethodCard(
-            title: context.l10n.disabledAccess,
-            description: context.l10n.disabledAccessDescription,
-            icon: Icons.block,
-            isSelected: _dmPolicy == 'disabled',
-            onTap: () => setState(() => _dmPolicy = 'disabled'),
-            color: Colors.red,
-          ),
-
-          const SizedBox(height: 24),
-
-          // Devices Section (shown for pairing or allowlist)
-          if (_dmPolicy == 'pairing' || _dmPolicy == 'allowlist') ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _dmPolicy == 'pairing'
-                        ? context.l10n.approvedDevices
-                        : context.l10n.allowedUserIdsTitle,
-                    style: theme.textTheme.titleMedium,
+            ]
+          : const [],
+      steps: [
+        SetupWizardStep(
+          title: context.l10n.botToken,
+          subtitle: context.l10n.fromBotFatherHint,
+          isValid: _tokenCtl.text.trim().isNotEmpty,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _tokenCtl,
+                obscureText: true,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: context.l10n.botToken,
+                  border: const OutlineInputBorder(),
+                  hintText: context.l10n.fromBotFatherHint,
+                  prefixIcon: const Icon(Icons.key),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.paste),
+                    tooltip: context.l10n.paste,
+                    onPressed: () async {
+                      final data = await Clipboard.getData(Clipboard.kTextPlain);
+                      if (data?.text != null) {
+                        setState(() => _tokenCtl.text = data!.text!);
+                      }
+                    },
                   ),
                 ),
-                if (_dmPolicy == 'allowlist')
-                  IconButton.filledTonal(
-                    icon: const Icon(Icons.add),
-                    tooltip: context.l10n.addDeviceTooltip,
-                    onPressed: _addDevice,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            if (_approvedDevices.isEmpty)
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _testingToken ? null : _testToken,
+                icon: _testingToken
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+                label: Text(context.l10n.testConnection),
+              ),
+              const SizedBox(height: 16),
               Card(
+                color: colors.primaryContainer.withValues(alpha: 0.3),
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Icon(
-                        _dmPolicy == 'pairing'
-                            ? Icons.link_off
-                            : Icons.info_outline,
-                        size: 40,
-                        color: colors.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _dmPolicy == 'pairing'
-                            ? context.l10n.noApprovedDevicesYet
-                            : context.l10n.noAllowedUsersConfigured,
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _dmPolicy == 'pairing'
-                            ? context.l10n.devicesAppearAfterApproval
-                            : context.l10n.addUserIdsHint,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (_dmPolicy == 'allowlist') ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          context.l10n.allowlistEmptyWarning,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colors.error,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              )
-            else
-              ..._approvedDevices.entries.map(
-                (entry) => Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: colors.primaryContainer,
-                      child: Icon(Icons.person, color: colors.primary),
-                    ),
-                    title: Text(
-                      entry.value.isNotEmpty ? entry.value : entry.key,
-                    ),
-                    subtitle: Text(
-                      entry.value.isNotEmpty
-                          ? context.l10n.idPrefix(entry.key)
-                          : (_dmPolicy == 'pairing'
-                                ? context.l10n.approvedDevice
-                                : context.l10n.allowedUser),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      tooltip: context.l10n.remove,
-                      onPressed: () async {
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: Text(context.l10n.removeDevice),
-                            content: Text(
-                              context.l10n.removeAccessFor(entry.value.isNotEmpty ? entry.value : entry.key),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: Text(context.l10n.cancel),
-                              ),
-                              FilledButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: Text(context.l10n.remove),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirmed == true) {
-                          await _removeDevice(entry.key);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 24),
-          ],
-
-          // Save Button
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton.icon(
-              onPressed: _isLoading ? null : _save,
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save),
-              label: Text(_isLoading ? context.l10n.saving : context.l10n.saveAndConnect),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Help Card
-          Card(
-            color: colors.primaryContainer.withValues(alpha: 0.3),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.help_outline, size: 20, color: colors.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        context.l10n.howToGetBotToken,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: colors.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
                     context.l10n.telegramTokenInstructions,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
                   ),
-                ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        SetupWizardStep(
+          title: context.l10n.securityMethod,
+          subtitle: context.l10n.pairingRecommended,
+          isValid: _dmPolicy != 'allowlist' || _approvedDevices.isNotEmpty,
+          body: _buildSecurityStep(context, theme, colors),
+        ),
+      ],
+      onComplete: _save,
+      completeLabel: context.l10n.saveAndConnect,
+    );
+  }
+
+  Widget _buildSecurityStep(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colors,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SecurityMethodCard(
+          title: context.l10n.pairingRecommended,
+          description: context.l10n.pairingDescription,
+          icon: Icons.link,
+          isSelected: _dmPolicy == 'pairing',
+          onTap: () => setState(() => _dmPolicy = 'pairing'),
+          color: Colors.blue,
+        ),
+        SecurityMethodCard(
+          title: context.l10n.allowlistTitle,
+          description: context.l10n.allowlistDescription,
+          icon: Icons.list_alt,
+          isSelected: _dmPolicy == 'allowlist',
+          onTap: () => setState(() => _dmPolicy = 'allowlist'),
+          color: Colors.green,
+        ),
+        SecurityMethodCard(
+          title: context.l10n.openAccess,
+          description: context.l10n.openAccessDescription,
+          icon: Icons.public,
+          isSelected: _dmPolicy == 'open',
+          onTap: () => setState(() => _dmPolicy = 'open'),
+          color: Colors.orange,
+        ),
+        SecurityMethodCard(
+          title: context.l10n.disabledAccess,
+          description: context.l10n.disabledAccessDescription,
+          icon: Icons.block,
+          isSelected: _dmPolicy == 'disabled',
+          onTap: () => setState(() => _dmPolicy = 'disabled'),
+          color: Colors.red,
+        ),
+        if (_dmPolicy == 'pairing' || _dmPolicy == 'allowlist') ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _dmPolicy == 'pairing'
+                      ? context.l10n.approvedDevices
+                      : context.l10n.allowedUserIdsTitle,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              if (_dmPolicy == 'allowlist')
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.add),
+                  tooltip: context.l10n.addDeviceTooltip,
+                  onPressed: _addDevice,
+                ),
+            ],
+          ),
+          if (_approvedDevices.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _dmPolicy == 'pairing'
+                    ? context.l10n.noApprovedDevicesYet
+                    : context.l10n.allowlistEmptyWarning,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+            )
+          else
+            ..._approvedDevices.entries.map(
+              (entry) => ListTile(
+                title: Text(entry.value.isNotEmpty ? entry.value : entry.key),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _removeDevice(entry.key),
+                ),
               ),
             ),
-          ),
-
-          const SizedBox(height: 16),
         ],
-      ),
+      ],
     );
   }
 }

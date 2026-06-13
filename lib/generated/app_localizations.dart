@@ -1280,10 +1280,10 @@ abstract class AppLocalizations {
   /// **'Model Configuration'**
   String get modelConfiguration;
 
-  /// Advanced settings section
+  /// Advanced settings expansion title
   ///
   /// In en, this message translates to:
-  /// **'Advanced Settings'**
+  /// **'Advanced'**
   String get advancedSettings;
 
   /// Success message
@@ -1592,7 +1592,7 @@ abstract class AppLocalizations {
   /// **'API key'**
   String get credentialsApiKeyFieldLabel;
 
-  /// Security settings screen title
+  /// Security settings tile title
   ///
   /// In en, this message translates to:
   /// **'Security'**
@@ -2873,7 +2873,7 @@ abstract class AppLocalizations {
   /// Channel configured status
   ///
   /// In en, this message translates to:
-  /// **'Configured'**
+  /// **'Saved — not connected'**
   String get configuredStatus;
 
   /// WhatsApp config saved snackbar
@@ -3877,6 +3877,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This model was not found in the provider\'s model list. It may still work if the ID is correct.'**
   String get modelNotInProviderList;
+
+  /// Channel saved but adapter not connected
+  ///
+  /// In en, this message translates to:
+  /// **'Saved — not connected'**
+  String get savedNotConnectedStatus;
+
+  /// Subtitle when channel is saved but not connected
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings and retry connection'**
+  String get savedNotConnectedHint;
+
+  /// Plain-language gateway description for onboarding
+  ///
+  /// In en, this message translates to:
+  /// **'Runs privately on your device'**
+  String get gatewayRunsLocally;
+
+  /// Link from Channels tab to Gateway settings
+  ///
+  /// In en, this message translates to:
+  /// **'Gateway settings'**
+  String get gatewaySettingsLink;
+
+  /// Settings tile title for MCP servers
+  ///
+  /// In en, this message translates to:
+  /// **'External tools (MCP)'**
+  String get mcpServersTitle;
+
+  /// MCP settings subtitle when none configured
+  ///
+  /// In en, this message translates to:
+  /// **'Connect external tools and services'**
+  String get mcpServersSubtitleEmpty;
+
+  /// MCP settings subtitle when servers exist
+  ///
+  /// In en, this message translates to:
+  /// **'{enabled} of {total} active'**
+  String mcpServersSubtitleActive(int enabled, int total);
+
+  /// Security settings subtitle when checks enabled
+  ///
+  /// In en, this message translates to:
+  /// **'Security checks active'**
+  String get securityChecksActive;
+
+  /// Security settings subtitle when unsafe mode on
+  ///
+  /// In en, this message translates to:
+  /// **'Security checks disabled'**
+  String get securityChecksDisabled;
+
+  /// Expansion tile for multi-key rotation per provider
+  ///
+  /// In en, this message translates to:
+  /// **'Key rotation (advanced)'**
+  String get keyRotationAdvanced;
+
+  /// Clarifies partial tool policy coverage
+  ///
+  /// In en, this message translates to:
+  /// **'These toggles cover privacy-sensitive tools. Other tools are managed automatically or via External tools (MCP).'**
+  String get toolPoliciesOtherToolsNote;
+
+  /// Link from tool policies to MCP settings
+  ///
+  /// In en, this message translates to:
+  /// **'Manage external tools'**
+  String get toolPoliciesMcpLink;
+
+  /// Health banner on provider tile
+  ///
+  /// In en, this message translates to:
+  /// **'API key invalid — tap to fix'**
+  String get providerKeyInvalidTapToFix;
+
+  /// Generic chat label in session titles
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get sessionChatLabel;
+
+  /// Raw session key shown as detail
+  ///
+  /// In en, this message translates to:
+  /// **'Session ID: {key}'**
+  String sessionDetailKey(String key);
+
+  /// Combined agent/session picker title
+  ///
+  /// In en, this message translates to:
+  /// **'Switch agent or session'**
+  String get switchAgentOrSession;
+
+  /// Section header in combined picker
+  ///
+  /// In en, this message translates to:
+  /// **'Agents'**
+  String get agentsSection;
+
+  /// LLM error title for HTTP 402
+  ///
+  /// In en, this message translates to:
+  /// **'No balance'**
+  String get errorNoBalance;
+
+  /// LLM error title for HTTP 403
+  ///
+  /// In en, this message translates to:
+  /// **'Access denied'**
+  String get errorAccessDenied;
+
+  /// LLM error title for HTTP 404
+  ///
+  /// In en, this message translates to:
+  /// **'Model not found'**
+  String get errorModelNotFound;
+
+  /// LLM error title for HTTP 429
+  ///
+  /// In en, this message translates to:
+  /// **'Rate limit reached'**
+  String get errorRateLimitReached;
+
+  /// LLM error title for HTTP 5xx
+  ///
+  /// In en, this message translates to:
+  /// **'Service unavailable'**
+  String get errorServiceUnavailable;
+
+  /// Generic LLM connection error title
+  ///
+  /// In en, this message translates to:
+  /// **'Connection error'**
+  String get errorConnection;
+
+  /// Auth profile cooldown status
+  ///
+  /// In en, this message translates to:
+  /// **'Cooling down ({reason})'**
+  String credentialsCoolingDown(String reason);
+
+  /// Auth profile error count
+  ///
+  /// In en, this message translates to:
+  /// **'{count} error(s)'**
+  String credentialsErrorCount(int count);
+
+  /// WhatsApp validation when not linked
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected — scan QR to link'**
+  String get whatsappNotConnected;
+
+  /// Health banner on channel tile
+  ///
+  /// In en, this message translates to:
+  /// **'Connection issue — tap to fix'**
+  String get channelHealthIssue;
+
+  /// Hint on add provider screen
+  ///
+  /// In en, this message translates to:
+  /// **'Test connection before saving'**
+  String get testConnectionFirst;
 }
 
 class _AppLocalizationsDelegate

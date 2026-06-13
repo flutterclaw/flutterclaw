@@ -1977,90 +1977,89 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cancelLink => 'إلغاء الربط';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'البحث عن النماذج';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'لا توجد نماذج تطابق بحثك';
 
   @override
-  String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+  String get useCustomIdHint => 'يمكنك استخدام نص البحث كمعرّف نموذج مخصص';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'استخدام النموذج';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'نماذج متاحة';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'النموذج غير متاح';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model لم يعد متاحًا. غيّر النموذج في الإعدادات.';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'تغيير النموذج';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'تسمية (اختياري)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'مثل: عمل، شخصي';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'اختر مفتاح API';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'فشل التحقق: $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'الحفظ على أي حال';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'القناة غير متصلة';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'تم الحفظ، لكن فشل اتصال القناة: $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'خطأ: $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'بدء محادثة جديدة؟';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'سيُنهي ذلك الجلسة الحالية ويبدأ جلسة جديدة. يبقى النص السابق على القرص.';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'بدء جديد';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'إعادة المحاولة...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted => 'تم ضغط المحادثة لتحرير السياق';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'تعذّر ضغط هذه المحادثة';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'المستخدمون المسموح لهم';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'قائمة السماح فارغة — أي شخص يراسل هذا البوت يمكنه التحدث مع الوكيل.';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'معرّف المستخدم أو رقم الهاتف';
 
   @override
   String get llmErrorPayloadTooLarge =>
@@ -2141,12 +2140,105 @@ class AppLocalizationsAr extends AppLocalizations {
       'An error occurred while communicating with the provider. Try again.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'اكتشاف النماذج';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'تحديث قائمة النماذج';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'هذا النموذج غير موجود في قائمة المزود. قد يعمل إذا كان المعرّف صحيحًا.';
+
+  @override
+  String get savedNotConnectedStatus => 'محفوظ — غير متصل';
+
+  @override
+  String get savedNotConnectedHint => 'افتح الإعدادات وأعد محاولة الاتصال';
+
+  @override
+  String get gatewayRunsLocally => 'يعمل محليًا على جهازك';
+
+  @override
+  String get gatewaySettingsLink => 'إعدادات البوابة';
+
+  @override
+  String get mcpServersTitle => 'أدوات خارجية (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'ربط أدوات وخدمات خارجية';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$enabled من $total نشطة';
+  }
+
+  @override
+  String get securityChecksActive => 'فحوصات الأمان نشطة';
+
+  @override
+  String get securityChecksDisabled => 'فحوصات الأمان معطّلة';
+
+  @override
+  String get keyRotationAdvanced => 'تدوير المفاتيح (متقدم)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'تغطي هذه المفاتيح الأدوات الحساسة للخصوصية. تُدار الأخرى تلقائيًا أو عبر الأدوات الخارجية (MCP).';
+
+  @override
+  String get toolPoliciesMcpLink => 'إدارة الأدوات الخارجية';
+
+  @override
+  String get providerKeyInvalidTapToFix => 'مفتاح API غير صالح — اضغط للإصلاح';
+
+  @override
+  String get sessionChatLabel => 'دردشة';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'معرّف الجلسة: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'تبديل الوكيل أو الجلسة';
+
+  @override
+  String get agentsSection => 'الوكلاء';
+
+  @override
+  String get errorNoBalance => 'رصيد غير كافٍ';
+
+  @override
+  String get errorAccessDenied => 'تم رفض الوصول';
+
+  @override
+  String get errorModelNotFound => 'النموذج غير موجود';
+
+  @override
+  String get errorRateLimitReached => 'تم الوصول إلى حد المعدل';
+
+  @override
+  String get errorServiceUnavailable => 'الخدمة غير متاحة';
+
+  @override
+  String get errorConnection => 'خطأ في الاتصال';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'فترة انتظار ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count خطأ';
+  }
+
+  @override
+  String get whatsappNotConnected => 'غير متصل — امسح QR للربط';
+
+  @override
+  String get channelHealthIssue => 'مشكلة في الاتصال — اضغط للإصلاح';
+
+  @override
+  String get testConnectionFirst => 'اختبر الاتصال قبل الحفظ';
 }

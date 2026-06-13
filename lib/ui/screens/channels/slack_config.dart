@@ -10,6 +10,7 @@ import "package:flutterclaw/services/pairing_service.dart";
 import "package:flutterclaw/services/channel_validation.dart";
 import "package:flutterclaw/data/models/config.dart";
 import "package:flutterclaw/ui/widgets/allowlist_editor.dart";
+import "package:flutterclaw/ui/widgets/setup_wizard_scaffold.dart";
 class SlackConfigScreen extends ConsumerStatefulWidget {
   const SlackConfigScreen({super.key});
   @override
@@ -21,6 +22,55 @@ class _SlackConfigScreenState extends ConsumerState<SlackConfigScreen> {
   late TextEditingController _appTokenCtrl;
   late List<String> _allowFrom;
   bool _saving = false;
+  bool _testing = false;
+
+  Future<bool> _confirmOpenAllowlist() async {
+    if (_allowFrom.isNotEmpty) return true;
+    if (!mounted) return false;
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.allowedUsersTitle),
+        content: Text(ctx.l10n.allowlistEmptyWarning),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(ctx.l10n.saveAnyway),
+          ),
+        ],
+      ),
+    );
+    return proceed == true;
+  }
+
+  Future<void> _testTokens() async {
+    final botToken = _botTokenCtrl.text.trim();
+    final appToken = _appTokenCtrl.text.trim();
+    if (botToken.isEmpty || appToken.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.bothTokensRequired)),
+      );
+      return;
+    }
+    setState(() => _testing = true);
+    try {
+      final error = await ChannelValidation.slackTokens(botToken, appToken);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error == null
+              ? context.l10n.connectedStatus
+              : context.l10n.connectionFailed(error)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
 
   @override
   void initState() {
@@ -69,6 +119,7 @@ class _SlackConfigScreenState extends ConsumerState<SlackConfigScreen> {
       );
       return;
     }
+    if (!await _confirmOpenAllowlist()) return;
     setState(() => _saving = true);
     try {
       final validationError =
@@ -154,84 +205,91 @@ class _SlackConfigScreenState extends ConsumerState<SlackConfigScreen> {
     final channelEnabled =
         ref.read(configManagerProvider).config.channels.slack.enabled;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.l10n.slackConfiguration),
-        actions: [
-          if (channelEnabled)
-            TextButton.icon(
-              onPressed: _saving ? null : _disconnect,
-              icon: const Icon(Icons.logout),
-              label: Text(context.l10n.disconnect),
-            ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
+    return SetupWizardScaffold(
+      title: context.l10n.slackConfiguration,
+      appBarActions: channelEnabled
+          ? [
+              TextButton.icon(
+                onPressed: _saving ? null : _disconnect,
+                icon: const Icon(Icons.logout),
+                label: Text(context.l10n.disconnect),
+              ),
+            ]
+          : const [],
+      steps: [
+        SetupWizardStep(
+          title: context.l10n.setupTitle,
+          subtitle: context.l10n.slackSetupInstructions.split('\n').first,
+          isValid: true,
+          optional: true,
+          body: Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(context.l10n.setupTitle, style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.l10n.slackSetupInstructions,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+              child: Text(
+                context.l10n.slackSetupInstructions,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          TextField(
+        ),
+        SetupWizardStep(
+          title: context.l10n.botTokenXoxb,
+          subtitle: context.l10n.apiKeyTitle,
+          isValid: _botTokenCtrl.text.trim().isNotEmpty,
+          body: TextField(
             controller: _botTokenCtrl,
             obscureText: true,
+            onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               labelText: context.l10n.botTokenXoxb,
               border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.key),
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _appTokenCtrl,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: context.l10n.appLevelToken,
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.vpn_key_outlined),
-            ),
+        ),
+        SetupWizardStep(
+          title: context.l10n.appLevelToken,
+          subtitle: context.l10n.allowedUsersTitle,
+          isValid: _appTokenCtrl.text.trim().isNotEmpty,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _appTokenCtrl,
+                obscureText: true,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: context.l10n.appLevelToken,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.vpn_key_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _testing ? null : _testTokens,
+                icon: _testing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+                label: Text(context.l10n.testConnection),
+              ),
+              const SizedBox(height: 24),
+              AllowlistEditor(
+                entries: _allowFrom,
+                onChanged: (entries) => setState(() => _allowFrom = entries),
+                hintText: 'U0123456789',
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          AllowlistEditor(
-            entries: _allowFrom,
-            onChanged: (entries) => setState(() => _allowFrom = entries),
-            hintText: 'U0123456789',
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check),
-            label: Text(context.l10n.saveAndConnect),
-          ),
-        ],
-      ),
+        ),
+      ],
+      onComplete: _save,
+      completeLabel: context.l10n.saveAndConnect,
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Signal Configuration Screen
-// ---------------------------------------------------------------------------
-

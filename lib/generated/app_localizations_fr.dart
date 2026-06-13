@@ -2003,176 +2003,275 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cancelLink => 'Annuler le lien';
 
   @override
-  String get searchModels => 'Search models';
+  String get searchModels => 'Rechercher des modèles';
 
   @override
-  String get noModelsFound => 'No models match your search';
+  String get noModelsFound => 'Aucun modèle ne correspond à votre recherche';
 
   @override
   String get useCustomIdHint =>
-      'You can use the search text as a custom model ID';
+      'Vous pouvez utiliser le texte de recherche comme ID de modèle personnalisé';
 
   @override
-  String get useModelId => 'Use model';
+  String get useModelId => 'Utiliser le modèle';
 
   @override
-  String get modelsAvailable => 'models available';
+  String get modelsAvailable => 'modèles disponibles';
 
   @override
-  String get modelUnavailableTitle => 'Model unavailable';
+  String get modelUnavailableTitle => 'Modèle indisponible';
 
   @override
   String modelUnavailableMessage(String model) {
-    return '$model is no longer available. Change your model in Settings.';
+    return '$model n\'est plus disponible. Changez de modèle dans Réglages.';
   }
 
   @override
-  String get changeModel => 'Change model';
+  String get changeModel => 'Changer de modèle';
 
   @override
-  String get credentialLabel => 'Label (optional)';
+  String get credentialLabel => 'Libellé (facultatif)';
 
   @override
-  String get credentialLabelHint => 'e.g. work, personal';
+  String get credentialLabelHint => 'ex. pro, personnel';
 
   @override
-  String get selectCredential => 'Select API key';
+  String get selectCredential => 'Sélectionner la clé API';
 
   @override
   String tokenValidationFailed(String error) {
-    return 'Validation failed: $error';
+    return 'Échec de la validation : $error';
   }
 
   @override
-  String get saveAnyway => 'Save anyway';
+  String get saveAnyway => 'Enregistrer quand même';
 
   @override
-  String get channelDisconnected => 'Channel disconnected';
+  String get channelDisconnected => 'Canal déconnecté';
 
   @override
   String channelConnectFailed(String error) {
-    return 'Saved, but the channel failed to connect: $error';
+    return 'Enregistré, mais la connexion du canal a échoué : $error';
   }
 
   @override
   String channelErrorLabel(String error) {
-    return 'Error: $error';
+    return 'Erreur : $error';
   }
 
   @override
-  String get newConversationTitle => 'Start new conversation?';
+  String get newConversationTitle => 'Démarrer une nouvelle conversation ?';
 
   @override
   String get newConversationMessage =>
-      'This will end the current session and start a fresh one. The previous transcript is kept on disk.';
+      'Cela mettra fin à la session actuelle et en démarrera une nouvelle. La transcription précédente est conservée sur le disque.';
 
   @override
-  String get startNewConversation => 'Start new';
+  String get startNewConversation => 'Nouvelle conversation';
 
   @override
-  String get retryingRequest => 'Retrying...';
+  String get retryingRequest => 'Nouvelle tentative...';
 
   @override
-  String get contextCompacted => 'Conversation compacted to free up context';
+  String get contextCompacted =>
+      'Conversation compactée pour libérer du contexte';
 
   @override
-  String get compactionFailed => 'Could not compact this conversation';
+  String get compactionFailed => 'Impossible de compacter cette conversation';
 
   @override
-  String get allowedUsersTitle => 'Allowed users';
+  String get allowedUsersTitle => 'Utilisateurs autorisés';
 
   @override
   String get allowlistEmptyWarning =>
-      'Allowlist is empty — anyone who messages this bot can talk to the agent.';
+      'La liste blanche est vide — toute personne qui écrit à ce bot peut parler à l\'agent.';
 
   @override
-  String get allowFromAddHint => 'User ID or phone number';
+  String get allowFromAddHint => 'ID utilisateur ou numéro de téléphone';
 
   @override
   String get llmErrorPayloadTooLarge =>
-      'The request is too large for the provider (HTTP 413, \"Payload Too Large\"). This usually happens with very long history, images or base64 attachments. Try a new conversation, send fewer attachments or shorten the context.';
+      'La requête est trop volumineuse pour le fournisseur (HTTP 413). Cela arrive souvent avec un historique très long, des images ou des pièces jointes en base64. Essayez une nouvelle conversation ou réduisez le contexte.';
 
   @override
-  String get llmErrorPayloadTooLargeTitle => 'Request too large';
+  String get llmErrorPayloadTooLargeTitle => 'Requête trop volumineuse';
 
   @override
-  String get llmErrorViewDocs => 'View error documentation';
+  String get llmErrorViewDocs => 'Voir la documentation des erreurs';
 
   @override
   String get llmErrorOpenRouterPrivacy =>
-      'OpenRouter has no endpoints available for this model under your account\'s data and privacy policy. Open https://openrouter.ai/settings/privacy in a browser (sign in), review which providers and data types you allow, save the changes and try again. You can also pick another model.';
+      'OpenRouter n\'a aucun point de terminaison disponible pour ce modèle selon la politique de confidentialité de votre compte. Ouvrez https://openrouter.ai/settings/privacy dans un navigateur, vérifiez les fournisseurs autorisés, enregistrez et réessayez.';
 
   @override
-  String get llmErrorOpenRouterPrivacyTitle => 'Data policy (OpenRouter)';
+  String get llmErrorOpenRouterPrivacyTitle =>
+      'Politique de données (OpenRouter)';
 
   @override
-  String get llmErrorOpenPrivacySettings => 'Open privacy settings';
+  String get llmErrorOpenPrivacySettings =>
+      'Ouvrir les paramètres de confidentialité';
 
   @override
   String get llmError401 =>
-      'The API key is invalid or missing. Check your configuration in Settings > Providers and models.';
+      'La clé API est invalide ou manquante. Vérifiez Réglages > Fournisseurs et modèles.';
 
   @override
   String get llmError402 =>
-      'Your account has insufficient balance or requires a paid plan to use this model. Check your plan on the provider\'s site.';
+      'Votre compte n\'a pas assez de crédits ou nécessite un forfait payant pour ce modèle.';
 
   @override
   String get llmError403 =>
-      'You don\'t have permission to access this model. You may need to enable it in your provider account.';
+      'Vous n\'avez pas la permission d\'accéder à ce modèle.';
 
   @override
   String get llmError404 =>
-      'The requested model was not found. Verify the model name is correct in Settings.';
+      'Le modèle demandé est introuvable. Vérifiez le nom du modèle dans les Réglages.';
 
   @override
   String get llmError413 =>
-      'The request exceeds the maximum allowed size (HTTP 413). Reduce the history, attachments or images in the message.';
+      'La requête dépasse la taille maximale autorisée (HTTP 413).';
 
   @override
   String get llmError429 =>
-      'Too many requests. The provider has temporarily limited your access. Wait a moment and try again.';
+      'Trop de requêtes. Le fournisseur a temporairement limité votre accès.';
 
   @override
   String get llmError500 =>
-      'The provider\'s server had an internal error. Try again in a few minutes.';
+      'Le serveur du fournisseur a rencontré une erreur interne. Réessayez dans quelques minutes.';
 
   @override
   String get llmError503 =>
-      'The provider\'s service is unavailable right now. Try again in a few minutes.';
+      'Le service du fournisseur est indisponible. Réessayez dans quelques minutes.';
 
   @override
   String get llmError529 =>
-      'The provider is overloaded. Try again in a few minutes.';
+      'Le fournisseur est surchargé. Réessayez dans quelques minutes.';
 
   @override
   String llmError400(String raw) {
-    return 'The provider rejected the request (400): $raw';
+    return 'Le fournisseur a rejeté la requête (400) : $raw';
   }
 
   @override
   String get llmErrorNetwork =>
-      'Could not connect to the provider. Check your internet connection.';
+      'Impossible de se connecter au fournisseur. Vérifiez votre connexion Internet.';
 
   @override
-  String get llmErrorTimeout =>
-      'The request took too long and timed out. Try again.';
+  String get llmErrorTimeout => 'La requête a expiré. Réessayez.';
 
   @override
   String llmErrorWithStatus(int statusCode, String raw) {
-    return 'The provider responded with an error ($statusCode): $raw';
+    return 'Le fournisseur a répondu avec une erreur ($statusCode) : $raw';
   }
 
   @override
   String get llmErrorUnknown =>
-      'An error occurred while communicating with the provider. Try again.';
+      'Une erreur s\'est produite lors de la communication avec le fournisseur. Réessayez.';
 
   @override
-  String get discoverModels => 'Discover models';
+  String get discoverModels => 'Découvrir les modèles';
 
   @override
-  String get refreshModels => 'Refresh model list';
+  String get refreshModels => 'Actualiser la liste des modèles';
 
   @override
   String get modelNotInProviderList =>
-      'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+      'Ce modèle n\'a pas été trouvé dans la liste du fournisseur. Il peut fonctionner si l\'ID est correct.';
+
+  @override
+  String get savedNotConnectedStatus => 'Enregistré — non connecté';
+
+  @override
+  String get savedNotConnectedHint =>
+      'Ouvrez les réglages et réessayez la connexion';
+
+  @override
+  String get gatewayRunsLocally => 'Fonctionne en privé sur votre appareil';
+
+  @override
+  String get gatewaySettingsLink => 'Réglages de la passerelle';
+
+  @override
+  String get mcpServersTitle => 'Outils externes (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty =>
+      'Connecter des outils et services externes';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$enabled sur $total actifs';
+  }
+
+  @override
+  String get securityChecksActive => 'Contrôles de sécurité actifs';
+
+  @override
+  String get securityChecksDisabled => 'Contrôles de sécurité désactivés';
+
+  @override
+  String get keyRotationAdvanced => 'Rotation des clés (avancé)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'Ces interrupteurs couvrent les outils sensibles à la vie privée. Les autres sont gérés automatiquement ou via Outils externes (MCP).';
+
+  @override
+  String get toolPoliciesMcpLink => 'Gérer les outils externes';
+
+  @override
+  String get providerKeyInvalidTapToFix =>
+      'Clé API invalide — touchez pour corriger';
+
+  @override
+  String get sessionChatLabel => 'Chat';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'ID de session : $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'Changer d\'agent ou de session';
+
+  @override
+  String get agentsSection => 'Agents';
+
+  @override
+  String get errorNoBalance => 'Solde insuffisant';
+
+  @override
+  String get errorAccessDenied => 'Accès refusé';
+
+  @override
+  String get errorModelNotFound => 'Modèle introuvable';
+
+  @override
+  String get errorRateLimitReached => 'Limite de débit atteinte';
+
+  @override
+  String get errorServiceUnavailable => 'Service indisponible';
+
+  @override
+  String get errorConnection => 'Erreur de connexion';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'En pause ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count erreur(s)';
+  }
+
+  @override
+  String get whatsappNotConnected => 'Non connecté — scannez le QR pour lier';
+
+  @override
+  String get channelHealthIssue =>
+      'Problème de connexion — touchez pour corriger';
+
+  @override
+  String get testConnectionFirst => 'Testez la connexion avant d\'enregistrer';
 }

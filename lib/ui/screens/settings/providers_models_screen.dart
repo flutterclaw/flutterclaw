@@ -10,6 +10,7 @@ import 'package:flutterclaw/l10n/l10n_extension.dart';
 import 'package:flutterclaw/services/analytics_service.dart';
 import 'package:flutterclaw/services/model_discovery_service.dart';
 import 'package:flutterclaw/services/provider_key_validator.dart';
+import 'package:flutterclaw/ui/widgets/key_rotation_section.dart';
 import 'package:flutterclaw/ui/widgets/provider_brand_icon.dart';
 
 /// Gemini Live prebuilt voices with their personality descriptions.
@@ -293,107 +294,85 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
               );
             }),
 
-          if (_liveVoiceOptions(config).isNotEmpty) ...[
-            const SizedBox(height: 24),
-            _SectionLabel(title: context.l10n.voiceCallModelSection),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                context.l10n.voiceCallModelDescription,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
+          if (_liveVoiceOptions(config).isNotEmpty)
+            ExpansionTile(
+              title: Text(
+                context.l10n.advancedSettings,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-            Card(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: DropdownButtonFormField<String?>(
-                  initialValue: _resolvedLiveVoiceSelection(config),
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    labelText: context.l10n.voiceCallModelLabel,
-                  ),
-                  items: [
-                    DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text(context.l10n.voiceCallModelAutomatic),
-                    ),
-                    ..._liveVoiceOptions(config).map(
-                      (cm) => DropdownMenuItem<String?>(
-                        value: cm.id,
-                        child: Text(
-                          '${ModelCatalog.getProvider(cm.providerId)?.displayName ?? cm.providerId} — ${cm.displayName}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
-                  onChanged: (v) async {
-                    final cm = ref.read(configManagerProvider);
-                    final d = cm.config.agents.defaults;
-                    final next = v == null
-                        ? d.copyWith(clearLiveVoiceModelId: true)
-                        : d.copyWith(liveVoiceModelId: v);
-                    cm.update(cm.config.copyWith(
-                      agents: cm.config.agents.copyWith(defaults: next),
-                    ));
-                    await cm.save();
-                    setState(() {});
-                  },
-                ),
-              ),
-            ),
-            SwitchListTile(
-              title: Text(context.l10n.preferLiveVoiceBootstrapTitle),
               subtitle: Text(
-                context.l10n.preferLiveVoiceBootstrapSubtitle,
+                context.l10n.voiceCallModelSection,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
               ),
-              value: config.agents.defaults.preferLiveVoiceBootstrap,
-              onChanged: (v) async {
-                final cm = ref.read(configManagerProvider);
-                final next = cm.config.agents.defaults
-                    .copyWith(preferLiveVoiceBootstrap: v);
-                cm.update(cm.config.copyWith(
-                  agents: cm.config.agents.copyWith(defaults: next),
-                ));
-                await cm.save();
-                setState(() {});
-              },
-            ),
-            const SizedBox(height: 4),
-            Card(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: DropdownButtonFormField<String>(
-                  initialValue: kLiveVoices.containsKey(
-                          config.agents.defaults.liveVoiceName)
-                      ? config.agents.defaults.liveVoiceName
-                      : 'Puck',
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    labelText: context.l10n.liveVoiceNameLabel,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    context.l10n.voiceCallModelDescription,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
-                  items: kLiveVoices.entries
-                      .map(
-                        (e) => DropdownMenuItem<String>(
-                          value: e.key,
-                          child: Text('${e.key} — ${e.value}'),
+                ),
+                Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _resolvedLiveVoiceSelection(config),
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        labelText: context.l10n.voiceCallModelLabel,
+                      ),
+                      items: [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text(context.l10n.voiceCallModelAutomatic),
                         ),
-                      )
-                      .toList(),
+                        ..._liveVoiceOptions(config).map(
+                          (cm) => DropdownMenuItem<String?>(
+                            value: cm.id,
+                            child: Text(
+                              '${ModelCatalog.getProvider(cm.providerId)?.displayName ?? cm.providerId} — ${cm.displayName}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (v) async {
+                        final cm = ref.read(configManagerProvider);
+                        final d = cm.config.agents.defaults;
+                        final next = v == null
+                            ? d.copyWith(clearLiveVoiceModelId: true)
+                            : d.copyWith(liveVoiceModelId: v);
+                        cm.update(cm.config.copyWith(
+                          agents: cm.config.agents.copyWith(defaults: next),
+                        ));
+                        await cm.save();
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                ),
+                SwitchListTile(
+                  title: Text(context.l10n.preferLiveVoiceBootstrapTitle),
+                  subtitle: Text(
+                    context.l10n.preferLiveVoiceBootstrapSubtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                  value: config.agents.defaults.preferLiveVoiceBootstrap,
                   onChanged: (v) async {
-                    if (v == null) return;
                     final cm = ref.read(configManagerProvider);
                     final next = cm.config.agents.defaults
-                        .copyWith(liveVoiceName: v);
+                        .copyWith(preferLiveVoiceBootstrap: v);
                     cm.update(cm.config.copyWith(
                       agents: cm.config.agents.copyWith(defaults: next),
                     ));
@@ -401,9 +380,45 @@ class _ProvidersModelsScreenState extends ConsumerState<ProvidersModelsScreen> {
                     setState(() {});
                   },
                 ),
-              ),
+                Card(
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: kLiveVoices.containsKey(
+                              config.agents.defaults.liveVoiceName)
+                          ? config.agents.defaults.liveVoiceName
+                          : 'Puck',
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        labelText: context.l10n.liveVoiceNameLabel,
+                      ),
+                      items: kLiveVoices.entries
+                          .map(
+                            (e) => DropdownMenuItem<String>(
+                              value: e.key,
+                              child: Text('${e.key} — ${e.value}'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) async {
+                        if (v == null) return;
+                        final cm = ref.read(configManagerProvider);
+                        final next = cm.config.agents.defaults
+                            .copyWith(liveVoiceName: v);
+                        cm.update(cm.config.copyWith(
+                          agents: cm.config.agents.copyWith(defaults: next),
+                        ));
+                        await cm.save();
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
 
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -765,6 +780,7 @@ class _CredentialsScreen extends ConsumerStatefulWidget {
 class _CredentialsScreenState extends ConsumerState<_CredentialsScreen> {
   final Set<String> _testing = {};
   final Map<String, bool> _testResults = {};
+  final Set<String> _expandedRotation = {};
 
   /// Runs a live "Test connection" check for a stored credential.
   Future<void> _testCredential(String provId, ProviderCredential cred) async {
@@ -983,104 +999,152 @@ class _CredentialsScreenState extends ConsumerState<_CredentialsScreen> {
     final config = configManager.config;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final profilesAsync = ref.watch(authProfileServiceProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.providers)),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (config.providerCredentials.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(context.l10n.noProvidersConfigured,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
-            )
-          else
-            ...config.providerCredentials.entries.map((entry) {
-              final provId = entry.key;
-              final cred = entry.value;
-              final baseId = provId.split(':').first;
-              final catalogProv = ModelCatalog.getProvider(baseId);
-              final displayLabel = cred.label != null && cred.label!.isNotEmpty
-                  ? '${catalogProv?.displayName ?? baseId} (${cred.label})'
-                  : catalogProv?.displayName ?? provId;
-              return Card(
-                clipBehavior: Clip.antiAlias,
-                child: ListTile(
-                  leading: Container(
-                    width: 40, height: 40,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: colors.primaryContainer,
-                      borderRadius: BorderRadius.circular(AppTokens.radiusSM),
-                    ),
-                    child: ProviderBrandIcon(
-                      provider: catalogProv, size: 18,
-                      iconColor: colors.primary, fallbackIcon: Icons.key,
-                    ),
-                  ),
-                  title: Text(displayLabel,
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                  subtitle: Text(
-                    baseId == 'bedrock' && cred.awsRegion != null
-                        ? 'Region: ${cred.awsRegion}'
-                        : cred.apiBase ?? catalogProv?.apiBase ?? '',
-                    style: theme.textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+      body: profilesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text(context.l10n.errorGeneric('$e'))),
+        data: (authSvc) => ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (config.providerCredentials.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  context.l10n.noProvidersConfigured,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: colors.onSurfaceVariant),
+                ),
+              )
+            else
+              ...config.providerCredentials.entries.map((entry) {
+                final provId = entry.key;
+                final cred = entry.value;
+                final baseId = provId.split(':').first;
+                final catalogProv = ModelCatalog.getProvider(baseId);
+                final displayLabel = cred.label != null && cred.label!.isNotEmpty
+                    ? '${catalogProv?.displayName ?? baseId} (${cred.label})'
+                    : catalogProv?.displayName ?? provId;
+                return Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
                     children: [
-                      if (_testing.contains(provId))
-                        const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else
-                        IconButton(
-                          icon: Icon(
-                            _testResults[provId] == false
-                                ? Icons.error_outline
-                                : Icons.check_circle,
-                            color: _testResults[provId] == null
-                                ? colors.onSurfaceVariant
-                                : _testResults[provId]!
-                                    ? Colors.green
-                                    : colors.error,
-                            size: 18,
+                      ListTile(
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer,
+                            borderRadius: BorderRadius.circular(AppTokens.radiusSM),
                           ),
-                          tooltip: context.l10n.testConnection,
-                          onPressed: () => _testCredential(provId, cred),
+                          child: ProviderBrandIcon(
+                            provider: catalogProv,
+                            size: 18,
+                            iconColor: colors.primary,
+                            fallbackIcon: Icons.key,
+                          ),
                         ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 20),
-                        tooltip: context.l10n.editCredentials,
-                        onPressed: () => _showEditSheet(context, provId, cred),
+                        title: Text(
+                          displayLabel,
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          baseId == 'bedrock' && cred.awsRegion != null
+                              ? 'Region: ${cred.awsRegion}'
+                              : cred.apiBase ?? catalogProv?.apiBase ?? '',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: colors.onSurfaceVariant),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_testing.contains(provId))
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            else
+                              IconButton(
+                                icon: Icon(
+                                  _testResults[provId] == false
+                                      ? Icons.error_outline
+                                      : Icons.check_circle,
+                                  color: _testResults[provId] == null
+                                      ? colors.onSurfaceVariant
+                                      : _testResults[provId]!
+                                          ? Colors.green
+                                          : colors.error,
+                                  size: 18,
+                                ),
+                                tooltip: context.l10n.testConnection,
+                                onPressed: () => _testCredential(provId, cred),
+                              ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 20),
+                              tooltip: context.l10n.editCredentials,
+                              onPressed: () =>
+                                  _showEditSheet(context, provId, cred),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ExpansionTile(
+                        initiallyExpanded: _expandedRotation.contains(baseId),
+                        onExpansionChanged: (open) {
+                          setState(() {
+                            if (open) {
+                              _expandedRotation.add(baseId);
+                            } else {
+                              _expandedRotation.remove(baseId);
+                            }
+                          });
+                        },
+                        title: Text(
+                          context.l10n.keyRotationAdvanced,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        children: [
+                          KeyRotationSection(
+                            provider: baseId,
+                            svc: authSvc,
+                            onChanged: () {
+                              widget.onChanged();
+                              setState(() {});
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                );
+              }),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _AddProviderScreen(onSaved: () {
+                      widget.onChanged();
+                      setState(() {});
+                    }),
+                  ),
                 ),
-              );
-            }),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => _AddProviderScreen(onSaved: () {
-                    widget.onChanged();
-                    setState(() {});
-                  }),
-                ),
+                icon: const Icon(Icons.add),
+                label: Text(context.l10n.addProvider),
               ),
-              icon: const Icon(Icons.add),
-              label: Text(context.l10n.addProvider),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1090,15 +1154,15 @@ class _CredentialsScreenState extends ConsumerState<_CredentialsScreen> {
 // Full-screen Add Provider flow
 // ---------------------------------------------------------------------------
 
-class _AddProviderScreen extends StatefulWidget {
+class _AddProviderScreen extends ConsumerStatefulWidget {
   final VoidCallback onSaved;
   const _AddProviderScreen({required this.onSaved});
 
   @override
-  State<_AddProviderScreen> createState() => _AddProviderScreenState();
+  ConsumerState<_AddProviderScreen> createState() => _AddProviderScreenState();
 }
 
-class _AddProviderScreenState extends State<_AddProviderScreen> {
+class _AddProviderScreenState extends ConsumerState<_AddProviderScreen> {
   String? _selectedProviderId;
   final _apiKeyCtl = TextEditingController();
   final _apiBaseCtl = TextEditingController();
@@ -1107,6 +1171,8 @@ class _AddProviderScreenState extends State<_AddProviderScreen> {
   final _awsRegionCtl = TextEditingController(text: 'us-east-1');
   String _awsAuthMode = 'bearer';
   bool _showAdvanced = false;
+  bool _testing = false;
+  String? _testError;
 
   @override
   void dispose() {
@@ -1315,6 +1381,33 @@ class _AddProviderScreenState extends State<_AddProviderScreen> {
               }
               return const SizedBox.shrink();
             }),
+            if (_selectedProviderId != null &&
+                !(_selectedProviderId == 'bedrock' && _awsAuthMode == 'sigv4')) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _testing ? null : _testConnection,
+                icon: _testing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        _testError == null
+                            ? Icons.check_circle_outline
+                            : Icons.error_outline,
+                        color: _testError == null ? null : colors.error,
+                      ),
+                label: Text(context.l10n.testConnection),
+              ),
+              if (_testError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  context.l10n.testConnectionFirst,
+                  style: theme.textTheme.bodySmall?.copyWith(color: colors.error),
+                ),
+              ],
+            ],
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -1341,6 +1434,39 @@ class _AddProviderScreenState extends State<_AddProviderScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _testConnection() async {
+    if (_selectedProviderId == null) return;
+    final baseId = _selectedProviderId!;
+    if (baseId == 'bedrock' && _awsAuthMode == 'sigv4') return;
+    setState(() {
+      _testing = true;
+      _testError = null;
+    });
+    try {
+      final catalogProv = ModelCatalog.getProvider(baseId);
+      final error = await ProviderKeyValidator.validate(
+        providerId: baseId,
+        apiKey: _apiKeyCtl.text.trim(),
+        apiBase: _apiBaseCtl.text.trim().isNotEmpty
+            ? _apiBaseCtl.text.trim()
+            : catalogProv?.apiBase,
+        awsRegion: _awsRegionCtl.text.trim(),
+        awsAuthMode: _awsAuthMode,
+      );
+      if (!mounted) return;
+      setState(() => _testError = error);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error == null
+              ? context.l10n.connectedStatus
+              : context.l10n.connectionFailed(error)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
   }
 
   void _save(WidgetRef ref) async {

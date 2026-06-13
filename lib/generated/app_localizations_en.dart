@@ -641,7 +641,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelConfiguration => 'Model Configuration';
 
   @override
-  String get advancedSettings => 'Advanced Settings';
+  String get advancedSettings => 'Advanced';
 
   @override
   String get agentCreated => 'Agent created';
@@ -1541,7 +1541,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notSetUpStatus => 'Not set up';
 
   @override
-  String get configuredStatus => 'Configured';
+  String get configuredStatus => 'Saved — not connected';
 
   @override
   String get whatsAppConfigSaved => 'WhatsApp configuration saved';
@@ -2140,4 +2140,97 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get modelNotInProviderList =>
       'This model was not found in the provider\'s model list. It may still work if the ID is correct.';
+
+  @override
+  String get savedNotConnectedStatus => 'Saved — not connected';
+
+  @override
+  String get savedNotConnectedHint => 'Open settings and retry connection';
+
+  @override
+  String get gatewayRunsLocally => 'Runs privately on your device';
+
+  @override
+  String get gatewaySettingsLink => 'Gateway settings';
+
+  @override
+  String get mcpServersTitle => 'External tools (MCP)';
+
+  @override
+  String get mcpServersSubtitleEmpty => 'Connect external tools and services';
+
+  @override
+  String mcpServersSubtitleActive(int enabled, int total) {
+    return '$enabled of $total active';
+  }
+
+  @override
+  String get securityChecksActive => 'Security checks active';
+
+  @override
+  String get securityChecksDisabled => 'Security checks disabled';
+
+  @override
+  String get keyRotationAdvanced => 'Key rotation (advanced)';
+
+  @override
+  String get toolPoliciesOtherToolsNote =>
+      'These toggles cover privacy-sensitive tools. Other tools are managed automatically or via External tools (MCP).';
+
+  @override
+  String get toolPoliciesMcpLink => 'Manage external tools';
+
+  @override
+  String get providerKeyInvalidTapToFix => 'API key invalid — tap to fix';
+
+  @override
+  String get sessionChatLabel => 'Chat';
+
+  @override
+  String sessionDetailKey(String key) {
+    return 'Session ID: $key';
+  }
+
+  @override
+  String get switchAgentOrSession => 'Switch agent or session';
+
+  @override
+  String get agentsSection => 'Agents';
+
+  @override
+  String get errorNoBalance => 'No balance';
+
+  @override
+  String get errorAccessDenied => 'Access denied';
+
+  @override
+  String get errorModelNotFound => 'Model not found';
+
+  @override
+  String get errorRateLimitReached => 'Rate limit reached';
+
+  @override
+  String get errorServiceUnavailable => 'Service unavailable';
+
+  @override
+  String get errorConnection => 'Connection error';
+
+  @override
+  String credentialsCoolingDown(String reason) {
+    return 'Cooling down ($reason)';
+  }
+
+  @override
+  String credentialsErrorCount(int count) {
+    return '$count error(s)';
+  }
+
+  @override
+  String get whatsappNotConnected => 'Not connected — scan QR to link';
+
+  @override
+  String get channelHealthIssue => 'Connection issue — tap to fix';
+
+  @override
+  String get testConnectionFirst => 'Test connection before saving';
 }
