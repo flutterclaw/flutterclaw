@@ -27,7 +27,7 @@ class AgentSessionSwitcherChip extends ConsumerWidget {
         DateTime.now().difference(activeSession.lastActivity).inSeconds < 60;
 
     final agentLabel = activeAgent != null
-        ? '${activeAgent.emoji} ${activeAgent.name}'
+        ? activeAgent.name
         : context.l10n.agentsSection;
 
     return Padding(

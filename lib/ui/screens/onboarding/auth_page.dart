@@ -524,8 +524,23 @@ class _AuthPageState extends State<AuthPage> {
           const SizedBox(height: 16),
         ],
 
-        // Model selection
-        if (models.isNotEmpty) ...[
+        // Model selection — OpenRouter gets a live search widget
+        if (widget.providerId == 'openrouter') ...[
+          Text(context.l10n.selectModel, style: theme.textTheme.titleSmall),
+          const SizedBox(height: 8),
+          _OpenRouterSearch(
+            apiKey: _apiKeyController.text,
+            selectedModelId: _selectedModelId,
+            onModelSelected: (id, displayName) {
+              setState(() {
+                _useCustomModel = false;
+                _selectedModelId = id;
+                _customModelController.clear();
+              });
+              _emitChange();
+            },
+          ),
+        ] else if (models.isNotEmpty) ...[
           Text(context.l10n.selectModel, style: theme.textTheme.titleSmall),
           const SizedBox(height: 8),
           ...models.map((m) => _ModelTile(
@@ -825,6 +840,320 @@ class _ModelTile extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// OpenRouter live search widget (onboarding-specific, no Riverpod needed)
+// ---------------------------------------------------------------------------
+
+class _OpenRouterSearch extends StatefulWidget {
+  final String apiKey;
+  final String? selectedModelId;
+  final void Function(String id, String displayName) onModelSelected;
+
+  const _OpenRouterSearch({
+    required this.apiKey,
+    required this.selectedModelId,
+    required this.onModelSelected,
+  });
+
+  @override
+  State<_OpenRouterSearch> createState() => _OpenRouterSearchState();
+}
+
+class _OpenRouterSearchState extends State<_OpenRouterSearch> {
+  List<DiscoveredModel> _allModels = [];
+  List<DiscoveredModel> _filtered = [];
+  bool _loading = true;
+  String _query = '';
+  final _searchCtl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadModels();
+  }
+
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadModels({bool forceRefresh = false}) async {
+    setState(() => _loading = true);
+    try {
+      final svc = ModelDiscoveryService();
+      final models = await svc.getOpenRouterModels(
+        apiKey: widget.apiKey,
+        forceRefresh: forceRefresh,
+      );
+      if (!mounted) return;
+      setState(() {
+        _allModels = models;
+        _loading = false;
+      });
+      _filter(_query);
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _filter(String query) {
+    final q = query.toLowerCase();
+    setState(() {
+      _query = query;
+      _filtered = q.isEmpty
+          ? _allModels
+          : _allModels
+              .where((m) =>
+                  m.id.toLowerCase().contains(q) ||
+                  m.displayName.toLowerCase().contains(q))
+              .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    // Featured static catalog entries (e.g. Free Router, Auto)
+    final featured = ModelCatalog.chatCatalogModelsForProvider('openrouter');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Featured routers
+        ...featured.map((m) => _ModelTile(
+              model: m,
+              isSelected: widget.selectedModelId == m.id,
+              onTap: () => widget.onModelSelected(m.id, m.displayName),
+            )),
+        const SizedBox(height: 12),
+        // Search field + refresh
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchCtl,
+                decoration: InputDecoration(
+                  labelText: 'Search models',
+                  hintText: 'anthropic/claude, deepseek, llama...',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchCtl.clear();
+                            _filter('');
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: _filter,
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh model list',
+              onPressed: _loading ? null : () => _loadModels(forceRefresh: true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_filtered.isEmpty && _query.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No models found.',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: colors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                FilledButton.tonal(
+                  onPressed: () =>
+                      widget.onModelSelected(_query.trim(), _query.trim()),
+                  child: Text('Use model ID: ${_query.trim()}'),
+                ),
+              ],
+            ),
+          )
+        else
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _filtered.length > 50 ? 50 : _filtered.length,
+              itemBuilder: (ctx, i) {
+                final m = _filtered[i];
+                return _OpenRouterModelTile(
+                  model: m,
+                  isSelected: widget.selectedModelId == m.id,
+                  onTap: () => widget.onModelSelected(m.id, m.displayName),
+                );
+              },
+            ),
+          ),
+        if (!_loading && _query.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '${_allModels.length} models available',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: colors.onSurfaceVariant),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _OpenRouterModelTile extends StatelessWidget {
+  final DiscoveredModel model;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _OpenRouterModelTile({
+    required this.model,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: isSelected
+            ? colors.primaryContainer
+            : colors.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: isSelected
+                  ? Border.all(color: colors.primary, width: 1.5)
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              model.displayName,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (model.isFree) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade100,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'FREE',
+                                style: TextStyle(
+                                  color: Colors.green.shade800,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.text_fields,
+                              size: 11, color: colors.onSurfaceVariant),
+                          if (model.inputModalities.contains('image')) ...[
+                            const SizedBox(width: 4),
+                            Icon(Icons.image_outlined,
+                                size: 11, color: Colors.blue.shade400),
+                          ],
+                          if (model.inputModalities.contains('audio')) ...[
+                            const SizedBox(width: 4),
+                            Icon(Icons.mic_outlined,
+                                size: 11, color: Colors.orange.shade400),
+                          ],
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              model.id,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                                fontSize: 10,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (model.contextWindow > 0)
+                      Text(
+                        ModelCatalog.formatContext(model.contextWindow),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    if (model.pricingPrompt > 0)
+                      Text(
+                        '\$${model.pricingPrompt.toStringAsFixed(2)}/M',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 9,
+                        ),
+                      ),
+                  ],
+                ),
+                if (isSelected) ...[
+                  const SizedBox(width: 6),
+                  Icon(Icons.check_circle, color: colors.primary, size: 18),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 class _ModelCapabilityIcons extends StatelessWidget {
   final CatalogModel model;

@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +11,7 @@ import 'package:flutterclaw/ui/theme/semantic_colors.dart';
 import 'package:flutterclaw/ui/theme/tokens.dart';
 import 'copyable_code_block.dart';
 import 'terminal_output.dart';
+import 'typing_indicator.dart';
 
 /// A single chat message bubble (user, assistant, tool status, image, or document).
 class MessageBubble extends ConsumerStatefulWidget {
@@ -113,7 +113,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                       ),
                     ),
                     child: widget.message.isStreaming && widget.message.text.isEmpty
-                        ? _StreamingShimmer(color: colors.surfaceContainerHighest)
+                        ? const TypingIndicator()
                         : isUser
                             ? Text(
                                 widget.message.text,
@@ -1269,41 +1269,5 @@ class _InteractiveSelectState extends State<_InteractiveSelect> {
 }
 
 // ---------------------------------------------------------------------------
-// Streaming shimmer — shown while an assistant message is loading its first token
-// ---------------------------------------------------------------------------
 
-class _StreamingShimmer extends StatelessWidget {
-  const _StreamingShimmer({required this.color});
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final shimmerColor = Theme.of(context).colorScheme.outline.withValues(alpha: 0.15);
-
-    Widget line(double width) => Container(
-          width: width,
-          height: 12,
-          decoration: BoxDecoration(
-            color: shimmerColor,
-            borderRadius: BorderRadius.circular(AppTokens.radiusSM),
-          ),
-        )
-            .animate(onPlay: (c) => c.repeat())
-            .shimmer(
-              duration: const Duration(milliseconds: 1100),
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.08),
-              curve: Curves.easeInOutSine,
-            );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        line(140),
-        const SizedBox(height: AppTokens.spacingXS),
-        line(100),
-      ],
-    );
-  }
-}
 
