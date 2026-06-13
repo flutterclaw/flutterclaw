@@ -1,13 +1,12 @@
-# FlutterClaw v1.0.16
+# FlutterClaw v1.0.18
 
 ## Highlights
 
-- **Browser tooling:** Expanded `web_browse` with a large automation surface (many new actions), user-assisted **BrowserOverlay**, smarter handling of SPAs and login/auth walls, optional screenshot descriptions, and less noise in the LLM context (no embedded base64 screenshots).
-- **Channels:** Responses route back to the originating channel; intermediate assistant text can flow to channels during long tool loops; channel errors no longer silently stop the agent.
-- **Agent & session:** Repairs for orphaned `tool_use` blocks in transcripts (load + active sessions); stop button cancels the in-flight LLM stream immediately.
-- **OpenClaw parity:** Ongoing port of missing OpenClaw behavior, including adaptive thinking, persistent unsafe mode, `/unsafe` override, and related security/UI affordances (thinking chip, Security settings).
-- **Live Activity:** Correct token/model display and updates when switching agents.
+- **Operational hardening:** Message queue serializes concurrent ingress per session; secure gateway improvements; Android split-brain fix.
+- **UI & setup:** Health checks, setup wizard components, and settings screen redesign.
+- **ClawHub:** Skill search crash fix and install progress feedback.
+- **Code quality:** Analyzer warnings and lint cleanup across the codebase.
 
 ## Notes for builders
 
-- Version: **1.0.16** (build **17**) — see `pubspec.yaml`.
+- Version: **1.0.18** (build **19**) — see `pubspec.yaml`.
